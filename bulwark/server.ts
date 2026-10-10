@@ -1,4 +1,4 @@
-// Local dashboard: npm run dashboard → http://localhost:5317
+// Local site: npm run dashboard → http://localhost:5317 (landing page), /app (dashboard)
 // Streams chaos experiments to the browser as trials finish (Server-Sent Events).
 
 import { readFileSync } from 'node:fs';
@@ -9,7 +9,10 @@ import { runExperiment } from './scorecard';
 import { initTracing } from './tracing';
 
 const PORT = Number(process.env.PORT ?? 5317);
-const PAGE = new URL('./dashboard/index.html', import.meta.url);
+const PAGES: Record<string, URL> = {
+  '/': new URL('./dashboard/landing.html', import.meta.url),
+  '/app': new URL('./dashboard/index.html', import.meta.url),
+};
 
 function send(res: ServerResponse, event: string, data: unknown) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -60,9 +63,9 @@ async function main() {
 
   createServer((req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
-    if (url.pathname === '/') {
+    if (url.pathname in PAGES) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      res.end(readFileSync(PAGE));
+      res.end(readFileSync(PAGES[url.pathname]));
     } else if (url.pathname === '/api/meta') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(

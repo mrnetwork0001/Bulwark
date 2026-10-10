@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bulwark</title>
+<meta name="description" content="Chaos engineering for AI agents. Bulwark attacks your agent in a sandbox, fixes what breaks, and proves the fix with numbers.">
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --border: #e3e6eb; --text: #14171c; --muted: #5d6673;
+    --accent: #2f5bea; --accent-ink: #ffffff; --pass: #1f9d55; --broken: #d97706; --crash: #dc2626; --hung: #7c3aed; --runaway: #db2777;
+    --pending: #d5d9e0; --code-bg: #0f1319; --code-text: #d7dde6; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1015; --surface: #151a21; --border: #262d38; --text: #e8ebf0; --muted: #929cab;
+      --accent: #6b8cff; --accent-ink: #0d1015; --pass: #34c27a; --broken: #f59e0b; --crash: #f05252; --hung: #a78bfa; --runaway: #f472b6;
+      --pending: #2c3440; --code-bg: #0a0d12; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+  nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+  .logo { font-weight: 800; font-size: 18px; letter-spacing: -.02em; text-decoration: none; display: flex; align-items: center; gap: 8px; }
+  .logo svg { color: var(--accent); }
+  .navlinks { display: flex; align-items: center; gap: 22px; font-size: 14px; }
+  .navlinks a:not(.btn) { color: var(--muted); text-decoration: none; }
+  .navlinks a:not(.btn):hover { color: var(--text); }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-weight: 650; text-decoration: none; font-size: 15px; transition: transform .1s, filter .15s; }
+  .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.sm { padding: 7px 14px; font-size: 14px; }
+
+  .hero { padding: 72px 0 56px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 4px 12px; border-radius: 99px; margin-bottom: 18px; }
+  h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.07; letter-spacing: -.035em; margin: 0 0 18px; }
+  h1 em { font-style: normal; color: var(--crash); }
+  .lede { font-size: 18px; color: var(--muted); margin: 0 0 28px; max-width: 34em; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .term { background: var(--code-bg); color: var(--code-text); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; border: 1px solid var(--border); }
+  .term .bar { display: flex; gap: 6px; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .term .bar i { width: 10px; height: 10px; border-radius: 50%; background: #3a4250; }
+  .term pre { margin: 0; padding: 16px 18px 20px; font: 12.5px/1.75 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; }
+  .t-dim { color: #7d8796; } .t-ok { color: #34c27a; } .t-bad { color: #f05252; } .t-warn { color: #f59e0b; } .t-acc { color: #8aa4ff; }
+
+  section { padding: 64px 0; }
+  .sec-head { max-width: 640px; margin-bottom: 36px; }
+  h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -.03em; line-height: 1.15; margin: 0 0 12px; }
+  .sec-head p { color: var(--muted); margin: 0; font-size: 17px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .stat b { display: block; font-size: 34px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: 14px; }
+  .src { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  .loop { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; counter-reset: step; }
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; position: relative; }
+  .step::before { counter-increment: step; content: "0" counter(step); font: 600 13px ui-monospace, monospace; color: var(--accent); }
+  .step h3 { margin: 8px 0 6px; font-size: 18px; letter-spacing: -.01em; }
+  .step p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .faults { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .fault { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .fault code { font-size: 13px; color: var(--accent); }
+  .fault h3 { margin: 6px 0 4px; font-size: 16px; }
+  .fault p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .dots { display: flex; flex-wrap: wrap; gap: 3px; }
+  .dots i { width: 10px; height: 10px; border-radius: 2px; background: var(--pass); }
+  .dots i.b { background: var(--broken); } .dots i.c { background: var(--crash); } .dots i.h { background: var(--hung); } .dots i.r { background: var(--runaway); }
+  .fault .score { float: right; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--crash); }
+
+  .why { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .why div { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; }
+  .why h3 { margin: 0 0 6px; font-size: 17px; }
+  .why p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .tool { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+  .tool h3 { margin: 0 0 6px; font-size: 18px; }
+  .tool p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .cta { text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 56px 24px; box-shadow: var(--shadow); }
+  .cta p { color: var(--muted); margin: 0 auto 26px; max-width: 32em; font-size: 17px; }
+  footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; padding-top: 48px; }
+    .stats, .loop { grid-template-columns: repeat(2, 1fr); }
+    .faults, .why, .stack { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .navlinks a:not(.btn) { display: none; }
+    .stats, .loop { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="logo" href="/">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 4 5.5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10v-6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke-linecap="round"/></svg>
+      Bulwark
+    </a>
+    <div class="navlinks">
+      <a href="#how">How it works</a>
+      <a href="#faults">Faults</a>
+      <a href="#stack">Built with</a>
+      <a class="btn sm" href="/app">Launch app →</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <span class="eyebrow">Chaos engineering for AI agents · #neatHack</span>
+      <h1>Your agent passes its tests.<br>It also just <em>refunded a customer twice.</em></h1>
+      <p class="lede">Bulwark attacks your AI agent in a sandbox with the failures the real world throws at it: slow APIs, rate limits, broken JSON, prompt injection. It checks your business rules on every run, fixes what breaks, and proves the fix with numbers.</p>
+      <div class="ctas">
+        <a class="btn" href="/app">Launch app →</a>
+        <a class="btn ghost" href="#how">See how it works</a>
+      </div>
+    </div>
+    <div class="term" aria-label="Example Bulwark scorecard output">
+      <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="t-dim">$</span> npm run chaos
+<span class="t-dim">Bulwark → refundbot | 20 trials/fault | seed 42</span>
+
+<span class="t-dim">fault                 pass   95% CI</span>
+baseline             <span class="t-ok">20/20</span>  84–100%  <span class="t-ok">all rules held</span>
+latency-spike        <span class="t-bad">12/20</span>  39–78%   <span class="t-warn">8 hung</span>
+timeout-after-commit <span class="t-bad">12/20</span>  39–78%   <span class="t-bad">8× double refund</span>
+malformed-response   <span class="t-bad">13/20</span>  43–82%   <span class="t-warn">7 crashed</span>
+rate-limit           <span class="t-bad">10/20</span>  30–70%   <span class="t-warn">10 crashed</span>
+prompt-injection     <span class="t-bad"> 8/20</span>  22–61%   <span class="t-bad">$5,000 on a $49 order</span>
+stuck-pending        <span class="t-bad">10/20</span>  30–70%   <span class="t-warn">10 runaway</span>
+
+<span class="t-acc">→ every failure replayable from its seed</span></pre>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <div class="stats">
+        <div class="stat"><b>6</b><span>real-world faults, injected at the wire</span></div>
+        <div class="stat"><b>140</b><span>sandboxed trials in under 10 seconds</span></div>
+        <div class="stat"><b>8 / 20</b><span>runs refunded a customer twice</span></div>
+        <div class="stat"><b>12 / 20</b><span>runs obeyed instructions injected into tool output</span></div>
+      </div>
+      <p class="src">Numbers from Bulwark's first run against the RefundBot demo agent (seed 42, 20 trials per fault). Reproduce them with <code>npm run chaos</code>.</p>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Attack. Observe. Fix. Prove.</h2>
+        <p>Unit tests check that your agent works. Bulwark checks that it keeps working when the world breaks.</p>
+      </div>
+      <div class="loop">
+        <div class="step"><h3>Attack</h3><p>Maps your agent's repo, finds unguarded tool calls, and injects faults between the agent and its services, in a sandbox.</p></div>
+        <div class="step"><h3>Observe</h3><p>Runs every attack many times and checks your rules, written in plain English, against what really happened in the ledger.</p></div>
+        <div class="step"><h3>Fix</h3><p>A fixer agent writes the patch: timeouts, idempotency keys, validation, step budgets. Each attempt is checkpointed, and a failed fix is rolled back.</p></div>
+        <div class="step"><h3>Prove</h3><p>A separate judge agent re-runs the same attacks, compares before and after with confidence intervals, and opens a PR with the evidence.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faults">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>The failures your tests never see</h2>
+        <p>Each square is one sandboxed run of RefundBot under that fault. Green passed every rule; anything else broke something.</p>
+      </div>
+      <div class="faults" id="faultgrid"></div>
+      <p class="src">Legend: <span style="color:var(--pass)">■</span> passed · <span style="color:var(--broken)">■</span> broke a rule · <span style="color:var(--crash)">■</span> crashed · <span style="color:var(--hung)">■</span> hung · <span style="color:var(--runaway)">■</span> runaway loop</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><h2>Built to be trusted, not just impressive</h2></div>
+      <div class="why">
+        <div><h3>The fixer never grades its own work</h3><p>Red, Blue and Judge agents attack, fix and verify separately, so a fix only counts when an independent run confirms it.</p></div>
+        <div><h3>Honest statistics</h3><p>Pass rates come with 95% confidence intervals. A lucky streak is never reported as a fix.</p></div>
+        <div><h3>Safe by default</h3><p>Sandbox-only targets, a budget cap on every run, and a human merges every PR. Bulwark never pushes to main.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="wrap">
+      <div class="sec-head"><h2>Built with</h2></div>
+      <div class="stack">
+        <div class="tool"><h3>neatlogs</h3><p>Every experiment, trial, tool call and injected fault is traced, so you can see exactly where an agent broke and compare runs before and after a fix.</p></div>
+        <div class="tool"><h3>Entire</h3><p>entire-graph finds the weak links in the agent's repo. Checkpoints save each fix attempt so a failed fix can be rolled back.</p></div>
+        <div class="tool"><h3>cfo.ai</h3><p>Plans Bulwark's business: what each experiment costs to run, measured from real traces, against what a single incident costs.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="cta">
+        <h2>Break your agent before your users do.</h2>
+        <p>Run 140 sandboxed attacks against RefundBot and watch the results come in live.</p>
+        <a class="btn" href="/app">Launch app →</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Bulwark · built during #neatHack, October 2026</span>
+    <span>Agents you can trust to run without you watching.</span>
+  </div>
+</footer>
+
+<script>
+// Fault cards use the real seed-42 results from the first scorecard.
+const FAULTS = [
+  ['timeout-after-commit', 'Refund commits, then the response times out', 'A blind retry refunds the customer twice.', 12, { b: 7, c: 1 }],
+  ['prompt-injection', 'Tool output contains injected instructions', 'The agent obeys and refunds $5,000 on a $49 order.', 8, { b: 12 }],
+  ['latency-spike', 'Order lookup latency spikes to 10s', 'No timeout, so the run hangs.', 12, { h: 8 }],
+  ['rate-limit', 'Orders API returns 429', 'No retry, so the run crashes.', 10, { c: 10 }],
+  ['malformed-response', 'Order lookup returns truncated JSON', 'Trusts the JSON, so the run crashes.', 13, { c: 7 }],
+  ['stuck-pending', 'Order stays "pending" forever', 'Re-checks forever, burning steps and tokens.', 10, { r: 10 }],
+];
+document.getElementById('faultgrid').innerHTML = FAULTS.map(([id, title, desc, pass, fails]) => {
+  const squares = Array(pass).fill('<i></i>');
+  for (const [k, n] of Object.entries(fails)) squares.push(...Array(n).fill(`<i class="${k}"></i>`));
+  return `<div class="fault"><span class="score">${pass}/20</span><code>${id}</code><h3>${title}</h3><p>${desc}</p><div class="dots">${squares.join('')}</div></div>`;
+}).join('');
+</script>
+</body>
+</html>
