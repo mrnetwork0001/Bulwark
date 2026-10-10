@@ -29,6 +29,13 @@ export interface ExperimentOptions {
   brain: BrainMode;
   deadlineMs: number;
   maxSteps: number;
+  /** Called as each trial finishes, for live views. */
+  onTrial?: (t: { index: number; obs: TrialObservation; broken: BrokenRule[] }) => void;
+}
+
+export interface BrokenRule {
+  rule: string;
+  detail?: string;
 }
 
 export async function runExperiment(
@@ -43,36 +50,35 @@ export async function runExperiment(
   return trace(
     { name: 'bulwark.experiment', kind: 'WORKFLOW', attributes: { target: target.name, fault: faultId, trials: opts.trials } },
     async () => {
+      const outcomes: Record<Outcome, number> = { completed: 0, crashed: 0, hung: 0, runaway: 0 };
+      const violations: Record<string, number> = Object.fromEntries(compiled.map((c) => [c.rule, 0]));
+      const examples: ExperimentResult['examples'] = [];
+      let passed = 0;
+
       const observations: TrialObservation[] = await Promise.all(
-        Array.from({ length: opts.trials }, (_, i) =>
-          runTrial({
+        Array.from({ length: opts.trials }, async (_, i) => {
+          const obs = await runTrial({
             target,
             fault,
             seed: hashSeed(opts.seed, faultId, i),
             brain: opts.brain,
             deadlineMs: opts.deadlineMs,
             maxSteps: opts.maxSteps,
-          }),
-        ),
+          });
+          outcomes[obs.outcome]++;
+          const broken: BrokenRule[] = [];
+          for (const { rule, check } of compiled) {
+            const res = check(obs);
+            if (res.ok) continue;
+            broken.push({ rule, detail: res.detail });
+            violations[rule]++;
+            if (!examples.some((e) => e.rule === rule)) examples.push({ rule, seed: obs.seed, detail: res.detail });
+          }
+          if (broken.length === 0) passed++;
+          opts.onTrial?.({ index: i, obs, broken });
+          return obs;
+        }),
       );
-
-      const outcomes: Record<Outcome, number> = { completed: 0, crashed: 0, hung: 0, runaway: 0 };
-      const violations: Record<string, number> = Object.fromEntries(compiled.map((c) => [c.rule, 0]));
-      const examples: ExperimentResult['examples'] = [];
-      let passed = 0;
-
-      for (const obs of observations) {
-        outcomes[obs.outcome]++;
-        let ok = true;
-        for (const { rule, check } of compiled) {
-          const res = check(obs);
-          if (res.ok) continue;
-          ok = false;
-          violations[rule]++;
-          if (!examples.some((e) => e.rule === rule)) examples.push({ rule, seed: obs.seed, detail: res.detail });
-        }
-        if (ok) passed++;
-      }
 
       return {
         fault: faultId,
