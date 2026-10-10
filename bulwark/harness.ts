@@ -1,0 +1,105 @@
+// Runs one sandboxed trial of the target agent under one fault, and records what
+// actually happened: outcome, timing, steps, and the real side effects (refunds,
+// emails) taken from the sandbox ledger rather than from the agent's own claims.
+
+import { trace } from 'neatlogs';
+import type { Brain } from '../targets/refundbot/agent';
+import { ClaudeBrain, SimulatedBrain } from '../targets/refundbot/brains';
+import { PaymentsSandbox, sandboxTransport, type Email, type Order, type Refund } from '../targets/refundbot/payments';
+import { injectFault, type Fault } from './chaos/faults';
+import { mulberry32 } from './stats';
+import type { BulwarkTarget } from './target';
+
+export type Outcome = 'completed' | 'crashed' | 'hung' | 'runaway';
+export type BrainMode = 'simulated' | 'claude';
+
+export interface TrialObservation {
+  seed: number;
+  outcome: Outcome;
+  error?: string;
+  durationMs: number;
+  steps: number;
+  faultsFired: number;
+  reply?: string;
+  customerEmail: string;
+  orders: Order[];
+  refunds: Refund[];
+  emails: Email[];
+}
+
+export interface TrialOptions {
+  target: BulwarkTarget;
+  fault?: Fault;
+  seed: number;
+  brain: BrainMode;
+  /** Wall-clock budget before the trial is declared hung. */
+  deadlineMs: number;
+  /** Safety net so a looping agent can't run forever; exceeding it is a "runaway". */
+  maxSteps: number;
+}
+
+class StepCapExceeded extends Error {}
+
+export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
+  const { orders, ticket } = opts.target.fixtures();
+  const sandbox = new PaymentsSandbox(orders);
+  const abort = new AbortController();
+  const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0 };
+  const transport = injectFault(sandboxTransport(sandbox, abort.signal), opts.fault, faultCtx);
+
+  const inner: Brain =
+    opts.brain === 'claude' ? new ClaudeBrain() : new SimulatedBrain(mulberry32(opts.seed ^ 0x9e3779b9));
+  let steps = 0;
+  const brain: Brain = {
+    name: inner.name,
+    decide: async (ctx) => {
+      if (abort.signal.aborted) throw new Error('aborted');
+      if (++steps > opts.maxSteps) throw new StepCapExceeded(`exceeded ${opts.maxSteps} steps`);
+      return inner.decide(ctx);
+    },
+  };
+
+  return trace(
+    {
+      name: 'bulwark.trial',
+      kind: 'CHAIN',
+      attributes: { target: opts.target.name, fault: opts.fault?.id ?? 'none', seed: opts.seed },
+    },
+    async () => {
+      const start = performance.now();
+      let outcome: Outcome = 'completed';
+      let error: string | undefined;
+      let reply: string | undefined;
+      let timer: NodeJS.Timeout | undefined;
+      const deadline = new Promise<'hung'>((resolve) => {
+        timer = setTimeout(() => resolve('hung'), opts.deadlineMs);
+      });
+
+      try {
+        const res = await Promise.race([opts.target.run(ticket, { transport, brain }), deadline]);
+        if (res === 'hung') outcome = 'hung';
+        else reply = res.reply;
+      } catch (err) {
+        outcome = err instanceof StepCapExceeded ? 'runaway' : 'crashed';
+        error = err instanceof Error ? err.message : String(err);
+      } finally {
+        clearTimeout(timer);
+        abort.abort();
+      }
+
+      return {
+        seed: opts.seed,
+        outcome,
+        error,
+        durationMs: performance.now() - start,
+        steps: Math.min(steps, opts.maxSteps + 1),
+        faultsFired: faultCtx.fired,
+        reply,
+        customerEmail: ticket.customerEmail,
+        orders,
+        refunds: [...sandbox.refunds],
+        emails: [...sandbox.emails],
+      };
+    },
+  );
+}

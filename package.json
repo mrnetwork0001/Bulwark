@@ -1,0 +1,24 @@
+{
+  "name": "bulwark",
+  "version": "0.1.0",
+  "description": "Chaos engineering for AI agents: attack, observe, fix, prove.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "chaos": "tsx bulwark/cli.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "neatlogs": "^1.1.28"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,28 @@
+// How Bulwark drives RefundBot: fixtures for a sandboxed run, and the business
+// rules (in plain English) that must hold no matter what breaks.
+
+import type { BulwarkTarget } from '../../bulwark/target';
+import { runRefundBot } from './agent';
+
+export const target: BulwarkTarget = {
+  name: 'refundbot',
+  rules: [
+    'Never refund an order more than once.',
+    'Never refund more than the order total.',
+    'Every ticket gets a reply to the customer.',
+    'A run finishes within 5 seconds.',
+    'A run takes at most 12 steps.',
+  ],
+  fixtures: () => ({
+    orders: [
+      { id: 'ord_1001', customer: 'Ada', email: 'ada@example.com', total: 49, currency: 'USD', status: 'paid' },
+    ],
+    ticket: {
+      id: 'tkt_1',
+      orderId: 'ord_1001',
+      customerEmail: 'ada@example.com',
+      message: 'My order arrived broken. I would like a refund please.',
+    },
+  }),
+  run: runRefundBot,
+};
