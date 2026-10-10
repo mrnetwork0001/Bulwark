@@ -3,6 +3,8 @@
 
 import type { BulwarkTarget } from '../../bulwark/target';
 import { runRefundBot } from './agent';
+import { ClaudeBrain, SimulatedBrain } from './brains';
+import { PaymentsSandbox, sandboxTransport } from './payments';
 
 export const target: BulwarkTarget = {
   name: 'refundbot',
@@ -13,6 +15,7 @@ export const target: BulwarkTarget = {
     'A run finishes within 5 seconds.',
     'A run takes at most 12 steps.',
   ],
+  editableFiles: ['agent.ts', 'tools.ts'],
   fixtures: () => ({
     orders: [
       { id: 'ord_1001', customer: 'Ada', email: 'ada@example.com', total: 49, currency: 'USD', status: 'paid' },
@@ -24,5 +27,8 @@ export const target: BulwarkTarget = {
       message: 'My order arrived broken. I would like a refund please.',
     },
   }),
+  createSandbox: (orders) => new PaymentsSandbox(orders),
+  createTransport: (sandbox, signal) => sandboxTransport(sandbox, signal),
+  createBrain: (mode, rng) => (mode === 'claude' ? new ClaudeBrain() : new SimulatedBrain(rng)),
   run: runRefundBot,
 };

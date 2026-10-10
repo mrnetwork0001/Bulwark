@@ -8,7 +8,8 @@
     "chaos": "tsx bulwark/cli.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "dashboard": "tsx bulwark/server.ts"
+    "dashboard": "tsx bulwark/server.ts",
+    "fix": "tsx bulwark/fix.ts"
   },
   "engines": {
     "node": ">=20"

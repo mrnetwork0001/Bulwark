@@ -8,3 +8,4 @@ dist/
 coverage/
 # local experiment artifacts; curated ones are copied to docs/evidence/
 runs/
+.bulwark/

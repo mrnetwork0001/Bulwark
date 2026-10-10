@@ -37,3 +37,23 @@ export function hashSeed(...parts: (string | number)[]): number {
   }
   return h >>> 0;
 }
+
+const logFactCache: number[] = [0];
+function logFact(n: number): number {
+  for (let i = logFactCache.length; i <= n; i++) logFactCache[i] = logFactCache[i - 1] + Math.log(i);
+  return logFactCache[n];
+}
+const logChoose = (n: number, k: number) => logFact(n) - logFact(k) - logFact(n - k);
+
+// One-sided Fisher exact test: the probability of group A doing at least this
+// well relative to group B if both had the same underlying pass rate. Small
+// values mean A is genuinely better, not just lucky.
+export function fisherGreater(aPass: number, aN: number, bPass: number, bN: number): number {
+  const n = aN + bN;
+  const k = aPass + bPass;
+  let p = 0;
+  for (let x = aPass; x <= Math.min(k, aN); x++) {
+    p += Math.exp(logChoose(k, x) + logChoose(n - k, aN - x) - logChoose(n, aN));
+  }
+  return Math.min(1, p);
+}

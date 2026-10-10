@@ -4,14 +4,13 @@
 
 import { trace } from 'neatlogs';
 import type { Brain } from '../targets/refundbot/agent';
-import { ClaudeBrain, SimulatedBrain } from '../targets/refundbot/brains';
-import { PaymentsSandbox, sandboxTransport, type Email, type Order, type Refund } from '../targets/refundbot/payments';
+import type { Email, Order, Refund } from '../targets/refundbot/payments';
 import { injectFault, type Fault } from './chaos/faults';
 import { mulberry32 } from './stats';
-import type { BulwarkTarget } from './target';
+import type { BrainMode, BulwarkTarget } from './target';
 
 export type Outcome = 'completed' | 'crashed' | 'hung' | 'runaway';
-export type BrainMode = 'simulated' | 'claude';
+export type { BrainMode };
 
 export interface TrialObservation {
   seed: number;
@@ -42,13 +41,12 @@ class StepCapExceeded extends Error {}
 
 export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
   const { orders, ticket } = opts.target.fixtures();
-  const sandbox = new PaymentsSandbox(orders);
+  const sandbox = opts.target.createSandbox(orders);
   const abort = new AbortController();
   const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0 };
-  const transport = injectFault(sandboxTransport(sandbox, abort.signal), opts.fault, faultCtx);
+  const transport = injectFault(opts.target.createTransport(sandbox, abort.signal), opts.fault, faultCtx);
 
-  const inner: Brain =
-    opts.brain === 'claude' ? new ClaudeBrain() : new SimulatedBrain(mulberry32(opts.seed ^ 0x9e3779b9));
+  const inner: Brain = opts.target.createBrain(opts.brain, mulberry32(opts.seed ^ 0x9e3779b9));
   let steps = 0;
   const brain: Brain = {
     name: inner.name,
