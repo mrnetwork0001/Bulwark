@@ -51,7 +51,7 @@ export function postmortem(rec: FaultRecord, runId: string): string {
     lines.push(
       '## Blast radius (before)',
       `${rec.before.passed}/${rec.before.trials} trials passed (95% CI ${pct(rec.before.ci95[0])}–${pct(rec.before.ci95[1])}).`,
-      `Outcomes: ${Object.entries(rec.before.outcomes).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(', ')}. Broken rules: ${brokenRules(rec.before)}.`,
+      `Outcomes: ${Object.entries(rec.before.outcomes).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(', ')}. Broken rules: ${brokenRules(rec.before).replace(/\.$/, '')}.`,
       ...rec.before.examples.map((e) => `- Replay: seed ${e.seed} → ${e.rule} (${e.detail ?? ''})`),
       '',
     );

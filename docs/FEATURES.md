@@ -8,23 +8,23 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done + evidence capt
 
 | # | Feature | Tier | Status |
 |---|---|---|---|
-| 1 | Red / Blue / Judge agents | A | [ ] |
+| 1 | Red / Blue / Judge agents | A | [x] Red analyzer + attacks, Blue fixer, independent Judge on fresh seeds |
 | 2 | Business invariants in plain English | A | [~] pattern compiler done; LLM compiler next |
-| 3 | Prompt-injection-via-tool fault | A | [~] fault done; auto-fix next |
-| 4 | Self-chaos (Bulwark attacks itself) | A | [ ] |
-| 5 | Fix proof by "un-fixing" (mutation check) | A | [ ] |
-| 6 | Statistically honest scorecard | A | [~] Wilson CIs + seeds done; "inconclusive" flag next |
+| 3 | Prompt-injection-via-tool fault | A | [x] varied-phrasing injections; Judge rejects the sanitizer, accepts the refund guard |
+| 4 | Self-chaos (Bulwark attacks itself) | A | [ ] not started |
+| 5 | Fix proof by "un-fixing" (mutation check) | A | [x] Guard: regression test must fail without the fix and pass with it |
+| 6 | Statistically honest scorecard | A | [x] Wilson CIs, Fisher significance test, "inconclusive" verdict, replay seeds |
 | 7 | Replay real failures from neatlogs traces | B | [ ] |
-| 8 | Auto-written postmortem per experiment | B | [ ] |
-| 9 | Resilience badge | B | [ ] |
+| 8 | Auto-written postmortem per experiment | B | [x] postmortem per fault (template-based; LLM narrative later) |
+| 9 | Resilience badge | B | [x] badge.svg per run, served at /badge.svg |
 | 10 | Cascading "game day" mode | B | [ ] |
-| 11 | Strategy memory across runs | B | [ ] |
-| 12 | Cost guardrails as a fault class | B | [~] stuck-pending fault done; fix next |
+| 11 | Strategy memory across runs | B | [x] .bulwark/memory.json; run 2 needs 4 attempts instead of 7 |
+| 12 | Cost guardrails as a fault class | B | [x] stuck-pending fault + step-budget fix |
 | 13 | Trace diff view | B | [ ] |
 | 14 | GitHub Action on every PR | C | [ ] |
 | 15 | ChatOps `/bulwark` PR commands | C | [ ] |
 | 16 | Model-degradation fault | C | [ ] |
-| 17 | Live dashboard | C | [ ] |
+| 17 | Live dashboard | C | [x] /app: live trials and the full loop timeline |
 | 18 | Framework-agnostic adapter | C | [ ] |
 | 19 | Slack/Discord notification | C | [ ] |
 | 20 | Clock-skew / stale-data fault | C | [ ] |

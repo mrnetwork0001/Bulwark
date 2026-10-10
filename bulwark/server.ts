@@ -1,10 +1,12 @@
 // Local site: npm run dashboard → http://localhost:5317 (landing page), /app (dashboard)
 // Streams chaos experiments to the browser as trials finish (Server-Sent Events).
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createServer, type ServerResponse } from 'node:http';
 import { target } from '../targets/refundbot/bulwark.target';
 import { FAULTS, getFault, type Fault } from './chaos/faults';
+import { runLoop } from './loop/orchestrator';
 import { runExperiment } from './scorecard';
 import { initTracing } from './tracing';
 
@@ -58,6 +60,52 @@ async function streamRun(res: ServerResponse, params: URLSearchParams) {
   res.end();
 }
 
+let loopRunning = false;
+
+async function streamLoop(res: ServerResponse, params: URLSearchParams) {
+  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+  if (loopRunning) {
+    send(res, 'loop-error', { message: 'A Bulwark loop is already running. Wait for it to finish.' });
+    return res.end();
+  }
+  loopRunning = true;
+  try {
+    await runLoop(
+      {
+        targetDir: 'targets/refundbot',
+        memory: params.get('memory') === '1',
+        redTrials: Math.min(100, Math.max(5, Number(params.get('trials') ?? 20))),
+        seed: Number(params.get('seed') ?? 42),
+      },
+      (e) => send(res, 'loop', e.type === 'run-done' ? { ...e, summary: { ...e.summary, finalFiles: undefined } } : e),
+    );
+  } catch (err) {
+    send(res, 'loop-error', { message: err instanceof Error ? err.message : String(err) });
+  } finally {
+    loopRunning = false;
+    res.end();
+  }
+}
+
+const ARTIFACT_TYPES: Record<string, string> = {
+  md: 'text/markdown; charset=utf-8',
+  patch: 'text/plain; charset=utf-8',
+  json: 'application/json',
+  svg: 'image/svg+xml',
+};
+
+function serveArtifact(res: ServerResponse, params: URLSearchParams) {
+  const run = params.get('run') ?? '';
+  const file = params.get('file') ?? '';
+  const ext = file.split('.').pop() ?? '';
+  const path = join('.bulwark', 'runs', run, file);
+  if (!/^[\w-]+$/.test(run) || !/^[\w.-]+$/.test(file) || !(ext in ARTIFACT_TYPES) || !existsSync(path)) {
+    return res.writeHead(404).end('not found');
+  }
+  res.writeHead(200, { 'content-type': ARTIFACT_TYPES[ext] });
+  res.end(readFileSync(path));
+}
+
 async function main() {
   const exporting = await initTracing('bulwark-dashboard');
 
@@ -73,12 +121,21 @@ async function main() {
           target: target.name,
           rules: target.rules,
           neatlogs: exporting,
+          fixer: process.env.ANTHROPIC_API_KEY ? 'claude + playbook' : 'playbook (add ANTHROPIC_API_KEY for Claude)',
           faults: [
             { id: 'baseline', title: 'No fault injected', hypothesis: 'The agent works when nothing breaks.' },
             ...FAULTS.map(({ id, title, hypothesis }) => ({ id, title, hypothesis })),
           ],
         }),
       );
+    } else if (url.pathname === '/api/loop') {
+      streamLoop(res, url.searchParams);
+    } else if (url.pathname === '/api/artifact') {
+      serveArtifact(res, url.searchParams);
+    } else if (url.pathname === '/badge.svg') {
+      if (!existsSync('.bulwark/badge.svg')) return res.writeHead(404).end('no badge yet');
+      res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'no-cache' });
+      res.end(readFileSync('.bulwark/badge.svg'));
     } else if (url.pathname === '/api/run') {
       streamRun(res, url.searchParams).catch((err) => {
         send(res, 'error', { message: err instanceof Error ? err.message : String(err) });

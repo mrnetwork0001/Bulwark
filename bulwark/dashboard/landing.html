@@ -167,10 +167,10 @@ stuck-pending        <span class="t-bad">10/20</span>  30–70%   <span class="t
         <p>Unit tests check that your agent works. Bulwark checks that it keeps working when the world breaks.</p>
       </div>
       <div class="loop">
-        <div class="step"><h3>Attack</h3><p>Maps your agent's repo, finds unguarded tool calls, and injects faults between the agent and its services, in a sandbox.</p></div>
+        <div class="step"><h3>Attack</h3><p>Reads your agent's code, finds unguarded tool calls, and injects faults between the agent and its services, in a sandbox.</p></div>
         <div class="step"><h3>Observe</h3><p>Runs every attack many times and checks your rules, written in plain English, against what really happened in the ledger.</p></div>
         <div class="step"><h3>Fix</h3><p>A fixer agent writes the patch: timeouts, idempotency keys, validation, step budgets. Each attempt is checkpointed, and a failed fix is rolled back.</p></div>
-        <div class="step"><h3>Prove</h3><p>A separate judge agent re-runs the same attacks, compares before and after with confidence intervals, and opens a PR with the evidence.</p></div>
+        <div class="step"><h3>Prove</h3><p>A separate Judge agent re-runs every attack on fresh seeds, tests the improvement for significance, checks nothing else regressed, and writes the PR with the evidence.</p></div>
       </div>
     </div>
   </section>
@@ -202,7 +202,7 @@ stuck-pending        <span class="t-bad">10/20</span>  30–70%   <span class="t
       <div class="sec-head"><h2>Built with</h2></div>
       <div class="stack">
         <div class="tool"><h3>neatlogs</h3><p>Every experiment, trial, tool call and injected fault is traced, so you can see exactly where an agent broke and compare runs before and after a fix.</p></div>
-        <div class="tool"><h3>Entire</h3><p>entire-graph finds the weak links in the agent's repo. Checkpoints save each fix attempt so a failed fix can be rolled back.</p></div>
+        <div class="tool"><h3>Entire</h3><p>Every fix attempt is checkpointed, and a rejected fix is rolled back to the last checkpoint. Entire checkpoints and entire-graph are being connected to this loop during the hackathon.</p></div>
         <div class="tool"><h3>cfo.ai</h3><p>Plans Bulwark's business: what each experiment costs to run, measured from real traces, against what a single incident costs.</p></div>
       </div>
     </div>
