@@ -1,0 +1,133 @@
++ 5 faults from game-day: stale-company-record, gd-429-truncated, gd-latency-empty, gd-partial-5xx, gd-stale-429
+Bulwark loop → researchbot | fixer playbook | red 20 trials, judge 40 trials | run 2026-10-11T16-31-26-812Z
+
+RED found 8 weak links:
+  high  agent.ts:66  the model's final answer is returned unchecked, so when a tool returns nothing (or a field is missing) it can invent people and numbers
+  med   agent.ts:64  the agent loop has no step budget, so a stuck tool means unbounded steps and cost
+  med   tools.ts:73  enrich_company calls company.enrich with no timeout
+  med   tools.ts:73  enrich_company never retries company.enrich on transient errors
+  med   tools.ts:73  enrich_company reads nested fields from company.enrich without checking they exist
+  med   tools.ts:89  search_people never retries person.search when the server fails (5xx)
+  med   tools.ts:89  search_people follows person.search's next_cursor with no page cap, so a stuck cursor means unbounded calls and credits
+  med   tools.ts:89  search_people trusts the JSON from person.search without validating it
+  provenance: `targets/researchbot/agent.ts:66`, `targets/researchbot/agent.ts:64`, `targets/researchbot/tools.ts:73`, `targets/researchbot/tools.ts:89`: introduced in `6b1e432`, 2026-10-11 by Claude Code session `8cdad8b4`, prompt "lets build all. of these and be sure it works: [pasted text] deploy m…" (Entire checkpoint `01M4MXYM7XTXW4A808VVD1DX3C`); Entire linked this line by session, not by the checkpoint's files_touched
+
+  Entire Graph switched off (BULWARK_ENTIRE_GRAPH=0); using static analysis only
+RED scorecard (before): overall 34% of trials kept every rule
+  baseline               20/20 
+  crustdata-429          6/20  
+  crustdata-5xx          8/20  
+  crustdata-latency      9/20  
+  truncated-json         9/20  
+  missing-field          8/20  
+  empty-people           11/20 
+  pagination-loop        7/20  
+  stale-company-record   11/20 
+  gd-429-truncated       0/20  
+  gd-latency-empty       0/20  
+  gd-partial-5xx         0/20  
+  gd-stale-429           0/20  
+
+  Judge measuring the unpatched code on fresh seeds (40 trials per fault)
+▶ missing-field  If /company/enrich returns a partial record (no headcount), ResearchBot crashes on the missing field, or, once that is guarded, invents a headcount.
+  OBSERVE neatlogs unavailable: neatlogs read-back unavailable (neatlogs read-back disabled (wait 0)); used local evidence.
+  ⎘ checkpoint ckpt-001
+  BLUE attempt 1: Validate the company record (schema-validation, playbook, +18/-8)
+  JUDGE REJECTED still failing 16/40 trials (16× Every brief cites only data returned by the API.)
+        overhead: happy path p50 39→29ms (-25%), p95 46→32ms (-32%), steps 3.0→3.0 (+0.0), cost n/a
+  ↺ rolled back to ckpt-001
+  ⎘ checkpoint ckpt-002
+  BLUE attempt 2: Validate the record and ground the brief (schema-validation+ground-brief, playbook, +60/-10)
+  JUDGE FIXED 20/40 → 40/40 on fresh seeds (p=3.9e-8), no regressions
+        overhead: happy path p50 39→24ms (-38%), p95 46→27ms (-41%), steps 3.0→3.0 (+0.0), cost n/a
+  GUARD regression test without fix 12/40, with fix 40/40 ✓ proven
+
+▶ empty-people  If /person/search returns zero profiles, ResearchBot treats it as success and invents decision-makers.
+  skipped: already resilient after earlier fixes in this run
+
+▶ crustdata-429  If /company/enrich rate-limits (15 RPM), ResearchBot crashes because enrich_company never retries; a retry inside the 2s x-ratelimit-reset window fails again.
+  OBSERVE neatlogs unavailable: neatlogs read-back unavailable (neatlogs read-back disabled (wait 0)); used local evidence.
+  ⎘ checkpoint ckpt-003
+  BLUE attempt 1: Retry transient errors with exponential backoff (retry-backoff, playbook, +25/-0)
+  JUDGE REJECTED still failing 25/40 trials (25× Every ticket gets a brief or an explicit 'not found'.)
+        overhead: happy path p50 24→25ms (+2%), p95 27→27ms (0%), steps 3.0→3.0 (+0.0), cost n/a
+  ↺ rolled back to ckpt-003
+  ⎘ checkpoint ckpt-004
+  BLUE attempt 2: Retry, honouring the rate-limit reset header (retry-after, playbook, +28/-0)
+  JUDGE FIXED 15/40 → 40/40 on fresh seeds (p=1.1e-10), no regressions
+        overhead: happy path p50 24→27ms (+11%), p95 27→29ms (+5%), steps 3.0→3.0 (+0.0), cost n/a
+  GUARD regression test without fix 18/40, with fix 40/40 ✓ proven
+
+▶ crustdata-5xx  If /person/search has a transient 500, ResearchBot crashes because search_people never retries.
+  skipped: already resilient after earlier fixes in this run
+
+▶ crustdata-latency  If /company/enrich takes 10s to respond, ResearchBot hangs because enrich_company has no timeout.
+  OBSERVE neatlogs unavailable: neatlogs read-back unavailable (neatlogs read-back disabled (wait 0)); used local evidence.
+  ⎘ checkpoint ckpt-005
+  BLUE attempt 1: Timeout on every Crustdata call (timeout, playbook, +15/-0)
+  JUDGE FIXED 24/40 → 40/40 on fresh seeds (p=2.3e-6), no regressions
+        overhead: happy path p50 27→35ms (+29%), p95 29→37ms (+28%), steps 3.0→3.0 (+0.0), cost n/a
+  GUARD regression test without fix 24/40, with fix 40/40 ✓ proven
+
+▶ truncated-json  If a /person/search response is truncated, ResearchBot crashes because it parses the body without validating or retrying.
+  OBSERVE neatlogs unavailable: neatlogs read-back unavailable (neatlogs read-back disabled (wait 0)); used local evidence.
+  ⎘ checkpoint ckpt-006
+  BLUE attempt 1: Validate the body, then retry (valid-json+retry, playbook, +10/-0)
+  JUDGE FIXED 23/40 → 40/40 on fresh seeds (p=8.7e-7), no regressions
+        overhead: happy path p50 35→39ms (+14%), p95 37→43ms (+15%), steps 3.0→3.0 (+0.0), cost n/a
+  GUARD regression test without fix 17/40, with fix 40/40 ✓ proven
+
+▶ pagination-loop  If /person/search ignores the cursor and keeps returning page 1 with a next_cursor, ResearchBot pages forever: unbounded calls, credits and time.
+  OBSERVE neatlogs unavailable: neatlogs read-back unavailable (neatlogs read-back disabled (wait 0)); used local evidence.
+  ⎘ checkpoint ckpt-007
+  BLUE attempt 1: Step budget (step-budget, playbook, +4/-0)
+  JUDGE REJECTED still failing 21/40 trials (21× Every ticket gets a brief or an explicit 'not found'.; 21× A run finishes within 5 seconds.; 21× Never spend more than 5 API credits per brief.)
+        overhead: happy path p50 39→38ms (-4%), p95 43→41ms (-4%), steps 3.0→3.0 (+0.0), cost n/a
+  ↺ rolled back to ckpt-007
+  ⎘ checkpoint ckpt-008
+  BLUE attempt 2: Cursor cap + dedupe (bounds credits per brief) (cursor-cap, playbook, +6/-3)
+  JUDGE FIXED 19/40 → 40/40 on fresh seeds (p=1.3e-8), no regressions
+        overhead: happy path p50 39→33ms (-15%), p95 43→37ms (-12%), steps 3.0→3.0 (+0.0), cost n/a
+  GUARD regression test without fix 16/40, with fix 40/40 ✓ proven
+
+▶ stale-company-record  If a stale-while-revalidate cache in front of /company/enrich serves a 2024 snapshot (old last_updated, old headcount), ResearchBot reports the old headcount as current, because it never checks how fresh the record is.
+  OBSERVE neatlogs unavailable: neatlogs read-back unavailable (neatlogs read-back disabled (wait 0)); used local evidence.
+  ⎘ checkpoint ckpt-009
+  BLUE attempt 1: Check the record is fresh (fresh-record, playbook, +30/-0)
+  JUDGE FIXED 20/40 → 40/40 on fresh seeds (p=3.9e-8), no regressions
+        overhead: happy path p50 33→43ms (+28%), p95 37→46ms (+23%), steps 3.0→3.0 (+0.0), cost n/a
+  GUARD regression test without fix 17/40, with fix 40/40 ✓ proven
+
+▶ gd-429-truncated  A 429 window on /company/enrich and a truncated /person/search body in the same run: the 2s reset wait eats the time budget the second retry needs. (crustdata-429@1 + truncated-json@1)
+  skipped: already resilient after earlier fixes in this run
+
+▶ gd-latency-empty  A 10s enrich response and a search that finds nobody: the timeout path and the "invent people" path together. (crustdata-latency@1 + empty-people@1)
+  skipped: already resilient after earlier fixes in this run
+
+▶ gd-partial-5xx  A record without headcount plus a transient 500: the retry and the missing-field guard have to work in the same run. (missing-field@1 + crustdata-5xx@1)
+  skipped: already resilient after earlier fixes in this run
+
+▶ gd-stale-429  The 429 retry gets through only to receive the 2024 snapshot from the cache: retries without a freshness check deliver old numbers. (crustdata-429@1 + stale-company-record@1)
+  skipped: already resilient after earlier fixes in this run
+
+Scorecard after fixes: overall 100% of trials kept every rule
+  baseline               20/20 
+  crustdata-429          20/20 
+  crustdata-5xx          20/20 
+  crustdata-latency      20/20 
+  truncated-json         20/20 
+  missing-field          20/20 
+  empty-people           20/20 
+  pagination-loop        20/20 
+  stale-company-record   20/20 
+  gd-429-truncated       20/20 
+  gd-latency-empty       20/20 
+  gd-partial-5xx         20/20 
+  gd-stale-429           20/20 
+
+Remaining risk (1): every attack passes, but the analyzer still sees:
+  agent.ts:104  the agent loop has no step budget, so a stuck tool means unbounded steps and cost
+
+Resilience 34% → 100%  fixed 6, unfixed 0, skipped 6 · 9 attempts, 3 rollbacks
+Run cost $0.0020 = LLM $0 (0 calls, 0 tokens) + compute $0.0020 (71s) · 6200 trials
+Artifacts: .bulwark/runs/2026-10-11T16-31-26-812Z/ (fix.patch, PR.md, postmortem-*.md, badge.svg, summary.json)

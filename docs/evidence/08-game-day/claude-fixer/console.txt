@@ -1,0 +1,20 @@
+Entire Graph switched off (BULWARK_ENTIRE_GRAPH=0); using static analysis only
+before overall 100%: gd-latency-malformed 19/20
+  Judge measuring the unpatched code on fresh seeds (40 trials per fault)
+BLUE attempt 1: Bound total order-lookup latency with an overall deadline and reduce redundant reads (deadline-budget-and-shared-read, claude-sonnet-5, +56/-21)
+  rationale: 
+The root cause is that each order lookup (lookup_order, the fresh re-read in issue_refund, and the second re-read for the refund-guard) independently retries up to 3 times with a 1s timeout each. Under latency-spike (0.7 probability of a 10s-slow backend, clamped by the 1s per-attempt timeout) and malformed-response (0.3 probability of a truncated/invalid body, which also burns a retry), a single tool call can spend up to 3s, and the run makes multiple such calls (lookup_order, then issue_refund's two reads) — easily exceeding the 5s overall deadline even though no single call exceeds its own timeout. That's why trials hang/time out at exactly ~5000ms with zero crashes (malformed/slow responses are *handled* per-call, but the cumulative latency across calls is unbounded).
+
+Fix:
+1. Introduce a single process-wide-per-run deadline (`DEADLINE_MS = 4500ms`, leaving headroom under the 5s judge limit) tracked via a start timestamp passed through the tools. Each retrying read now computes a remaining-time budget and uses `Math.min(perAttemptTimeout, remaining)` for its timeout, and stops retrying once the deadline has passed, instead of always doing up to 3 full 1s attempts regardless of how much time is left.
+2. Eliminate the redundant third read in `issue_refund`: the "fresh read" (`readOrderNow`) already fetches a consistent, validated order and is used for the paid-status guard; the refund-guard amount-capping can reuse that same order object instead of issuing a second independent `orders.get` call. This removes one whole lookup (and its retries) from the critical path without weakening any business rule — the amount cap and ownership check still happen against the authoritative order payload.
+3. When the deadline is hit mid-retry, the read functions throw, which is caught by `agent.ts`'s existing graceful-escalation path (`try/catch` around tool calls) — so the ticket still gets a reply via `escalate`, satisfying "every ticket gets a reply" while keeping the run under 5s.
+
+This preserves every business rule (ownership check, amount cap, double-refund guard via idempotency key, already-refunded guard via fresh status read) while bounding worst-case cumulative latency so the run reliably finishes within the deadline, replying to the customer either with a real outcome or an escalation.
+
+JUDGE FIXED 35/40 → 40/40 on fresh seeds (p=2.7e-2), no regressions
+GUARD without fix 37/40, with fix 40/40 proven
+after overall 100%: every fault passes
+Resilience 100% -> 100%; fixed gd-latency-malformed; unfixed none; 1 attempts
+Cost: $0.0494 (LLM $0.0477, 1 calls, 9286 tokens)
+Artifacts: .bulwark/claude-gd/runs/2026-10-11T16-37-16-701Z

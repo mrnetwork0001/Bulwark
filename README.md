@@ -33,6 +33,8 @@ npm run fix -- --target targets/researchbot --fixer playbook --no-memory   # Res
 npm run record:crustdata -- --record                                   # re-record the Crustdata cassettes (real credits; see docs/CRUSTDATA.md)
 npm run ci:scorecard                # CI gate: offline scorecard vs targets/<t>/resilience-baseline.json (exit 1 on regression)
 npm run fix -- --dry-run-notify     # print the Slack/Discord run summary (sent for real when a webhook URL is set)
+npm run fix -- --game-day --fixer playbook --no-memory                 # game days: several faults in one trial (RefundBot 43% → 100%)
+npm run chaos -- --stale --degrade                                     # stale-data and model-degradation faults (opt-in packs)
 npm test
 ```
 
@@ -82,6 +84,12 @@ Every trial is checked against business rules written in plain English (`targets
 Bulwark is not tied to RefundBot. A target is a directory under `targets/` with a `bulwark.target.ts` that declares its endpoints, sandbox, ledger (`observe()`), business rules (with its own compiled checks where needed) and editable files. Each target has its own fault catalog and its own playbook, and `--target` (or `?target=` on the dashboard API) picks which one to attack.
 
 **ResearchBot** answers "Brief me on retool.com and its key decision-makers" with a JSON brief built from the real [Crustdata](https://crustdata.com) API (`/company/enrich`, `/person/search`). Real responses for four companies were recorded once (13.17 credits) and are replayed by a cassette sandbox, so every trial is free and deterministic. Its rules: every brief cites only data the API returned, no person without a source record, a brief or an explicit "not found", at most 5 seconds, at most 8 steps, at most 5 API credits, and (both compiled by the LLM rule compiler) at most 3 people per brief and at most 20 calls to any one endpoint. Its faults are 429 with `x-ratelimit-reset`, 5xx, a 10s latency spike, truncated JSON, a record missing a field, an empty people search, and a cursor that never advances. Blue's playbook fixes them with a retry that honours the reset header, a timeout, body validation, schema validation, a brief grounded in tool results, and a cursor cap. Offline: **49% → 100%**. The Judge rejects a retry that ignores the reset header, a step budget that never sees the in-tool pagination loop, and the "ask again" fix for an empty result. Details: [docs/CRUSTDATA.md](docs/CRUSTDATA.md), evidence: [docs/evidence/06-researchbot](docs/evidence/06-researchbot/).
+
+## Game days, model degradation, stale data (opt-in)
+
+Testing faults one at a time gives false confidence. `--game-day` adds composite faults: two or more catalog faults, each at its own rate, active in the same trial (e.g. a 429 storm during a refund timeout-after-commit). They stack on the wire, on the ticket and on the world the trial starts from. `--degrade` silently swaps the agent's brain for a weaker one: a seeded, sloppier simulated brain, or `glm-5.3-flash` for an LLM brain. `--stale` serves outdated data: an order refunded at the till still shows as "paid" in a cached lookup (rule: "Never refund an order that is already refunded."), or a 2024 company snapshot. These packs stay out of the default catalogs, so the headline numbers above are unchanged.
+
+On RefundBot, the single-fault fixes held in 4 of 5 game days. The latency storm broke them: each fix bounded its own order reads, but three bounded reads before a refund add up past the 5s deadline (35/40). A per-run time budget fixes it, and Claude found a leaner fix in one attempt ($0.048). Measured on 400 trials, the same stacking made `latency-spike` alone fail 2.25% of the time, which 40 Judge trials can't see. Details and the honest caveats: [docs/evidence/08-game-day](docs/evidence/08-game-day/).
 
 ## Market sizing (Crustdata)
 

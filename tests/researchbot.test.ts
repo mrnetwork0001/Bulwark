@@ -205,7 +205,7 @@ test('playbooks are per target: RefundBot keeps its own, ResearchBot gets data-A
   assert.equal(playbookFor(), PLAYBOOK);
   assert.equal(playbookFor('refundbot'), PLAYBOOK);
   assert.equal(playbookFor('researchbot'), RESEARCH_PLAYBOOK);
-  assert.deepEqual(Object.keys(RESEARCH_PLAYBOOK).sort(), ['empty', 'latency', 'loop', 'malformed', 'partial', 'rate-limit', 'server-error']);
+  assert.deepEqual(Object.keys(RESEARCH_PLAYBOOK).sort(), ['degraded', 'empty', 'latency', 'loop', 'malformed', 'partial', 'rate-limit', 'server-error', 'stale']);
 });
 
 test('every ResearchBot playbook strategy applies cleanly to the original code', async () => {

@@ -255,6 +255,117 @@ function sanitizeToolText(text: string): string {
   },
 };
 
+// Stale data: re-read the order just before moving money. The plain re-read goes through the
+// same read cache as every lookup; the consistent read bypasses it.
+const ISSUE_REFUND_OPEN = `    issue_refund: span({ kind: 'TOOL', name: 'issue_refund', toolName: 'issue_refund' }, async (input) => {\n`;
+
+const reread = (id: string, marker: string, consistent: boolean, comment: string): Transform => ({
+  id,
+  marker,
+  apply: (files) =>
+    chain(
+      files,
+      (f) =>
+        edit(
+          f,
+          TOOLS,
+          ISSUE_REFUND_OPEN,
+          `${ISSUE_REFUND_OPEN}      // ${marker}: ${comment}
+      const current = await readOrderNow(transport, input.orderId);
+      if (current.status !== 'paid') {
+        return { refused: true, reason: \`order \${current.id} is \${current.status}; nothing to refund\` };
+      }
+`,
+        ),
+      (f) =>
+        ensureHelper(
+          f,
+          TOOLS,
+          'async function readOrderNow(',
+          TOOLS_ANCHOR,
+          `// ${marker}: the order as it is right now, bounded and retried like any lookup
+async function readOrderNow(transport: Transport, orderId: unknown): Promise<Order> {
+  return withRetry(async () => {
+    const order = JSON.parse(await withTimeout(transport('orders.get', { orderId${consistent ? ', consistent: true' : ''} }), 1000)) as Order;
+    if (typeof order?.id !== 'string' || typeof order.status !== 'string') throw new Error('invalid order payload');
+    return order;
+  }, 3);
+}
+`,
+        ),
+    ),
+});
+
+Object.assign(T, {
+  recheck: reread('recheck-before-refund', 'bulwark:recheck', false, 're-read the order just before moving money; refund only a paid order'),
+  freshRead: reread(
+    'consistent-read-before-refund',
+    'bulwark:fresh-read',
+    true,
+    'strongly consistent re-read (bypasses the read cache) just before moving money; refund only a paid order, so a refund made through another channel is never repeated',
+  ),
+  ensureReply: {
+    id: 'ensure-reply',
+    marker: 'bulwark:ensure-reply',
+    apply: (files: Files) =>
+      edit(
+        files,
+        AGENT,
+        `        if (decision.type === 'final') return { reply: decision.reply, steps: history };`,
+        `        if (decision.type === 'final') {
+          // bulwark:ensure-reply: the customer always hears back, whether or not the model remembered to email
+          if (!history.some((s) => s.tool === 'send_email')) {
+            await tools.send_email({
+              to: ticket.customerEmail,
+              subject: \`Your refund request (\${ticket.orderId})\`,
+              body: 'We have processed your request. Reply to this email if anything looks wrong.',
+            });
+          }
+          return { reply: decision.reply, steps: history };
+        }`,
+      ),
+  },
+  // Game days: each fix bounds its own calls, but under several faults at once the bounded
+  // retries of separate reads add up past the run's deadline. One budget for the whole run.
+  runDeadline: {
+    id: 'run-deadline',
+    marker: 'bulwark:run-deadline',
+    apply: (files: Files) =>
+      chain(
+        files,
+        (f) => edit(f, AGENT, 'const tools = createTools(deps.transport', 'const tools = createTools(withDeadline(deps.transport, performance.now() + RUN_BUDGET_MS)'),
+        (f) => (f[AGENT]?.includes("import type { Transport } from './payments';") ? f : edit(f, AGENT, "import { createTools", "import type { Transport } from './payments';\nimport { createTools")),
+        (f) =>
+          ensureHelper(
+            f,
+            AGENT,
+            'function withDeadline(',
+            AGENT_ANCHOR,
+            `const RUN_BUDGET_MS = 4000;
+
+// bulwark:run-deadline: every service call draws on one time budget for the whole run, so retries in
+// separate tools can't add up past the deadline. When it is spent, calls fail fast and the run escalates;
+// the reply email is exempt, so the customer always hears back.
+function withDeadline(transport: Transport, deadline: number): Transport {
+  return (endpoint, payload) => {
+    if (endpoint === 'email.send') return transport(endpoint, payload);
+    const left = deadline - performance.now();
+    if (left <= 0) return Promise.reject(new Error(\`run budget of \${RUN_BUDGET_MS}ms spent\`));
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error(\`run budget of \${RUN_BUDGET_MS}ms spent\`)), left);
+      transport(endpoint, payload).then(
+        (v) => (clearTimeout(t), resolve(v)),
+        (e) => (clearTimeout(t), reject(e)),
+      );
+    });
+  };
+}
+`,
+          ),
+      ),
+  },
+} satisfies Record<string, Transform>);
+
 export interface Strategy {
   id: string;
   title: string;
@@ -292,6 +403,17 @@ export const PLAYBOOK: Partial<Record<FaultKind, Strategy[]>> = {
   social: [
     { id: 'refund-guard', title: 'Server-side refund guard', rationale: 'Whatever the customer claims, a refund can never exceed the order total. Enforced in code, not in the prompt.', transforms: [T.refundGuard] },
     { id: 'refund-guard+ownership-check', title: 'Refund guard + ownership check', rationale: "Capping the amount does not stop a customer from talking the agent into refunding someone else's order. issue_refund now checks that the order's customer email matches the ticket's, and refuses otherwise.", transforms: [T.refundGuard, T.ownership] },
+  ],
+  stale: [
+    { id: 'recheck-before-refund', title: 'Re-read the order before refunding', rationale: 'Look the order up again right before issue_refund and refund only if it is still paid.', transforms: [T.recheck] },
+    { id: 'consistent-read-before-refund', title: 'Consistent read before refunding', rationale: 'A second read through the same cache returns the same stale "paid". Read the order with a strongly consistent read (bypassing the cache) right before moving money, and refuse unless it is paid: idempotency by order state, which also covers refunds made through another channel.', transforms: [T.freshRead] },
+  ],
+  degraded: [
+    { id: 'idempotency-key+refund-guard', title: 'Money rules in code: idempotency key + refund guard', rationale: "A weaker model forgets what it did and misreads amounts. Don't rely on its judgment for money: an idempotency key makes a repeated refund a no-op, and the guard caps every refund at the order total.", transforms: [T.idempotency, T.refundGuard] },
+    { id: 'idempotency-key+refund-guard+ensure-reply', title: 'Money rules in code, and a guaranteed reply', rationale: 'The weaker model also forgets to email the customer. When the run ends without a send_email, the agent loop sends the reply itself, so "every ticket gets a reply" no longer depends on the model.', transforms: [T.idempotency, T.refundGuard, T.ensureReply] },
+  ],
+  cascade: [
+    { id: 'run-deadline', title: 'One time budget for the whole run', rationale: "Each single-fault fix bounds its own calls (1s x 3 attempts per order read), but a refund now reads the order up to three times (lookup, refund guard, consistent re-read). Under slow AND broken lookups together those bounded retries add up past the 5s deadline. Every call now draws on one 4s budget for the run; when it is spent, calls fail fast and the run escalates, and the reply email is exempt so the customer always hears back.", transforms: [T.escalate, T.runDeadline] },
   ],
 };
 
@@ -602,6 +724,54 @@ function groundBrief(reply: string, history: Step[]): string {
   },
 };
 
+Object.assign(R, {
+  fresh: {
+    id: 'fresh-record',
+    marker: 'bulwark:fresh-record',
+    apply: (files: Files) =>
+      chain(
+        files,
+        (f) => wrapInner(f, '  transport = requireFresh(transport);'),
+        (f) =>
+          ensureHelper(
+            f,
+            TOOLS,
+            'function requireFresh(',
+            TOOLS_ANCHOR,
+            `const MAX_RECORD_AGE_DAYS = 180;
+
+// bulwark:fresh-record: a company record last updated more than MAX_RECORD_AGE_DAYS ago came from a stale
+// cache. Fetch it again (the cache revalidates); if it is still stale, drop the headcount it can't vouch for.
+function requireFresh(transport: Transport): Transport {
+  const stale = (raw: string) => {
+    try {
+      const body = JSON.parse(raw) as EnrichResponse;
+      return (Array.isArray(body) ? body : []).some((e) =>
+        (e?.matches ?? []).some((m) => {
+          const updated = Date.parse(String((m?.company_data as { last_updated?: string } | undefined)?.last_updated ?? ''));
+          return Number.isFinite(updated) && Date.now() - updated > MAX_RECORD_AGE_DAYS * 86_400_000;
+        }),
+      );
+    } catch {
+      return false;
+    }
+  };
+  return async (endpoint, payload) => {
+    let raw = await transport(endpoint, payload);
+    if (endpoint !== 'company.enrich' || !stale(raw)) return raw;
+    raw = await transport(endpoint, payload);
+    if (!stale(raw)) return raw;
+    const body = JSON.parse(raw) as EnrichResponse;
+    for (const e of body) for (const m of e.matches ?? []) if (m.company_data) delete m.company_data.headcount;
+    return JSON.stringify(body);
+  };
+}
+`,
+          ),
+      ),
+  },
+} satisfies Record<string, Transform>);
+
 export const RESEARCH_PLAYBOOK: Partial<Record<FaultKind, Strategy[]>> = {
   'rate-limit': [
     { id: 'retry-backoff', title: 'Retry transient errors with exponential backoff', rationale: 'A 429 is transient: retry with 100/200/400ms backoff instead of crashing.', transforms: [R.retry] },
@@ -630,6 +800,14 @@ export const RESEARCH_PLAYBOOK: Partial<Record<FaultKind, Strategy[]>> = {
     { id: 'step-budget', title: 'Step budget', rationale: 'Cap the agent at 6 steps so a stuck run cannot go on forever.', transforms: [R.stepBudget] },
     { id: 'cursor-cap', title: 'Cursor cap + dedupe (bounds credits per brief)', rationale: 'The loop is inside one tool call, so a step budget never sees it. Follow next_cursor for at most 2 pages (every page is billed) and keep each person once.', transforms: [R.cursorCap] },
   ],
+  stale: [
+    { id: 'ground-brief', title: 'Ground the brief in tool results', rationale: 'The brief may only state what a tool returned.', transforms: [R.ground] },
+    { id: 'fresh-record', title: 'Check the record is fresh', rationale: "Grounding can't help when the tool itself returned a 2024 snapshot. Check the record's last_updated; if it is older than 180 days, fetch it again (the cache revalidates), and if it is still stale, drop the headcount rather than state an old one as current.", transforms: [R.fresh] },
+  ],
+  degraded: [
+    { id: 'schema-validation', title: 'Validate the company record', rationale: 'Read every field defensively.', transforms: [R.schema] },
+    { id: 'ground-brief', title: 'Ground the brief in tool results', rationale: "A weaker model rounds numbers, skips the people search and answers in prose. Don't depend on its judgment: rebuild the brief from tool results in code, so it is always JSON and only states what the API returned.", transforms: [R.ground] },
+  ],
 };
 
 /** Each target's strategies, by target name. RefundBot's is the default. */
@@ -640,6 +818,31 @@ export const PLAYBOOKS: Record<string, Partial<Record<FaultKind, Strategy[]>>> =
 
 export function playbookFor(target?: string): Partial<Record<FaultKind, Strategy[]>> {
   return PLAYBOOKS[target ?? 'refundbot'] ?? {};
+}
+
+/**
+ * The strategies for a fault. A game day (kind 'cascade') has no textbook fix of its own: Blue
+ * tries each component's strategies (a single-fault fix may already cover the combination; one
+ * already applied changes nothing and is skipped), then every component's strongest strategy
+ * together, then the target's cascade-specific strategies.
+ */
+export function strategiesFor(target: string | undefined, fault: { kind: FaultKind; components?: { kind: FaultKind }[] }): Strategy[] {
+  const book = playbookFor(target);
+  if (!fault.components?.length) return book[fault.kind] ?? [];
+  const per = fault.components.map((c) => book[c.kind] ?? []);
+  const out: Strategy[] = per.flat();
+  const strongest = per.map((ss) => ss.at(-1)).filter((s): s is Strategy => !!s);
+  if (strongest.length > 1) {
+    out.push({
+      id: strongest.map((s) => s.id).join('+'),
+      title: `Every component's strongest fix: ${strongest.map((s) => s.title).join(' + ')}`,
+      rationale: 'Each fault in the game day gets its strongest textbook fix at once.',
+      transforms: strongest.flatMap((s) => s.transforms),
+    });
+  }
+  out.push(...(book.cascade ?? []));
+  const seen = new Set<string>();
+  return out.filter((s) => !seen.has(s.id) && !!seen.add(s.id));
 }
 
 /** Applies a strategy. Returns null if it can't apply or would change nothing. */

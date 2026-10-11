@@ -9,7 +9,7 @@ import { createLlmClient, defaultModel, llmProvider } from '../llm';
 import type { Finding } from '../red/analyze';
 import type { ExperimentResult } from '../scorecard';
 import type { Files } from '../workspace';
-import { applyStrategy, playbookFor } from './playbook';
+import { applyStrategy, strategiesFor } from './playbook';
 
 export interface FailedAttempt {
   strategy: string;
@@ -58,7 +58,7 @@ export class PlaybookFixer implements Fixer {
       const i = ctx.preferred.indexOf(id);
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
-    const strategies = (playbookFor(ctx.target)[ctx.fault.kind] ?? [])
+    const strategies = strategiesFor(ctx.target, ctx.fault)
       .map((s, order) => ({ s, order }))
       .sort((a, b) => rank(a.s.id) - rank(b.s.id) || a.order - b.order)
       .map((x) => x.s);
@@ -105,6 +105,9 @@ export function buildFixPrompt(ctx: FixContext): string {
   return [
     `## Fault: ${ctx.fault.id}`,
     `${ctx.fault.title}. Hypothesis: ${ctx.fault.hypothesis}`,
+    ...(ctx.fault.components
+      ? ['This is a game day: these faults are all active in the same trial, so the fix must survive them together.', ...ctx.fault.components.map((c) => `- ${c.id} (${c.kind} on ${c.endpoint}, rate ${c.rate}): ${c.hypothesis}`)]
+      : []),
     `## Business rules and exactly how the Judge checks them`,
     ...ctx.rules.map((r) => `- "${r.rule}": ${r.how}`),
     `Trials run against a sandbox. Side effects (refunds, emails, API calls, …) are read from the sandbox ledger, not from what the agent says it did.`,

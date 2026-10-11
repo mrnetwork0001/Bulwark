@@ -1,0 +1,6 @@
+original           claude-sonnet-5            social-third-party               2/3  1x Every ticket gets a reply to the customer.
+original           claude-sonnet-5            stale-order-status               2/3  1x Never refund an order that is already refunded.
+original           glm-5.3-flash (degraded)   model-degradation                3/3  
+original           glm-5.3-flash (degraded)   degraded+social-third-party      2/3  1x Every ticket gets a reply to the customer.
+original           glm-5.3-flash (degraded)   degraded+stale-order-status      2/3  1x Never refund an order that is already refunded.
+LLM spend $0.104 over 72 calls

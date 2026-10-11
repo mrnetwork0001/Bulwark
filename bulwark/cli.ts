@@ -1,5 +1,5 @@
 // npm run chaos -- [--target targets/refundbot] [--fault <id>|all] [--trials 20] [--seed 42] [--brain simulated|claude]
-//                  [--generated [--generated-file .bulwark/generated-faults.json]]
+//                  [--generated [--generated-file .bulwark/generated-faults.json]] [--game-day] [--stale] [--degrade]
 //
 // Attacks the target agent with each fault, N trials apiece, and writes a
 // scorecard to runs/<timestamp>/.
@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { faultsFor, getFault, registerFaults, type Fault } from './chaos/faults';
+import { enablePacks, faultsFor, getFault, registerFaults, type Fault, type FaultPack } from './chaos/faults';
 import { CostMeter, usd } from './cost/meter';
 import { loadPriceBook } from './cost/pricing';
 import { GENERATED_FAULTS_PATH, loadGeneratedFaults } from './red/generate';
@@ -32,6 +32,9 @@ async function main() {
       generated: { type: 'boolean', default: false },
       'generated-file': { type: 'string', default: GENERATED_FAULTS_PATH },
       target: { type: 'string', default: 'targets/refundbot' },
+      'game-day': { type: 'boolean', default: false },
+      stale: { type: 'boolean', default: false },
+      degrade: { type: 'boolean', default: false },
     },
   });
   const targetDir = resolveTargetDir(values.target!);
@@ -39,6 +42,12 @@ async function main() {
   if (values.generated) {
     const added = registerFaults(loadGeneratedFaults(values['generated-file'], target), target);
     console.log(`+ ${added.filter((f) => f.spec).length} generated faults from ${values['generated-file']}`);
+  }
+  // Opt-in packs: game days (composite faults), stale data, model degradation.
+  const packs = (['game-day', 'stale', 'degrade'] as FaultPack[]).filter((p) => values[p]);
+  if (packs.length) {
+    const added = enablePacks(packs, target);
+    console.log(`+ ${added.length} faults from ${packs.join(', ')}: ${added.map((f) => f.id).join(', ')}`);
   }
   const brain = values.brain as BrainMode;
   if (brain !== 'simulated' && brain !== 'claude') throw new Error('--brain must be "simulated" or "claude"');

@@ -3,6 +3,7 @@
 //                [--slo 0.99[,<fault>=0.999]] [--slo-confidence 0.95] [--max-slo-trials 1000]
 //                [--max-latency-overhead 50%] [--max-step-overhead 2] [--max-cost-overhead 20%] [--overhead-policy reject|flag]
 //                [--tournament claude-sonnet-5,deepseek-v4-flash | playbook,playbook-strong]
+//                [--game-day] [--stale] [--degrade]   opt-in fault packs: composite faults, stale data, model degradation
 //                [--neatlogs-wait 20]  seconds Blue waits for a failing trial's neatlogs trace (0 = don't read back)
 //                [--notify] [--dry-run-notify]  Slack/Discord run summary (bulwark/notify.ts)
 //
@@ -11,7 +12,7 @@
 import './env';
 import { parseArgs } from 'node:util';
 import { usd } from './cost/meter';
-import { registerFaults } from './chaos/faults';
+import { enablePacks, registerFaults, type FaultPack } from './chaos/faults';
 import { loadGeneratedFaults } from './red/generate';
 import { fixedWithOverhead } from './judge/judge';
 import { describeOverhead, parsePercent, type OverheadBudgets } from './judge/overhead';
@@ -144,6 +145,9 @@ async function main() {
       'neatlogs-wait': { type: 'string' },
       notify: { type: 'boolean', default: false },
       'dry-run-notify': { type: 'boolean', default: false },
+      'game-day': { type: 'boolean', default: false },
+      stale: { type: 'boolean', default: false },
+      degrade: { type: 'boolean', default: false },
     },
   });
   // Generative Red's accepted faults join the catalog, so Red, Blue, Judge and Guard all see them.
@@ -151,6 +155,12 @@ async function main() {
   if (values.generated) {
     const target = await loadTarget(targetDir);
     registerFaults(loadGeneratedFaults(undefined, target), target);
+  }
+  // Opt-in packs join the catalog the same way: Red, Blue, Judge, Guard and replay all see them.
+  const packs = (['game-day', 'stale', 'degrade'] as FaultPack[]).filter((p) => values[p]);
+  if (packs.length) {
+    const added = enablePacks(packs, await loadTarget(targetDir));
+    console.log(c.dim(`+ ${added.length} faults from ${packs.join(', ')}: ${added.map((f) => f.id).join(', ')}`));
   }
   const slo = values.slo ? parseSlo(values.slo, Number(values['slo-confidence']), Number(values['max-slo-trials'])) : undefined;
   const policy = values['overhead-policy'] as 'reject' | 'flag';
