@@ -151,3 +151,52 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: 0.92em; letter-spac
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---- Mobile menu: a "+ Menu" pill that opens a full-screen sheet (below 768px) ---- */
+.menu-pill {
+  display: none; align-items: center; gap: 8px; height: 36px; padding: 4px 14px 4px 4px;
+  border-radius: var(--pill); background: var(--surface-inverse); color: var(--fg-inverse);
+  transition: background .2s, transform .4s var(--ease-out);
+}
+.menu-pill:hover { background: #262626; }
+.menu-pill:active { transform: scale(.97); }
+.menu-pill .mi { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); color: var(--fg); display: grid; place-items: center; transition: transform .5s var(--ease-out); }
+.menu-pill .ml { font-size: 11px; font-weight: 500; letter-spacing: .01em; }
+@media (max-width: 767px) { .menu-pill { display: inline-flex; } }
+
+.msheet { position: fixed; inset: 0; z-index: 800; display: flex; flex-direction: column; background: var(--bg); overscroll-behavior: contain; clip-path: inset(0 0 100% 0); transition: clip-path .6s var(--ease-out); }
+.msheet.open { clip-path: inset(0 0 0 0); }
+.msheet.closing { clip-path: inset(0 0 100% 0); transition-duration: .42s; }
+.msheet .ms-top { position: relative; z-index: 1; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 64px; padding: env(safe-area-inset-top) calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left)); }
+.msheet .ms-top::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 12px; background: linear-gradient(to bottom, var(--bg), rgba(255,255,255,0)); pointer-events: none; }
+.msheet .ms-close .mi { transform: rotate(45deg); }
+.msheet .ms-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left)); }
+.msheet .ms-section { margin-top: 28px; }
+.msheet .ms-heading { margin-bottom: 10px; padding-left: 2px; font-size: 11px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-muted); }
+.msheet .ms-card { padding: 16px; border-radius: var(--radius); background: var(--surface-inverse); color: var(--fg-inverse); box-shadow: var(--shadow); }
+.msheet .ms-card .ms-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500; color: rgba(255,255,255,.6); }
+.msheet .ms-card .ms-eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.msheet .ms-card .ms-stats { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.msheet .ms-card .ms-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.msheet .ms-card .ms-stat b { font-size: 26px; font-weight: 300; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.msheet .ms-card .ms-stat span { font-size: 13px; color: rgba(255,255,255,.7); }
+.msheet .ms-card .ms-note { margin-top: 12px; font-size: 13px; line-height: 1.45; color: rgba(255,255,255,.6); }
+.msheet .ms-slot > * { max-width: 100%; }
+.msheet .ms-slot .segment { display: flex; width: 100%; flex-wrap: wrap; }
+.msheet .ms-slot .segment span { flex: 1; justify-content: center; padding: 10px 12px; }
+.msheet .ms-list { list-style: none; margin: 0 -8px; }
+.msheet .ms-row { width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 16px; text-align: left; transition: background .2s; }
+.msheet .ms-row:active, .msheet .ms-row:focus-visible { background: var(--surface-muted); }
+.msheet .ms-ri { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-muted); color: var(--fg); display: grid; place-items: center; flex: none; }
+.msheet .ms-row[aria-current="page"] .ms-ri { background: var(--surface-inverse); color: var(--fg-inverse); }
+.msheet .ms-rt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.msheet .ms-rl { font-size: 15px; font-weight: 500; }
+.msheet .ms-rh { font-size: 12.5px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msheet .ms-chev { width: 28px; height: 28px; display: grid; place-items: center; color: var(--fg-dim); flex: none; transition: transform .4s var(--ease-out); }
+.msheet .ms-row:active .ms-chev { color: var(--fg); transform: translateX(2px); }
+.msheet .ms-foot { flex: none; position: relative; padding: 12px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); background: var(--bg); }
+.msheet .ms-foot::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 24px; background: linear-gradient(to top, var(--bg), rgba(255,255,255,0)); pointer-events: none; }
+.msheet .ms-cta { display: flex; align-items: center; justify-content: center; gap: 10px; height: 52px; border-radius: var(--pill); background: var(--surface-inverse); color: var(--fg-inverse); font-size: 14px; font-weight: 500; }
+.msheet .ms-cta .mi { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); color: var(--fg); display: grid; place-items: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) { .msheet, .msheet.closing { transition: opacity .2s; clip-path: none; opacity: 0; } .msheet.open { opacity: 1; } }

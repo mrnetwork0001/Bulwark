@@ -195,6 +195,9 @@
   .numbers > *, .story > *, .loop > *, .faults > *, .proof > *, .bento > *, .stack > * { min-width: 0; }
   code, .m, .x, .seed { overflow-wrap: anywhere; }
 
+  /* Phones: the top bar is just the logo and the Menu pill (top right); everything else lives in the sheet. */
+  @media (max-width: 767px) { .topbar nav > :not(.menu-pill) { display: none !important; } }
+
   .reveal { opacity: 0; transform: translateY(18px); transition: opacity .9s var(--ease-out), transform .9s var(--ease-out); }
   .reveal.in { opacity: 1; transform: none; }
 
@@ -255,6 +258,7 @@
       <a class="link" href="#stack">Built with</a>
       <span class="pill sm muted">#neatHack 2026</span>
       <a class="cta sm" href="/app">Launch app <span class="arrow"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 10 10 4M5 4h5v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+      <button type="button" class="menu-pill" data-menu-open><span class="mi"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="ml">Menu</span></button>
     </nav>
   </div>
 </header>
@@ -524,6 +528,21 @@
   </div>
 </footer>
 
+<script>
+window.BULWARK_MENU = {
+  card: { eyebrow: 'Latest verified runs', stats: [['56% → 100%', 'RefundBot (payments)'], ['49% → 100%', 'ResearchBot (Crustdata)'], ['$553k → $0', 'At risk per 1,000 tickets']], note: 'Offline runs, seed 42. Reproduce with npm run fix.' },
+  rows: [
+    { href: '/app', label: 'Launch app', hint: 'Attack, fix and prove, live', icon: 'grid' },
+    { href: '#bug', label: 'The bug', hint: 'A double refund, replayed', icon: 'bug' },
+    { href: '#how', label: 'How it works', hint: 'Red, Blue, Judge, Guard', icon: 'loop' },
+    { href: '#attacks', label: 'Attacks', hint: 'How agents break', icon: 'bolt' },
+    { href: '#proof', label: 'Proof', hint: 'Honest statistics', icon: 'chart' },
+    { href: '#stack', label: 'Built with', hint: 'neatlogs · Entire · cfo.ai · 0G', icon: 'layers' },
+  ],
+  cta: { href: '/app', label: 'Launch app' },
+};
+</script>
+<script src="/menu.js" defer></script>
 <script>
 // Hero dial: 0–100 scale, with ticks every 2.5 and labels every 25.
 const CX = 500, CY = 520, R = 430;

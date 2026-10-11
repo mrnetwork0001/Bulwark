@@ -249,6 +249,9 @@
     .controlbar .actions { width: 100%; }
     .controlbar .actions .cta { flex: 1; justify-content: space-between; }
   }
+  /* Phones: the top bar is the logo and the Menu pill (top right). The target switch and the
+     fixer move into the sheet while it's open; neatlogs status shows on its card. */
+  @media (max-width: 767px) { .topbar nav > :not(.menu-pill) { display: none !important; } .brand .crumb, .brand #target { display: inline !important; } }
   /* Very small phones: the logo already links home, so the extra back arrow goes. */
   @media (max-width: 380px) { .topbar a.home { display: none; } }
   @media (max-width: 640px) {
@@ -260,7 +263,7 @@
     .nlstat { width: 34px; padding: 0; justify-content: center; }
     .nlstat .t { display: none; }
     /* Phones keep the target switch (an action) and drop the fixer indicator (status only). */
-    #fx { display: none; }
+    .topbar #fx { display: none; }
     .hero { padding-top: 36px; }
     .xs-hide { display: none; }
     ul.rp-broken { max-height: 22vh; }
@@ -300,6 +303,7 @@
         <span data-fixer="playbook">Playbook</span><span data-fixer="llm">Claude<em class="via">via 0G</em></span>
       </div>
       <span class="nlstat" id="nl" title="neatlogs"><i></i><span class="t">neatlogs</span></span>
+      <button type="button" class="menu-pill" data-menu-open><span class="mi"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="ml">Menu</span></button>
       <a class="home" href="/" aria-label="Back to the landing page" title="Back to bulwark home">
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
@@ -457,6 +461,27 @@ function resetCards() { $('grid').replaceChildren(...meta.faults.map(card)); }
 
 async function load() {
   meta = await (await fetch('/api/meta' + (TARGET ? `?target=${encodeURIComponent(TARGET)}` : ''))).json();
+  window.BULWARK_MENU = {
+    card: () => ({
+      eyebrow: 'This session',
+      stats: [
+        [meta.target, 'Target agent'],
+        [String(meta.fixer).startsWith('playbook') ? 'Playbook' : 'Claude via 0G', 'Fixer'],
+        [meta.neatlogs ? 'Exporting' : 'Local only', 'neatlogs traces'],
+        [document.getElementById('bigscore')?.textContent?.trim() || '–', 'Last loop result'],
+      ],
+      note: 'Switch the target below. Runs, replays and fixes use the selected agent.',
+    }),
+    sections: [{ heading: 'Target agent', move: '#tg' }, { heading: 'Who writes the fixes', move: '#fx' }],
+    rows: [
+      { href: '/', label: 'Home', hint: 'What Bulwark is', icon: 'home' },
+      { href: '#stats', label: 'Run controls', hint: 'Attack only, or Attack → Fix → Prove', icon: 'play' },
+      { href: '#loop', label: 'Loop timeline', hint: 'Red, Blue, Judge, Guard', icon: 'timeline' },
+      { href: '#grid', label: 'Attack cards', hint: 'Every trial, before and after', icon: 'bolt' },
+      { href: '#results', label: 'Result and reports', hint: 'PR, patch, postmortems, badge', icon: 'doc' },
+    ],
+  };
+  if (!document.querySelector('script[src="/menu.js"]')) { const ms = document.createElement('script'); ms.src = '/menu.js'; document.body.appendChild(ms); }
   $('tg').innerHTML = (meta.targets ?? [meta.target])
     .map((t) => `<span data-target="${esc(t)}" class="${t === meta.target ? 'on' : ''}" role="button" tabindex="0" style="cursor:pointer">${esc(t)}</span>`)
     .join('');

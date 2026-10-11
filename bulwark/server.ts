@@ -171,6 +171,9 @@ async function main() {
       );
     } else if (url.pathname === '/api/artifact') {
       serveArtifact(res, url.searchParams);
+    } else if (url.pathname === '/menu.js') {
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache' });
+      res.end(readFileSync(new URL('./dashboard/menu.js', import.meta.url)));
     } else if (url.pathname === '/theme.css') {
       res.writeHead(200, { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'no-cache' });
       res.end(readFileSync(new URL('./dashboard/theme.css', import.meta.url)));
