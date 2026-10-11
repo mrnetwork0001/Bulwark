@@ -1,0 +1,79 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4MJ3BV79XQYG1T01TX0VCYN",
+  "session_id": "8cdad8b4-3584-46b2-b505-0bcea4d9fb5b",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-11T04:03:57.078563Z",
+  "branch": "worktree-agent-a38f3789961a16d13",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".env.example",
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "85aa9a6b57f7",
+  "checkpoint_transcript_start": 1564,
+  "transcript_lines_at_start": 1564,
+  "compact_transcript_start": 215,
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 13257,
+    "cache_read_tokens": 2819392,
+    "output_tokens": 2726,
+    "api_call_count": 6,
+    "subagent_tokens": {
+      "input_tokens": 20,
+      "cache_creation_tokens": 194580,
+      "cache_read_tokens": 1847792,
+      "output_tokens": 98,
+      "api_call_count": 10
+    }
+  },
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-11T04:03:56.978057Z",
+    "agent_lines": 5,
+    "agent_removed": 13,
+    "human_added": 360,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 365,
+    "total_lines_changed": 393,
+    "agent_percentage": 4.580152671755725,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1002,
+      "user_lines_removed": 56,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "README.md": 3,
+        "bulwark/blue/fixer.ts": 5,
+        "bulwark/fix.ts": 60,
+        "bulwark/judge/judge.ts": 88,
+        "bulwark/judge/overhead.ts": 127,
+        "bulwark/judge/slo.ts": 95,
+        "bulwark/judge/tournament.ts": 162,
+        "bulwark/loop/orchestrator.ts": 94,
+        "bulwark/report/reports.ts": 72,
+        "bulwark/stats.ts": 55,
+        "docs/FEATURES.md": 7,
+        "tests/judge.test.ts": 234
+      },
+      "user_removed_per_file": {
+        "bulwark/blue/fixer.ts": 1,
+        "bulwark/fix.ts": 4,
+        "bulwark/judge/judge.ts": 11,
+        "bulwark/loop/orchestrator.ts": 32,
+        "bulwark/report/reports.ts": 8
+      }
+    }
+  ]
+}
