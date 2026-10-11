@@ -27,7 +27,7 @@ const Label: React.FC<{ children: React.ReactNode; dark?: boolean }> = ({ childr
   <div style={{ fontFamily: mono, fontSize: 15, letterSpacing: "0.1em", color: dark ? C.ink2 : "rgba(255,255,255,0.55)", textTransform: "uppercase" }}>{children}</div>
 );
 const Big: React.FC<{ from: number; to: number; at: number; dark?: boolean }> = ({ from, to, at, dark }) => (
-  <div style={{ display: "flex", alignItems: "baseline", gap: 14, fontSize: 96, fontWeight: 300, letterSpacing: "-0.055em", lineHeight: 1 }}>
+  <div style={{ display: "flex", alignItems: "baseline", gap: 12, fontSize: 80, fontWeight: 300, letterSpacing: "-0.055em", lineHeight: 1 }}>
     <span style={{ color: dark ? C.dim : "rgba(255,255,255,0.45)" }}>{from}%</span>
     <span style={{ fontSize: 48, color: dark ? C.dim : "rgba(255,255,255,0.45)" }}>→</span>
     <span style={{ color: C.g2 }}><Count to={to} at={at} dur={24} suffix="%" /></span>
@@ -38,7 +38,7 @@ const Big: React.FC<{ from: number; to: number; at: number; dark?: boolean }> = 
 export const Different: React.FC = () => {
   const f = useCurrentFrame();
   const rel = useRel("different");
-  const t1 = rel("ResearchBot,") - 24;
+  const t1 = 8; // first card in with "It isn't tied to one agent", so the cut never sits on an empty frame
   const t2 = rel("Several");
   const t3 = rel("Bulwark");
   const click = markOf("target", "target_click", 67);
@@ -46,9 +46,9 @@ export const Different: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: C.night, fontFamily: inter, color: "#fff" }}>
       <div style={{ position: "absolute", left: 120, top: 110, fontSize: 76, fontWeight: 300, letterSpacing: "-0.045em" }}>
-        <Words text="Any agent. Many faults. Even itself." at={4} every={5} accent={{ "itself.": "#fff" }} />
+        <Words text="Any agent. Many faults. Even itself." at={-14} every={3} accent={{ "itself.": "#fff" }} />
       </div>
-      <div style={{ position: "absolute", right: 120, top: 136, fontFamily: mono, fontSize: 17, color: "rgba(255,255,255,0.55)", opacity: ramp(f, 30, 44), textAlign: "right" }}>
+      <div style={{ position: "absolute", right: 120, top: 136, fontFamily: mono, fontSize: 17, color: "rgba(255,255,255,0.55)", opacity: ramp(f, 6, 20), textAlign: "right" }}>
         {N.tests} tests · every trial replays from its seed
       </div>
 
@@ -63,7 +63,7 @@ export const Different: React.FC = () => {
         </Sequence>
         <div style={{ position: "absolute", left: 36, bottom: 36 }}>
           <Label>real Crustdata data, recorded once, replayed</Label>
-          <div style={{ marginTop: 10 }}><Big from={N.researchbot[0]} to={N.researchbot[1]} at={rel("one", 1) - 10} /></div>
+          <div style={{ marginTop: 10 }}><Big from={N.researchbot[0]} to={N.researchbot[1]} at={rel("forty-nine") - 4} /></div>
         </div>
       </Card>
 

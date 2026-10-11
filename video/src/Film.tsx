@@ -102,7 +102,8 @@ function effects(): Fx[] {
     { file: "whoosh", at: w("tools", "And", 1) - 14, vol: 0.25 },
     // different
     { file: "whoosh", at: sc("different") - 6, vol: 0.25 },
-    ...[["ResearchBot,", 24], ["Several", 6], ["Bulwark", 8]].map(([x, d]) => ({ file: "pop", at: w("different", x as string) - (d as number), vol: 0.35 })),
+    { file: "pop", at: sc("different") + 8, vol: 0.35 },
+    ...[["Several", 6], ["Bulwark", 8]].map(([x, d]) => ({ file: "pop", at: w("different", x as string) - (d as number), vol: 0.35 })),
     { file: "chime", at: w("different", "recovered.") - 4, vol: 0.3 },
     // close
     { file: "whoosh", at: sc("close") - 6, vol: 0.25 },

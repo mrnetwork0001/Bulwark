@@ -1,6 +1,6 @@
 # Bulwark demo film
 
-A 2:17 film made with [Remotion](https://www.remotion.dev) for the neatHack judges: the problem (an agent that passes its tests and still refunds a customer twice), what Bulwark does about it (attack, fix, prove), and what makes it different. It stays under X's 2:20 cap for standard accounts.
+A 2:18 film made with [Remotion](https://www.remotion.dev) for the neatHack judges: the problem (an agent that passes its tests and still refunds a customer twice), what Bulwark does about it (attack, fix, prove), and what makes it different. It stays under X's 2:20 cap for standard accounts.
 
 The motif is Bulwark's own logo, the crenellated wall, built from bricks. Every attack knocks a brick out in alarm red. A fix the Judge rejects drops a brick in that wobbles and falls back out (the rollback). A fix the Judge accepts drops it back in, green and locked. When resilience reaches 100%, the wall is whole.
 
