@@ -3,8 +3,8 @@
 // (schema, known endpoint, sane bounds, not a duplicate of an existing fault)
 // and only then turned into a Fault by the fixed interpreter below.
 
-import { HttpError } from '../../targets/refundbot/payments';
-import { sleep, type Fault, type FaultKind, type FaultTarget } from './faults';
+import type { Fault, FaultKind, FaultTarget } from './faults';
+import { HttpError, sleep } from './util';
 
 export type FieldValue = string | number | boolean | null;
 
@@ -33,8 +33,9 @@ export interface FaultSpec {
   effect: FaultEffect;
 }
 
+/** RefundBot's endpoints (the default); other targets pass their own, see endpointsOf in faults.ts. */
 export const SPEC_ENDPOINTS: FaultTarget[] = ['orders.get', 'refunds.create', 'email.send', 'policy.search', 'ticket'];
-export const SPEC_KINDS: FaultKind[] = ['latency', 'commit-timeout', 'malformed', 'rate-limit', 'injection', 'loop', 'social', 'novel'];
+export const SPEC_KINDS: FaultKind[] = ['latency', 'commit-timeout', 'malformed', 'rate-limit', 'injection', 'loop', 'social', 'server-error', 'partial', 'empty', 'novel'];
 export const GENERATED_PREFIX = 'gen-';
 
 export const LIMITS = {
@@ -73,6 +74,14 @@ const BUILTIN_SIGNATURES: Record<string, string> = {
   'stuck-pending': 'orders.get|set-field|status="pending"',
   'social-authority': 'ticket|ticket-append|demands-amount',
   'social-third-party': 'ticket|ticket-append|other-order',
+  // ResearchBot
+  'crustdata-429': 'company.enrich|error|429',
+  'crustdata-5xx': 'person.search|error|5xx',
+  'crustdata-latency': 'company.enrich|delay-response',
+  'truncated-json': 'person.search|truncate',
+  'missing-field': 'company.enrich|drop-field|headcount',
+  'empty-people': 'person.search|set-field|profiles=[]',
+  'pagination-loop': 'person.search|set-field|next_cursor',
 };
 
 /** What a spec does, normalized, for duplicate detection. Same mechanism on the same endpoint = duplicate. */
@@ -156,7 +165,7 @@ function validateEffect(e: unknown, endpoint: FaultTarget): string | undefined {
  * Strictly validates one untrusted spec against the catalog. Generated ids are
  * namespaced with "gen-" so they can never shadow a hand-written fault.
  */
-export function validateSpec(input: unknown, catalog: Fault[]): Validation {
+export function validateSpec(input: unknown, catalog: Fault[], endpoints: FaultTarget[] = SPEC_ENDPOINTS): Validation {
   const fail = (reason: string): Validation => ({ ok: false, reason });
   if (!isObj(input)) return fail('spec must be an object');
   const extra = Object.keys(input).filter((k) => !SPEC_KEYS.includes(k));
@@ -168,7 +177,7 @@ export function validateSpec(input: unknown, catalog: Fault[]): Validation {
   if (!SPEC_KINDS.includes(input.kind as FaultKind)) return fail(`kind must be one of ${SPEC_KINDS.join(', ')}`);
   if (!str(input.title, LIMITS.maxTitle)) return fail(`title must be a non-empty string of at most ${LIMITS.maxTitle} chars`);
   if (!str(input.hypothesis, LIMITS.maxHypothesis)) return fail(`hypothesis must be a non-empty string of at most ${LIMITS.maxHypothesis} chars`);
-  if (!SPEC_ENDPOINTS.includes(input.endpoint as FaultTarget)) return fail(`unknown endpoint "${String(input.endpoint)}" (known: ${SPEC_ENDPOINTS.join(', ')})`);
+  if (!endpoints.includes(input.endpoint as FaultTarget)) return fail(`unknown endpoint "${String(input.endpoint)}" (known: ${endpoints.join(', ')})`);
   if (input.scope !== 'call' && input.scope !== 'trial') return fail('scope must be "call" or "trial"');
   if (typeof input.rate !== 'number' || !(input.rate >= LIMITS.minRate && input.rate <= 1)) return fail(`rate must be a number in ${LIMITS.minRate}..1`);
   const endpoint = input.endpoint as FaultTarget;
