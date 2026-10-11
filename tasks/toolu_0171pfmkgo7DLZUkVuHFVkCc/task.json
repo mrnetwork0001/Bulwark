@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_0171pfmkgo7DLZUkVuHFVkCc",
+  "agent_id": "a8acd2c26836a1622",
+  "subagent_type": "general-purpose",
+  "task_description": "Game day, model degradation, stale data",
+  "token_usage": {
+    "input_tokens": 208,
+    "cache_creation_tokens": 294146,
+    "cache_read_tokens": 21962797,
+    "output_tokens": 28174,
+    "api_call_count": 104
+  },
+  "started_at": "2026-10-11T18:12:32.638948+02:00",
+  "completed_at": "2026-10-11T18:57:39.899515+02:00"
+}
