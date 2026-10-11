@@ -29,7 +29,7 @@ for (const name of targets) {
     test(`chaos regression: ${name}/${file}`, async () => {
       const spec = JSON.parse(readFileSync(join(specDir, file), 'utf8')) as ChaosSpec;
       const target = await loadTarget(dir);
-      const r = await runExperiment(target, getFault(spec.fault, target), { trials: spec.trials, seed: spec.seed, brain: 'simulated', deadlineMs: 5000, maxSteps: 50 });
+      const r = await runExperiment(target, getFault(spec.fault, target), { trials: spec.seeds?.length ?? spec.trials, seed: spec.seed, seeds: spec.seeds, brain: 'simulated', deadlineMs: 5000, maxSteps: 50 });
       assert.equal(r.passed, r.trials, JSON.stringify(r.violations));
     });
   }

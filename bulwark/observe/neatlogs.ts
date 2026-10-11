@@ -92,16 +92,42 @@ export function traceDetections(trace: NeatlogsTrace): unknown[] {
 }
 
 /**
+ * Fault, seed and outcome of a `bulwark.trial` span. The trial's attributes are not always returned
+ * by the read API (finalized traces come back with `span_metadata: null`), so this falls back to what
+ * neatlogs does keep: the trial's output ("Seed: 7\nOutcome: hung\n…") and its parent `experiment: <fault>` span.
+ */
+export function trialInfo(span: NeatlogsSpan, spans: NeatlogsSpan[]): { fault?: string; seed?: number; outcome?: string } {
+  const meta = { ...(span.span_metadata ?? {}), ...(span.data ?? {}) } as Record<string, unknown>;
+  for (const k of ['attributes', 'span_attributes']) if (meta[k] && typeof meta[k] === 'object') Object.assign(meta, meta[k] as object);
+  const out = [meta.output_value, meta.output].find((x) => typeof x === 'string' && x) as string | undefined;
+  const line = (key: string) => out?.match(new RegExp(`^${key}: *(\\S+)`, 'm'))?.[1];
+  const seedRaw = meta.seed ?? line('Seed');
+  const seed = seedRaw !== undefined && /^\d{1,10}$/.test(String(seedRaw)) ? Number(seedRaw) : undefined;
+  let fault = typeof meta.fault === 'string' && meta.fault ? meta.fault : undefined;
+  if (!fault) {
+    const byId = new Map(spans.map((s) => [s.span_id, s]));
+    for (let p = byId.get(span.parent_span_id), hops = 0; p && hops < 8; p = byId.get(p.parent_span_id), hops++) {
+      const m = p.node_name?.match(/^experiment: (.+)$/);
+      if (m) {
+        fault = m[1];
+        break;
+      }
+    }
+  }
+  const outcome = (typeof meta.outcome === 'string' ? meta.outcome : undefined) ?? line('Outcome');
+  return { ...(fault ? { fault } : {}), ...(seed !== undefined ? { seed } : {}), ...(outcome ? { outcome } : {}) };
+}
+
+/**
  * The spans of one trial inside a bigger trace. Bulwark's traced trials are `bulwark.trial`
  * spans nested in a phase trace (e.g. "2 red: attack scorecard BEFORE", which holds every fault's
  * sample trials), so the read-back is narrowed to the trial with this fault and seed and its descendants.
  */
 export function focusTrial(trace: NeatlogsTrace, focus: { fault?: string; seed?: number }): NeatlogsSpan[] {
   const spans = trace.spans ?? [];
-  const meta = (s: NeatlogsSpan) => ({ ...(s.span_metadata ?? {}), ...(s.data ?? {}) }) as Record<string, unknown>;
   const root = spans.find((s) => {
     if (s.node_name !== 'bulwark.trial') return false;
-    const m = meta(s);
+    const m = trialInfo(s, spans);
     return (focus.seed === undefined || String(m.seed) === String(focus.seed)) && (focus.fault === undefined || m.fault === undefined || m.fault === focus.fault);
   });
   if (!root?.span_id) return spans;

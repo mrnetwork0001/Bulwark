@@ -19,7 +19,9 @@
     "economics": "tsx bulwark/economics.ts",
     "market": "tsx bulwark/market.ts",
     "leaderboard": "tsx bulwark/leaderboard.ts",
-    "record:crustdata": "tsx targets/researchbot/record.ts"
+    "record:crustdata": "tsx targets/researchbot/record.ts",
+    "diff": "tsx bulwark/diff-cli.ts",
+    "replay-failures": "tsx bulwark/replay-failures.ts"
   },
   "engines": {
     "node": ">=20"

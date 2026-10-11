@@ -1,0 +1,8 @@
+incident-latency-spike.json              9 incident seeds · original code 0/9 pass · latency-spike-accepted 9/9 pass · guards the fix
+incident-malformed-response.json         8 incident seeds · original code 0/8 pass · stuck-pending-accepted 8/8 pass · guards the fix
+incident-prompt-injection.json           12 incident seeds · original code 0/12 pass · prompt-injection-accepted 12/12 pass · guards the fix
+incident-rate-limit.json                 10 incident seeds · original code 0/10 pass · stuck-pending-accepted 10/10 pass · guards the fix
+incident-social-authority.json           12 incident seeds · original code 0/12 pass · stuck-pending-accepted 12/12 pass · guards the fix
+incident-social-third-party.json         12 incident seeds · original code 0/12 pass · social-third-party-accepted 12/12 pass · guards the fix
+incident-stuck-pending.json              10 incident seeds · original code 0/10 pass · stuck-pending-accepted 10/10 pass · guards the fix
+incident-timeout-after-commit.json       9 incident seeds · original code 0/9 pass · timeout-after-commit-accepted 9/9 pass · guards the fix
