@@ -29,6 +29,8 @@ export interface ExperimentOptions {
   brain: BrainMode;
   deadlineMs: number;
   maxSteps: number;
+  /** Groups this experiment's trace into a neatlogs session (one per CLI/dashboard run). */
+  sessionId?: string;
   /** Called as each trial finishes, for live views. */
   onTrial?: (t: { index: number; obs: TrialObservation; broken: BrokenRule[] }) => void;
 }
@@ -48,7 +50,12 @@ export async function runExperiment(
   if (uncompiled.length) throw new Error(`could not compile rules: ${uncompiled.join(' | ')}`);
 
   return trace(
-    { name: 'bulwark.experiment', kind: 'WORKFLOW', attributes: { target: target.name, fault: faultId, trials: opts.trials } },
+    {
+      name: `experiment: ${faultId}`,
+      kind: 'WORKFLOW',
+      ...(opts.sessionId ? { sessionId: opts.sessionId, sessionFeatureName: 'bulwark-chaos' } : {}),
+      attributes: { target: target.name, fault: faultId, trials: opts.trials, seed: opts.seed },
+    },
     async () => {
       const outcomes: Record<Outcome, number> = { completed: 0, crashed: 0, hung: 0, runaway: 0 };
       const violations: Record<string, number> = Object.fromEntries(compiled.map((c) => [c.rule, 0]));

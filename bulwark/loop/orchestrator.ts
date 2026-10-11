@@ -93,7 +93,12 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
   const fixer = createFixer(o.fixer);
   const targetRel = relative(process.cwd(), resolve(o.targetDir));
 
-  return trace({ name: 'bulwark.loop', kind: 'WORKFLOW', attributes: { runId, target: targetRel, fixer: fixer.name } }, async () => {
+  // Each phase is its own root trace, grouped into one neatlogs session per run,
+  // so "before" and "after" are separate traces you can open and compare.
+  const phase = <T>(name: string, attributes: Record<string, unknown>, fn: () => Promise<T>) =>
+    trace({ name, kind: 'WORKFLOW', sessionId: `bulwark-${runId}`, sessionFeatureName: 'bulwark-loop', attributes: { runId, target: targetRel, fixer: fixer.name, ...attributes } }, fn);
+
+  return (async () => {
     const original = await loadTarget(o.targetDir);
     const originalFiles = readFiles(o.targetDir, original.editableFiles);
     const scope: Fault[] = o.faults === 'all' ? FAULTS : o.faults.map(getFault);
@@ -101,11 +106,11 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     emit({ type: 'run-start', runId, target: original.name, fixer: fixer.name, faults: scope.map((f) => f.id), redTrials: o.redTrials, judgeTrials: o.judgeTrials });
 
     // Red: find weak links, then measure the damage.
-    const findings = await trace({ name: 'red.analyze', kind: 'AGENT' }, async () => analyzeTarget(o.targetDir, original));
+    const findings = await phase('1 red: analyze code', {}, async () => analyzeTarget(o.targetDir, original));
     emit({ type: 'analyze', findings });
 
     const redOpts = { trials: o.redTrials, seed: o.seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps };
-    const before = await trace({ name: 'red.scorecard', kind: 'AGENT' }, () => runAll(original, redOpts));
+    const before = await phase('2 red: attack scorecard BEFORE', { phase: 'before', trials: o.redTrials, seed: o.seed }, () => runAll(original, redOpts));
     emit({ type: 'scorecard', phase: 'before', results: Object.values(before), overall: overallPassRate(before) });
 
     // The Judge uses its own seeds, so a fix can't be tuned to the trials Red happened to run.
@@ -114,7 +119,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     let baseFiles = originalFiles;
     let baseDir = o.targetDir;
     let baseTarget: BulwarkTarget = original;
-    let baseResults = await runAll(original, judgeOpts);
+    let baseResults = await phase('judge: measure unpatched code', { trials: o.judgeTrials }, () => runAll(original, judgeOpts));
 
     const highRisk = (f: Fault) => findings.some((x) => x.faults.includes(f.id) && x.severity === 'high');
     const ordered = [...scope].sort((a, b) => Number(highRisk(b)) - Number(highRisk(a)));
@@ -154,7 +159,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         const cp = checkpoints.save(`before ${fault.id} attempt ${n}`, baseFiles, { fault: fault.id, attempt: n });
         emit({ type: 'checkpoint', action: 'save', id: cp.id, label: cp.label });
 
-        const proposal = await trace({ name: 'blue.propose', kind: 'AGENT', attributes: { fault: fault.id, attempt: n } }, () =>
+        const proposal = await phase(`3 blue: propose fix for ${fault.id} #${n}`, { fault: fault.id, attempt: n }, () =>
           fixer.propose({ fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [] }),
         );
         if (!proposal) {
@@ -166,7 +171,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         emit({ type: 'attempt', fault: fault.id, n, strategy: proposal.strategy, title: proposal.title, rationale: proposal.rationale, author: proposal.author, diff, ...diffStats(diff) });
 
         const candidateDir = ws.materialize(`${fault.id}-a${n}`, proposal.files);
-        const v = await judge({ fault, candidate: () => loadTarget(candidateDir), baseResults, opts: judgeOpts });
+        const v = await phase(`4 judge: verify ${fault.id} #${n}`, { fault: fault.id, attempt: n, strategy: proposal.strategy }, () =>
+          judge({ fault, candidate: () => loadTarget(candidateDir), baseResults, opts: judgeOpts }),
+        );
         emit({ type: 'verdict', fault: fault.id, n, status: v.status, reasons: v.reasons, pValue: v.pValue, afterPassed: v.after.passed, trials: v.after.trials, regressions: v.regressions });
         rec.attempts.push({
           n,
@@ -186,7 +193,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
           const fixedFiles = withSpec(proposal.files, spec);
           const fixedDir = ws.materialize(`${fault.id}-accepted`, fixedFiles);
           const fixedTarget = await loadTarget(fixedDir);
-          const m = await trace({ name: 'guard.mutation-check', kind: 'EVALUATOR', attributes: { fault: fault.id } }, () =>
+          const m = await phase(`5 guard: prove regression test for ${fault.id}`, { fault: fault.id }, () =>
             mutationCheck(spec, baseTarget, fixedTarget, judgeOpts),
           );
           rec.mutation = { ok: m.ok, unfixedPassed: m.unfixed.passed, fixedPassed: m.fixed.passed, trials: spec.trials };
@@ -209,7 +216,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     }
 
     // Red re-runs its original attack, same seeds, against the final code.
-    const after = await trace({ name: 'red.scorecard-after', kind: 'AGENT' }, () => runAll(baseTarget, redOpts));
+    const after = await phase('6 red: attack scorecard AFTER', { phase: 'after', trials: o.redTrials, seed: o.seed }, () => runAll(baseTarget, redOpts));
     emit({ type: 'scorecard', phase: 'after', results: Object.values(after), overall: overallPassRate(after) });
     const residual = analyzeTarget(baseDir, baseTarget);
     emit({ type: 'residual', findings: residual });
@@ -255,7 +262,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     writeFileSync(join(o.stateDir, 'latest.json'), JSON.stringify({ runId, dir }, null, 2));
     emit({ type: 'run-done', summary });
     return summary;
-  });
+  })();
 }
 
 function git(args: string[], cwd?: string): string {

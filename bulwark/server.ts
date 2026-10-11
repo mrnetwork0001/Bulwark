@@ -32,6 +32,7 @@ async function streamRun(res: ServerResponse, params: URLSearchParams) {
     brain: 'simulated' as const,
     deadlineMs: 5000,
     maxSteps: 50,
+    sessionId: `chaos-${new Date().toISOString().replace(/[:.]/g, '-')}`,
   };
 
   // Experiments run concurrently so the whole board fills in at once.

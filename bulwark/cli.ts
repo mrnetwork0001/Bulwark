@@ -37,6 +37,7 @@ async function main() {
     brain,
     deadlineMs: Number(values.deadline),
     maxSteps: Number(values['max-steps']),
+    sessionId: `chaos-${new Date().toISOString().replace(/[:.]/g, '-')}`,
   };
 
   const exporting = await initTracing('bulwark-chaos');
