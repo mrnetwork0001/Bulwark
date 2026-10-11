@@ -1,4 +1,4 @@
-// npm run fix -- [--fault <id>|all] [--fixer auto|playbook|claude] [--red-trials 20]
+// npm run fix -- [--target targets/refundbot|targets/researchbot] [--fault <id>|all] [--fixer auto|playbook|claude] [--red-trials 20]
 //                [--judge-trials 40] [--seed 42] [--max-attempts 4] [--no-memory] [--apply] [--pr] [--generated]
 //                [--slo 0.99[,<fault>=0.999]] [--slo-confidence 0.95] [--max-slo-trials 1000]
 //                [--max-latency-overhead 50%] [--max-step-overhead 2] [--max-cost-overhead 20%] [--overhead-policy reject|flag]
@@ -21,7 +21,9 @@ import { describeObserve } from './observe/evidence';
 import { summarizeProvenance } from './provenance/entire';
 import { describeBlast } from './red/graph';
 import { money } from './risk';
+import { loadTarget, resolveTargetDir } from './target';
 import { initTracing, shutdownTracing } from './tracing';
+import { relative } from 'node:path';
 
 const c = {
   dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
@@ -134,7 +136,11 @@ async function main() {
     },
   });
   // Generative Red's accepted faults join the catalog, so Red, Blue, Judge and Guard all see them.
-  if (values.generated) registerFaults(loadGeneratedFaults());
+  const targetDir = relative(process.cwd(), resolveTargetDir(values.target));
+  if (values.generated) {
+    const target = await loadTarget(targetDir);
+    registerFaults(loadGeneratedFaults(undefined, target), target);
+  }
   const slo = values.slo ? parseSlo(values.slo, Number(values['slo-confidence']), Number(values['max-slo-trials'])) : undefined;
   const policy = values['overhead-policy'] as 'reject' | 'flag';
   if (!['reject', 'flag'].includes(policy)) throw new Error('--overhead-policy must be reject or flag');
@@ -152,7 +158,7 @@ async function main() {
   await initTracing('bulwark-loop');
   const summary = await runLoop(
     {
-      targetDir: values.target!,
+      targetDir,
       faults: values.fault === 'all' ? 'all' : values.fault!.split(','),
       fixer,
       redTrials: Number(values['red-trials']),

@@ -148,9 +148,9 @@ test('dollarsAtRisk scales to 1,000 tickets and combineRisk weights by trials', 
 
 test('experiments carry dollars at risk (simulated brain, prompt injection over-refunds)', async () => {
   const r = await runExperiment(target, getFault('prompt-injection'), { trials: 10, seed: 42, brain: 'simulated', deadlineMs: 2000, maxSteps: 50 });
-  assert.ok(r.dollarsAtRisk.overRefundUsd > 0);
-  assert.equal(r.dollarsAtRisk.trials, 10);
-  assert.deepEqual(r.dollarsAtRisk.costs, { lostTicketUsd: 20, escalationUsd: 15 });
+  assert.ok(r.dollarsAtRisk!.overRefundUsd > 0);
+  assert.equal(r.dollarsAtRisk!.trials, 10);
+  assert.deepEqual(r.dollarsAtRisk!.costs, { lostTicketUsd: 20, escalationUsd: 15 });
 });
 
 // --- leaderboard ranking ---

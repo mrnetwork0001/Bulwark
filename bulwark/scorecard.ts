@@ -20,8 +20,8 @@ export interface ExperimentResult {
   outcomes: Record<Outcome, number>;
   violations: Record<string, number>;
   p95Ms: number;
-  /** Failures priced as money: over-refunds plus lost-ticket and escalation assumptions. */
-  dollarsAtRisk: DollarsAtRisk;
+  /** Failures priced as money (over-refunds plus lost-ticket and escalation assumptions). Only for targets with a risk model. */
+  dollarsAtRisk?: DollarsAtRisk;
   /** One failing trial per broken rule, so a human can replay it from its seed. */
   examples: { rule: string; seed: number; detail?: string; traceId?: string }[];
   /** Every trial in index order, so any one can be replayed from its seed (the dashboard's squares). */
@@ -55,7 +55,7 @@ export async function runExperiment(
   opts: ExperimentOptions,
 ): Promise<ExperimentResult> {
   const faultId = fault?.id ?? 'baseline';
-  const { compiled, uncompiled } = compileRules(target.rules);
+  const { compiled, uncompiled } = compileRules(target.rules, target.checks);
   if (uncompiled.length) throw new Error(`could not compile rules: ${uncompiled.join(' | ')}`);
 
   return trace(
@@ -115,7 +115,7 @@ export async function runExperiment(
         outcomes,
         violations,
         p95Ms: percentile(observations.map((o) => o.durationMs), 95),
-        dollarsAtRisk: dollarsAtRisk(observations, riskCosts(target.risk)),
+        ...(target.risk ? { dollarsAtRisk: dollarsAtRisk(observations, riskCosts(target.risk)) } : {}),
         examples,
         perTrial,
       };
@@ -139,6 +139,8 @@ export function riskCell(r: ExperimentResult): string {
 }
 
 export function renderMarkdown(target: BulwarkTarget, results: ExperimentResult[], meta: Record<string, unknown>): string {
+  // Targets without a risk model get no dollars-at-risk column.
+  const priced = results.some((r) => r.dollarsAtRisk);
   const lines = [
     `# Bulwark scorecard: ${target.name}`,
     '',
@@ -146,8 +148,8 @@ export function renderMarkdown(target: BulwarkTarget, results: ExperimentResult[
       .map(([k, v]) => `**${k}**: ${v}`)
       .join(' · '),
     '',
-    '| Fault | Pass | 95% CI | Crashed | Hung | Runaway | p95 | $ at risk / 1k tickets | Broken rules |',
-    '|---|---|---|---|---|---|---|---|---|',
+    `| Fault | Pass | 95% CI | Crashed | Hung | Runaway | p95 |${priced ? ' $ at risk / 1k tickets |' : ''} Broken rules |`,
+    `|---|---|---|---|---|---|---|${priced ? '---|' : ''}---|`,
   ];
   for (const r of results) {
     const broken = Object.entries(r.violations)
@@ -155,7 +157,7 @@ export function renderMarkdown(target: BulwarkTarget, results: ExperimentResult[
       .map(([rule, n]) => `${rule} (${n})`)
       .join('<br>');
     lines.push(
-      `| ${r.fault} | ${r.passed}/${r.trials} | ${pct(r.ci95[0])}–${pct(r.ci95[1])} | ${r.outcomes.crashed} | ${r.outcomes.hung} | ${r.outcomes.runaway} | ${Math.round(r.p95Ms)}ms | ${riskCell(r)} | ${broken || '—'} |`,
+      `| ${r.fault} | ${r.passed}/${r.trials} | ${pct(r.ci95[0])}–${pct(r.ci95[1])} | ${r.outcomes.crashed} | ${r.outcomes.hung} | ${r.outcomes.runaway} | ${Math.round(r.p95Ms)}ms |${priced ? ` ${riskCell(r)} |` : ''} ${broken || '—'} |`,
     );
   }
   const costs = results[0]?.dollarsAtRisk?.costs;

@@ -1,11 +1,15 @@
-// The fault catalog. Each fault is a hypothesis about how the world breaks,
+// The fault catalogs. Each fault is a hypothesis about how the world breaks,
 // injected at the wire between the agent and its services, or (for social
-// engineering) into the customer's ticket itself.
+// engineering) into the customer's ticket itself. Every target has its own
+// catalog, naming only endpoints that target serves.
 
 import { log } from 'neatlogs';
-import type { Ticket } from '../../targets/refundbot/agent';
-import { HttpError, type Endpoint, type Transport } from '../../targets/refundbot/payments';
+import type { Transport } from '../target';
+import { RESEARCH_FAULTS } from './research';
 import type { FaultSpec } from './spec';
+import { HttpError, sleep } from './util';
+
+export { HttpError, sleep };
 
 export interface FaultContext {
   rng: () => number;
@@ -18,14 +22,28 @@ export interface FaultContext {
 export interface FaultEvent {
   fault: string;
   kind: FaultKind;
-  endpoint: Endpoint;
+  endpoint: string;
   title: string;
 }
 
-export type FaultKind = 'latency' | 'commit-timeout' | 'malformed' | 'rate-limit' | 'injection' | 'loop' | 'social' | 'novel';
+export type FaultKind =
+  | 'latency'
+  | 'commit-timeout'
+  | 'malformed'
+  | 'rate-limit'
+  | 'injection'
+  | 'loop'
+  | 'social'
+  | 'server-error'
+  | 'partial'
+  | 'empty'
+  | 'novel';
 
-/** Where a fault strikes: a service endpoint on the wire, or the customer's ticket (the conversation). */
-export type FaultTarget = Endpoint | 'ticket';
+/** Where a fault strikes: one of the target's endpoints on the wire, or 'ticket' (the conversation). */
+export type FaultTarget = string;
+
+/** Anything with a message: every target's ticket. */
+export type TicketLike = { message: string };
 
 export interface Fault {
   id: string;
@@ -36,19 +54,15 @@ export interface Fault {
   /** 'call': each matching call is hit with probability `rate`. 'trial': the whole trial is or isn't. */
   scope: 'call' | 'trial';
   rate: number;
-  inject: (next: () => Promise<string>, ctx: FaultContext) => Promise<string>;
+  /**
+   * `next()` sends the call as the agent made it; `next(payload)` sends a changed request instead
+   * (e.g. a server that ignores the pagination cursor). `payload` is the agent's own request.
+   */
+  inject: (next: (payload?: Record<string, unknown>) => Promise<string>, ctx: FaultContext, payload?: Record<string, unknown>) => Promise<string>;
   /** Ticket-level faults (endpoint 'ticket') rewrite the customer's message before the agent sees it. */
-  rewriteTicket?: (ticket: Ticket, ctx: FaultContext) => Ticket;
+  rewriteTicket?: <T extends TicketLike>(ticket: T, ctx: FaultContext) => T;
   /** The declarative spec, for faults invented by generative Red (see chaos/spec.ts, red/generate.ts). */
   spec?: FaultSpec;
-}
-
-export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(new Error('aborted'));
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => (clearTimeout(t), reject(new Error('aborted'))), { once: true });
-  });
 }
 
 // Real injections vary their wording, so a filter that only catches
@@ -74,9 +88,10 @@ const THIRD_PARTY_REQUESTS = [
 ];
 
 const pick = <T>(xs: T[], rng: () => number) => xs[Math.floor(rng() * xs.length)];
-const appendToMessage = (ticket: Ticket, text: string): Ticket => ({ ...ticket, message: `${ticket.message} ${text}` });
+const appendToMessage = <T extends TicketLike>(ticket: T, text: string): T => ({ ...ticket, message: `${ticket.message} ${text}` });
 const passthrough: Fault['inject'] = (next) => next();
 
+/** RefundBot's catalog (also the default when no target is named, for older callers). */
 export const FAULTS: Fault[] = [
   {
     id: 'latency-spike',
@@ -181,23 +196,62 @@ export const FAULTS: Fault[] = [
   },
 ];
 
-/** Adds faults (e.g. generative Red's accepted specs) to the catalog, so every consumer sees them. */
-export function registerFaults(faults: Fault[]): Fault[] {
-  for (const f of faults) {
-    if (FAULTS.some((x) => x.id === f.id)) throw new Error(`fault "${f.id}" is already in the catalog`);
-    FAULTS.push(f);
-  }
-  return FAULTS;
+/** RefundBot's endpoints, for targets that don't declare their own. */
+export const REFUNDBOT_ENDPOINTS = ['orders.get', 'refunds.create', 'email.send', 'policy.search'];
+
+// One catalog per target, keyed by target name, so a patched copy of a target
+// (loaded from a workspace) sees the same catalog, generated faults included.
+const CATALOGS = new Map<string, Fault[]>([
+  ['refundbot', FAULTS],
+  ['researchbot', RESEARCH_FAULTS],
+]);
+
+/** A target (or just its name). Omitted means RefundBot, so older callers keep working. */
+export type TargetRef = { name: string; endpoints?: Record<string, string> } | string | undefined;
+const nameOf = (t: TargetRef) => (typeof t === 'string' ? t : t?.name) ?? 'refundbot';
+
+/** The endpoints faults may name for a target: its declared endpoints (RefundBot's by default) plus 'ticket'. */
+export function endpointsOf(target: TargetRef): string[] {
+  const declared = typeof target === 'object' && target.endpoints ? Object.keys(target.endpoints) : REFUNDBOT_ENDPOINTS;
+  return [...declared, 'ticket'];
 }
 
-export function getFault(id: string): Fault {
-  const fault = FAULTS.find((f) => f.id === id);
-  if (!fault) throw new Error(`unknown fault "${id}". Known: ${FAULTS.map((f) => f.id).join(', ')}`);
+/**
+ * The fault catalog for a target (RefundBot's when none is named). Throws if a
+ * fault names an endpoint the target doesn't serve, so a catalog can never be
+ * run against the wrong agent by accident.
+ */
+export function faultsFor(target?: TargetRef): Fault[] {
+  const name = nameOf(target);
+  const catalog = CATALOGS.get(name);
+  if (!catalog) throw new Error(`no fault catalog for target "${name}". Known: ${[...CATALOGS.keys()].join(', ')}`);
+  if (typeof target === 'object' && target.endpoints) {
+    const ok = new Set(endpointsOf(target));
+    const bad = catalog.find((f) => !ok.has(f.endpoint));
+    if (bad) throw new Error(`fault "${bad.id}" names endpoint "${bad.endpoint}", which ${name} does not serve (${[...ok].join(', ')})`);
+  }
+  return catalog;
+}
+
+/** Adds faults (e.g. generative Red's accepted specs) to a target's catalog, so every consumer sees them. */
+export function registerFaults(faults: Fault[], target?: TargetRef): Fault[] {
+  const catalog = faultsFor(target);
+  for (const f of faults) {
+    if (catalog.some((x) => x.id === f.id)) throw new Error(`fault "${f.id}" is already in the catalog`);
+    catalog.push(f);
+  }
+  return catalog;
+}
+
+export function getFault(id: string, target?: TargetRef): Fault {
+  const catalog = faultsFor(target);
+  const fault = catalog.find((f) => f.id === id);
+  if (!fault) throw new Error(`unknown fault "${id}" for ${nameOf(target)}. Known: ${catalog.map((f) => f.id).join(', ')}`);
   return fault;
 }
 
 /** Applies a ticket-level fault to the trial's ticket. Other faults leave it (and the rng) untouched. */
-export function injectTicket(ticket: Ticket, fault: Fault | undefined, ctx: FaultContext): Ticket {
+export function injectTicket<T extends TicketLike>(ticket: T, fault: Fault | undefined, ctx: FaultContext): T {
   if (!fault || fault.endpoint !== 'ticket' || !fault.rewriteTicket) return ticket;
   if (ctx.rng() >= fault.rate) return ticket;
   ctx.fired++;
@@ -205,16 +259,17 @@ export function injectTicket(ticket: Ticket, fault: Fault | undefined, ctx: Faul
   return fault.rewriteTicket(ticket, ctx);
 }
 
-export function injectFault(transport: Transport, fault: Fault | undefined, ctx: FaultContext): Transport {
+export function injectFault<T extends Transport<any>>(transport: T, fault: Fault | undefined, ctx: FaultContext): T {
   if (!fault || fault.endpoint === 'ticket') return transport;
   const trialHit = fault.scope === 'trial' ? ctx.rng() < fault.rate : true;
-  return async (endpoint, payload) => {
-    const next = () => transport(endpoint, payload);
+  const injected: Transport = async (endpoint, payload) => {
+    const next = (p: Record<string, unknown> = payload) => transport(endpoint, p);
     if (endpoint !== fault.endpoint || !trialHit) return next();
     if (fault.scope === 'call' && ctx.rng() >= fault.rate) return next();
     ctx.fired++;
     log('chaos: injecting {fault} on {endpoint}', { fault: fault.id, endpoint, level: 'warn' });
     ctx.onEvent?.({ fault: fault.id, kind: fault.kind, endpoint, title: fault.title });
-    return fault.inject(next, ctx);
+    return fault.inject(next, ctx, payload);
   };
+  return injected as T;
 }

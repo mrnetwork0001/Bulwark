@@ -34,7 +34,7 @@ export async function mutationCheck(
   base: ExperimentOptions,
 ): Promise<MutationCheck> {
   const opts = { ...base, trials: spec.trials, seed: spec.seed, onTrial: undefined };
-  const fault = getFault(spec.fault);
+  const fault = getFault(spec.fault, unfixed);
   const [u, f] = await Promise.all([runExperiment(unfixed, fault, opts), runExperiment(fixed, fault, opts)]);
   return { ok: u.passed < u.trials && f.passed === f.trials, unfixed: u, fixed: f };
 }

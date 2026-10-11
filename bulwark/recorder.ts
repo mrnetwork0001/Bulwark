@@ -4,9 +4,13 @@
 // effects land in the sandbox ledger). It never touches randomness or results,
 // so a recorded trial behaves exactly like an unrecorded one with the same seed.
 
-import type { Decision } from '../targets/refundbot/agent';
-import type { Endpoint, PaymentsSandbox, Transport } from '../targets/refundbot/payments';
 import type { FaultEvent } from './chaos/faults';
+import type { Decision, Transport } from './target';
+
+type Endpoint = string;
+
+/** A runaway trial (e.g. an endless pagination loop) can make thousands of calls; the timeline keeps the first ones. */
+export const MAX_TIMELINE_EVENTS = 1500;
 
 interface Base {
   /** Position in the timeline. */
@@ -23,8 +27,9 @@ export type TrialEvent = Base &
     | { type: 'error'; call: number; endpoint: Endpoint; error: string; ms: number; late?: boolean }
     | { type: 'timeout'; call: number; endpoint: Endpoint; afterMs: number; detail: string }
     | { type: 'fault'; call: number; fault: string; kind: string; endpoint: Endpoint; detail: string }
-    | { type: 'effect'; effect: 'refund' | 'email'; data: unknown }
-    | { type: 'outcome'; outcome: string; error?: string; reply?: string; steps: number; durationMs: number }
+    /** A new ledger entry; `effect` is the singular of the target's effect key (refunds → refund, apiCalls → apiCall). */
+    | { type: 'effect'; effect: string; data: unknown }
+    | { type: 'outcome'; outcome: string; error?: string; reply?: string; steps: number; durationMs: number; dropped?: number }
   );
 
 type Draft = TrialEvent extends infer E ? (E extends TrialEvent ? Omit<E, 'i' | 't'> : never) : never;
@@ -49,8 +54,16 @@ export class TrialRecorder {
 
   private now = () => performance.now() - this.start;
 
+  /** Events past MAX_TIMELINE_EVENTS, counted instead of kept. */
+  private dropped = 0;
+
   private push(e: Draft) {
     if (this.stopped) return;
+    if (this.events.length >= MAX_TIMELINE_EVENTS && e.type !== 'outcome') {
+      this.dropped++;
+      return;
+    }
+    if (e.type === 'outcome' && this.dropped) e = { ...e, dropped: this.dropped };
     this.events.push({ i: this.events.length, t: Math.round(this.now()), ...e } as TrialEvent);
   }
 
@@ -81,8 +94,8 @@ export class TrialRecorder {
   }
 
   /** Wraps the transport the agent calls (outermost, after fault injection). */
-  agentSide(transport: Transport): Transport {
-    return async (endpoint, payload) => {
+  agentSide<T extends Transport<any>>(transport: T): T {
+    const wrapped: Transport = async (endpoint, payload) => {
       const call = ++this.calls;
       const at = this.now();
       // The agent never tells the wire it gave up, but a second call to the same
@@ -123,20 +136,23 @@ export class TrialRecorder {
         this.pending.delete(call);
       }
     };
+    return wrapped as T;
   }
 
   /** Wraps the services' transport (innermost, before fault injection) to catch real side effects. */
-  serviceSide(transport: Transport, sandbox: PaymentsSandbox): Transport {
-    return async (endpoint, payload) => {
-      const refunds = sandbox.refunds.length;
-      const emails = sandbox.emails.length;
+  serviceSide<T extends Transport<any>>(transport: T, observe: () => Record<string, unknown[]>): T {
+    const wrapped: Transport = async (endpoint, payload) => {
+      const before = Object.fromEntries(Object.entries(observe()).map(([k, v]) => [k, v.length]));
       try {
         return await transport(endpoint, payload);
       } finally {
-        for (const r of sandbox.refunds.slice(refunds)) this.push({ type: 'effect', effect: 'refund', data: { ...r } });
-        for (const e of sandbox.emails.slice(emails)) this.push({ type: 'effect', effect: 'email', data: { ...e } });
+        for (const [key, entries] of Object.entries(observe())) {
+          const effect = key.replace(/s$/, '');
+          for (const d of entries.slice(before[key] ?? 0)) this.push({ type: 'effect', effect, data: typeof d === 'object' && d ? { ...d } : d });
+        }
       }
     };
+    return wrapped as T;
   }
 }
 

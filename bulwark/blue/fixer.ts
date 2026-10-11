@@ -9,7 +9,7 @@ import { createLlmClient, defaultModel, llmProvider } from '../llm';
 import type { Finding } from '../red/analyze';
 import type { ExperimentResult } from '../scorecard';
 import type { Files } from '../workspace';
-import { applyStrategy, PLAYBOOK } from './playbook';
+import { applyStrategy, playbookFor } from './playbook';
 
 export interface FailedAttempt {
   strategy: string;
@@ -19,6 +19,8 @@ export interface FailedAttempt {
 }
 
 export interface FixContext {
+  /** Target name, so the playbook offers that target's strategies (RefundBot's when omitted). */
+  target?: string;
   fault: Fault;
   findings: Finding[];
   files: Files;
@@ -56,7 +58,7 @@ export class PlaybookFixer implements Fixer {
       const i = ctx.preferred.indexOf(id);
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
-    const strategies = (PLAYBOOK[ctx.fault.kind] ?? [])
+    const strategies = (playbookFor(ctx.target)[ctx.fault.kind] ?? [])
       .map((s, order) => ({ s, order }))
       .sort((a, b) => rank(a.s.id) - rank(b.s.id) || a.order - b.order)
       .map((x) => x.s);
@@ -105,7 +107,7 @@ export function buildFixPrompt(ctx: FixContext): string {
     `${ctx.fault.title}. Hypothesis: ${ctx.fault.hypothesis}`,
     `## Business rules and exactly how the Judge checks them`,
     ...ctx.rules.map((r) => `- "${r.rule}": ${r.how}`),
-    `Trials run against a sandbox. Side effects (refunds, emails) are read from the sandbox ledger, not from what the agent says it did.`,
+    `Trials run against a sandbox. Side effects (refunds, emails, API calls, …) are read from the sandbox ledger, not from what the agent says it did.`,
     `## Evidence (${ctx.before.passed}/${ctx.before.trials} trials passed)`,
     ...Object.entries(ctx.before.violations)
       .filter(([, n]) => n > 0)

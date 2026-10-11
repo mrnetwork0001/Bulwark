@@ -1,19 +1,36 @@
 // Runs one sandboxed trial of the target agent under one fault, and records what
-// actually happened: outcome, timing, steps, and the real side effects (refunds,
-// emails) taken from the sandbox ledger rather than from the agent's own claims.
+// actually happened: outcome, timing, steps, and the real side effects taken
+// from the target's sandbox ledger rather than from the agent's own claims.
 
 import { trace } from 'neatlogs';
-import type { Brain } from '../targets/refundbot/agent';
-import type { Email, Order, Refund } from '../targets/refundbot/payments';
 import { injectFault, injectTicket, type Fault } from './chaos/faults';
 import { TrialRecorder, type TrialEvent } from './recorder';
 import { countTrial, recordLlmCall } from './cost/meter';
 import { mulberry32 } from './stats';
-import type { BrainMode, BulwarkTarget } from './target';
+import type { Brain, BrainMode, BulwarkTarget } from './target';
 import { isExporting, untraced } from './tracing';
 
 export type Outcome = 'completed' | 'crashed' | 'hung' | 'runaway';
 export type { BrainMode };
+
+// RefundBot's ledger entries, typed for the refund rules and the dollars-at-risk model.
+export interface OrderRecord {
+  id: string;
+  email: string;
+  total: number;
+  [key: string]: unknown;
+}
+export interface RefundRecord {
+  id: string;
+  orderId: string;
+  amount: number;
+  idempotencyKey?: string;
+}
+export interface EmailRecord {
+  to: string;
+  subject: string;
+  body: string;
+}
 
 export interface TrialObservation {
   seed: number;
@@ -23,10 +40,18 @@ export interface TrialObservation {
   steps: number;
   faultsFired: number;
   reply?: string;
-  customerEmail: string;
-  orders: Order[];
-  refunds: Refund[];
-  emails: Email[];
+  /** The ticket the agent actually handled (after any ticket-level fault). */
+  ticket?: Record<string, unknown>;
+  /** The fixtures the sandbox was built from (minus the ticket), for rules that compare against them. */
+  fixtures?: Record<string, unknown>;
+  /** The target's sandbox ledger, keyed by effect type (target.observe), e.g. { refunds, emails } or { apiCalls }. */
+  effects?: Record<string, unknown[]>;
+  // Named views of RefundBot's ledger, used by the refund rules and dollars at risk.
+  // Filled from the ticket, fixtures and effects when the target has them.
+  customerEmail?: string;
+  orders?: OrderRecord[];
+  refunds?: RefundRecord[];
+  emails?: EmailRecord[];
   /** Ordered event timeline, only when the trial ran with `record: true`. */
   timeline?: TrialEvent[];
   /** neatlogs trace id, when this trial was traced. */
@@ -54,15 +79,15 @@ class StepCapExceeded extends Error {}
 
 export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
   const fixtures = opts.target.fixtures();
-  const { orders } = fixtures;
-  const sandbox = opts.target.createSandbox(orders);
+  const sandbox = opts.target.createSandbox(fixtures);
+  const observe = () => opts.target.observe(sandbox);
   const abort = new AbortController();
   const rec = opts.record ? new TrialRecorder() : undefined;
   const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0, onEvent: rec?.fault };
   // Social-engineering faults attack through the conversation: they rewrite the ticket, not the wire.
   const ticket = injectTicket(fixtures.ticket, opts.fault, faultCtx);
   const service = opts.target.createTransport(sandbox, abort.signal);
-  const injected = injectFault(rec ? rec.serviceSide(service, sandbox) : service, opts.fault, faultCtx);
+  const injected = injectFault(rec ? rec.serviceSide(service, observe) : service, opts.fault, faultCtx);
   const transport = rec ? rec.agentSide(injected) : injected;
 
   // Every LLM call the target makes is priced on the current run's cost meter.
@@ -107,6 +132,8 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
       abort.abort();
     }
 
+    const effects = Object.fromEntries(Object.entries(observe()).map(([k, v]) => [k, [...v]]));
+    const { ticket: _t, ...rest } = fixtures as Record<string, unknown>;
     const obs: TrialObservation = {
       seed: opts.seed,
       outcome,
@@ -115,10 +142,10 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
       steps: Math.min(steps, opts.maxSteps + 1),
       faultsFired: faultCtx.fired,
       reply,
-      customerEmail: ticket.customerEmail,
-      orders,
-      refunds: [...sandbox.refunds],
-      emails: [...sandbox.emails],
+      ticket: ticket as Record<string, unknown>,
+      fixtures: rest,
+      effects,
+      ...refundView(ticket, rest, effects),
     };
     if (rec) {
       rec.outcome(obs);
@@ -148,4 +175,14 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
       return obs;
     },
   );
+}
+
+/** RefundBot's named fields (customer, orders, refunds, emails), only for keys the target actually has. */
+function refundView(ticket: Record<string, unknown>, fixtures: Record<string, unknown>, effects: Record<string, unknown[]>): Partial<TrialObservation> {
+  const view: Partial<TrialObservation> = {};
+  if (typeof ticket.customerEmail === 'string') view.customerEmail = ticket.customerEmail;
+  if (Array.isArray(fixtures.orders)) view.orders = fixtures.orders as OrderRecord[];
+  if (effects.refunds) view.refunds = effects.refunds as RefundRecord[];
+  if (effects.emails) view.emails = effects.emails as EmailRecord[];
+  return view;
 }

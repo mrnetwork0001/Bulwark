@@ -8,7 +8,7 @@
 // Losers are recorded with the reason they lost, and never applied.
 
 import { ClaudeFixer, PlaybookFixer, type FixContext, type Fixer, type Proposal } from '../blue/fixer';
-import { PLAYBOOK } from '../blue/playbook';
+import { playbookFor } from '../blue/playbook';
 import { llmProvider } from '../llm';
 import { DEFAULT_MIN_LATENCY_DELTA_MS, type Overhead } from './overhead';
 import type { VerdictStatus } from './judge';
@@ -19,7 +19,7 @@ export class StrongestFirstPlaybook implements Fixer {
   private inner = new PlaybookFixer();
 
   async propose(ctx: FixContext): Promise<Proposal | null> {
-    const reversed = (PLAYBOOK[ctx.fault.kind] ?? []).map((s) => s.id).reverse();
+    const reversed = (playbookFor(ctx.target)[ctx.fault.kind] ?? []).map((s) => s.id).reverse();
     const p = await this.inner.propose({ ...ctx, preferred: reversed });
     return p && { ...p, author: this.name };
   }
