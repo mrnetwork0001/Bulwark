@@ -16,6 +16,7 @@ import { GENERATED_FAULTS_PATH, loadGeneratedFaults } from './red/generate';
 import type { BrainMode } from './harness';
 import { renderConsole, renderMarkdown, runExperiment, type ExperimentResult } from './scorecard';
 import { llmProvider } from './llm';
+import { describeRules, prepareRules } from './rules/compiler';
 import { loadTarget, resolveTargetDir } from './target';
 import { initTracing, shutdownTracing } from './tracing';
 
@@ -62,6 +63,10 @@ async function main() {
   const results: ExperimentResult[] = [];
   const meter = new CostMeter();
   await meter.run(async () => {
+    // Rules nothing else compiles go to the LLM rule compiler (cached; unchanged without a key).
+    console.log('Business rules (how each one is checked):');
+    for (const line of describeRules(await prepareRules(target))) console.log(`  ${line}`);
+    console.log();
     for (const fault of faults) {
       process.stdout.write(`  attacking: ${fault?.id ?? 'baseline'}… `);
       const r = await runExperiment(target, fault, opts);
