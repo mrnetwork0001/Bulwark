@@ -752,3 +752,12 @@ is cfo and entire; all integrations done and wiredf/working?
 ---
 
 where do we use crustdata?
+
+---
+
+lets integrate crustdata:
+
+A second agent for Bulwark to attack. Build a small "research agent" that calls the real Crustdata API (company and people lookups) and attack it with the same loop. That shows Bulwark works on agents other than the refund demo (feature #18 in our list), with real API failures like rate limits and empty results. Pitstop and Ouroboros both use Crustdata in their demo agents. This is the stronger option, but it's half a day of work.
+Market sizing for the cfo.ai plan. Use Crustdata to count companies that deploy AI support agents, and feed that into the revenue assumptions. It's quick and makes the business plan more credible, but judges will barely notice it.
+
+i am getting key from cfo
