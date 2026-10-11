@@ -57,7 +57,7 @@ export const Result: React.FC = () => {
       {/* The real Result card from the run */}
       <div style={{ opacity: card }}>
         <Sequence from={tPull - 12} layout="none">
-          <Browser name="loop" url="localhost:5410/app · result" width={720} left={1120} top={300} from={resultFrame + 10}
+          <Browser name="loop" url="usebulwark.vercel.app/app · result" width={720} left={1120} top={300} from={resultFrame + 10}
             cams={[{ at: 0, rect: { x: results.x, y: results.y, w: results.w, h: 330 }, zoom: 1.75 }]} />
         </Sequence>
         <div style={{ position: "absolute", left: 1130, top: 790, display: "flex", gap: 10, flexWrap: "wrap", width: 700 }}>

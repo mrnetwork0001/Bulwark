@@ -58,7 +58,7 @@ export const Different: React.FC = () => {
           ResearchBot <span style={{ fontSize: 20, color: "rgba(255,255,255,0.5)" }}>on</span> <PartnerLogo id="crustdata" height={28} color="#fff" style={{ filter: "brightness(0) invert(1)" }} />
         </div>
         <Sequence from={t1} layout="none">
-          <Browser name="target" url="localhost:5410/app" width={468} left={36} top={140} from={Math.max(0, click - 30)} dark shadow
+          <Browser name="target" url="usebulwark.vercel.app/app" width={468} left={36} top={140} from={Math.max(0, click - 30)} dark shadow
             cams={[{ at: 0, rect: { x: 900, y: 0, w: 700, h: 400 }, zoom: 1.9 }, { at: 70, rect: { x: 900, y: 0, w: 700, h: 400 }, zoom: 1.9 }, { at: 110 }]} />
         </Sequence>
         <div style={{ position: "absolute", left: 36, bottom: 36 }}>

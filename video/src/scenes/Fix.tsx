@@ -28,7 +28,7 @@ export const Fix: React.FC = () => {
       <div style={{ position: "absolute", left: 90, top: 90, display: "flex", alignItems: "center", gap: 14, fontFamily: mono, fontSize: 18, letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)", opacity: ramp(f, 0, 14) }}>
         <Tag kind="blue" /> WRITES A FIX <span style={{ opacity: 0.4 }}>→</span> <Tag kind="judge" dark /> RE-RUNS EVERY ATTACK ON SEEDS BLUE NEVER SAW
       </div>
-      <Browser name="loop" url="localhost:5410/app" width={1180} left={90} top={150} from={start} rate={rate} dark
+      <Browser name="loop" url="usebulwark.vercel.app/app" width={1180} left={90} top={150} from={start} rate={rate} dark
         cams={[{ at: 0, rect: TL_LOW, zoom: 1.7 }]} />
       {/* The wall: the fix drops a brick in, it wobbles, it falls back out */}
       <div style={{ position: "absolute", left: 1390, top: 210 }}>

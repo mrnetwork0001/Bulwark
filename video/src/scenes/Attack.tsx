@@ -27,10 +27,10 @@ export const Attack: React.FC = () => {
     <AbsoluteFill style={{ background: C.paper2, fontFamily: inter }}>
       <Kicker at={0} dot={C.crash} style={{ position: "absolute", left: 80, top: 92 }}>live run · /app · refundbot · seed 42 · remember past fixes off · playbook fixer</Kicker>
       <Sequence durationInFrames={cut} layout="none">
-        <Browser name="loop" url="localhost:5410/app" width={1320} left={80} top={150} from={click - 26} cams={[{ at: 0, rect: CTA, zoom: 1.7 }]} />
+        <Browser name="loop" url="usebulwark.vercel.app/app" width={1320} left={80} top={150} from={click - 26} cams={[{ at: 0, rect: CTA, zoom: 1.7 }]} />
       </Sequence>
       <Sequence from={cut} layout="none">
-        <Browser name="loop" url="localhost:5410/app" width={1320} left={80} top={150} from={bFrom} rate={rate}
+        <Browser name="loop" url="usebulwark.vercel.app/app" width={1320} left={80} top={150} from={bFrom} rate={rate}
           cams={[{ at: 0, rect: FINDINGS, zoom: 1.9 }, { at: tBefore - cut - 16, rect: FINDINGS, zoom: 1.9 }, { at: tBefore - cut + 14, rect: { ...TIMELINE, h: 360 }, zoom: 1.75 }]} />
       </Sequence>
       {/* What Red throws at it */}

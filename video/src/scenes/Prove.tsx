@@ -35,7 +35,7 @@ export const Prove: React.FC = () => {
           <div style={{ position: "absolute", left: 90, top: 90, display: "flex", alignItems: "center", gap: 14, fontFamily: mono, fontSize: 18, letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)" }}>
             <Tag kind="judge" dark /> SLO 95% · EXACT CLOPPER-PEARSON · 59 ZERO-FAILURE TRIALS
           </div>
-          <Browser name="loop" url="localhost:5410/app" width={1180} left={90} top={150} from={start} rate={rate} dark cams={[{ at: 0, rect: TL_LOW, zoom: 1.7 }]} />
+          <Browser name="loop" url="usebulwark.vercel.app/app" width={1180} left={90} top={150} from={start} rate={rate} dark cams={[{ at: 0, rect: TL_LOW, zoom: 1.7 }]} />
           <div style={{ position: "absolute", left: 1390, top: 170 }}>
             <Wall size={360} ink="rgba(255,255,255,0.92)" bg={C.night} knocks={ATTACK_BRICKS.map((i) => ({ i, at: -300 }))}
               wobbles={[{ i: brick, at: rel("idempotency"), fall: rel("Rejected") + 2 }]} fixes={[{ i: brick, at: tPasses + 4 }]} />
@@ -60,7 +60,7 @@ export const Prove: React.FC = () => {
         <div style={{ position: "absolute", left: 90, top: 90, display: "flex", alignItems: "center", gap: 14, fontFamily: mono, fontSize: 18, letterSpacing: "0.08em", color: "rgba(255,255,255,0.6)", opacity: ramp(f - bStart, 0, 12) }}>
           TRIAL REPLAY · SEED 1286473109 · COMPARE WITH FIX
         </div>
-        <Browser name="replay" url="localhost:5410/app · trial replay" width={1500} left={210} top={150} from={bFrom} dark enter={0}
+        <Browser name="replay" url="usebulwark.vercel.app/app · trial replay" width={1500} left={210} top={150} from={bFrom} dark enter={0}
           cams={[{ at: 0, rect: { x: diff.x, y: diff.y + 20, w: diff.w, h: 360 }, zoom: 1.45 }, { at: 40, rect: { x: diff.x, y: diff.y + 230, w: diff.w, h: 440 }, zoom: 1.6 }]} />
       </Sequence>
       <div style={{ position: "absolute", right: 120, top: 84, opacity: ramp(f, tGone - 6, tGone + 6), transform: `scale(${0.85 + 0.15 * pop(f, tGone - 6)})` }}>

@@ -56,8 +56,9 @@ export const Close: React.FC = () => {
             );
           })}
         </div>
-        <div style={{ marginTop: 48, opacity: ramp(f, rel("watching.") + 14, rel("watching.") + 28) }}>
-          <Cta>github.com/mrnetwork0001/Bulwark</Cta>
+        <div style={{ marginTop: 48, display: "flex", gap: 22, opacity: ramp(f, rel("watching.") + 14, rel("watching.") + 28) }}>
+          <Cta>usebulwark.vercel.app</Cta>
+          <Cta style={{ background: "#fff", color: C.ink, boxShadow: "0 0 0 1.5px rgba(0,0,0,0.14)" }}>github.com/mrnetwork0001/Bulwark</Cta>
         </div>
       </div>
     </AbsoluteFill>
