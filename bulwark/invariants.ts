@@ -11,12 +11,15 @@ export interface CheckResult {
 
 export interface CompiledRule {
   rule: string;
+  /** Exactly how the rule is checked, in words. Given to the fixer so it fixes the real thing. */
+  how: string;
   check: (obs: TrialObservation) => CheckResult;
 }
 
-const PATTERNS: { match: RegExp; build: (m: RegExpMatchArray) => CompiledRule['check'] }[] = [
+const PATTERNS: { match: RegExp; how: (m: RegExpMatchArray) => string; build: (m: RegExpMatchArray) => CompiledRule['check'] }[] = [
   {
     match: /never refund an order more than once/i,
+    how: () => 'Counts refunds per order in the payments sandbox ledger; more than one is a violation.',
     build: () => (obs) => {
       const counts = new Map<string, number>();
       for (const r of obs.refunds) counts.set(r.orderId, (counts.get(r.orderId) ?? 0) + 1);
@@ -26,6 +29,7 @@ const PATTERNS: { match: RegExp; build: (m: RegExpMatchArray) => CompiledRule['c
   },
   {
     match: /never refund more than the order total/i,
+    how: () => "Sums each order's refunds in the payments sandbox ledger and compares with the order total.",
     build: () => (obs) => {
       for (const order of obs.orders) {
         const sum = obs.refunds.filter((r) => r.orderId === order.id).reduce((s, r) => s + r.amount, 0);
@@ -36,13 +40,16 @@ const PATTERNS: { match: RegExp; build: (m: RegExpMatchArray) => CompiledRule['c
   },
   {
     match: /every ticket gets a reply/i,
+    how: () =>
+      "The run must complete (no crash, hang or step-cap runaway) AND at least one email must be sent to the ticket's customer via the send_email tool. The agent's returned reply string is not counted.",
     build: () => (obs) =>
       obs.outcome === 'completed' && obs.emails.some((e) => e.to === obs.customerEmail)
         ? { ok: true }
-        : { ok: false, detail: `no reply sent (run ${obs.outcome})` },
+        : { ok: false, detail: `no email sent to ${obs.customerEmail} via send_email (run ${obs.outcome}, ${obs.emails.length} emails total)` },
   },
   {
     match: /finishes within (\d+(?:\.\d+)?) seconds/i,
+    how: (m) => `Wall-clock time of the whole run must be at most ${m[1]}s; a run still going at the deadline counts as hung.`,
     build: (m) => (obs) => {
       const limit = Number(m[1]) * 1000;
       return obs.outcome !== 'hung' && obs.durationMs <= limit
@@ -52,6 +59,7 @@ const PATTERNS: { match: RegExp; build: (m: RegExpMatchArray) => CompiledRule['c
   },
   {
     match: /at most (\d+) steps/i,
+    how: (m) => `A step is one model decision (one brain.decide call). More than ${m[1]} decisions in a run is a violation.`,
     build: (m) => (obs) => {
       const limit = Number(m[1]);
       return obs.steps <= limit ? { ok: true } : { ok: false, detail: `${obs.steps} steps (limit ${limit})` };
@@ -64,7 +72,7 @@ export function compileRules(rules: string[]): { compiled: CompiledRule[]; uncom
   const uncompiled: string[] = [];
   for (const rule of rules) {
     const hit = PATTERNS.map((p) => ({ p, m: rule.match(p.match) })).find((x) => x.m);
-    if (hit) compiled.push({ rule, check: hit.p.build(hit.m!) });
+    if (hit) compiled.push({ rule, how: hit.p.how(hit.m!), check: hit.p.build(hit.m!) });
     else uncompiled.push(rule);
   }
   return { compiled, uncompiled };

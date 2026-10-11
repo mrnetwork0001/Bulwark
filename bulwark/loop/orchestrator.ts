@@ -13,6 +13,7 @@ import { CheckpointStore } from '../checkpoints';
 import { mutationCheck, withSpec, type ChaosSpec } from '../guard';
 import { judge, runAll, type Regression, type VerdictStatus } from '../judge/judge';
 import { StrategyMemory } from '../memory';
+import { compileRules } from '../invariants';
 import { analyzeTarget, type Finding } from '../red/analyze';
 import { badgeSvg, overallPassRate, postmortem, prBody, type FaultRecord } from '../report/reports';
 import { renderMarkdown, type ExperimentResult } from '../scorecard';
@@ -96,6 +97,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     const original = await loadTarget(o.targetDir);
     const originalFiles = readFiles(o.targetDir, original.editableFiles);
     const scope: Fault[] = o.faults === 'all' ? FAULTS : o.faults.map(getFault);
+    const rules = compileRules(original.rules).compiled.map(({ rule, how }) => ({ rule, how }));
     emit({ type: 'run-start', runId, target: original.name, fixer: fixer.name, faults: scope.map((f) => f.id), redTrials: o.redTrials, judgeTrials: o.judgeTrials });
 
     // Red: find weak links, then measure the damage.
@@ -153,7 +155,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         emit({ type: 'checkpoint', action: 'save', id: cp.id, label: cp.label });
 
         const proposal = await trace({ name: 'blue.propose', kind: 'AGENT', attributes: { fault: fault.id, attempt: n } }, () =>
-          fixer.propose({ fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, preferred: o.memory ? memory.ranked(fault.kind) : [] }),
+          fixer.propose({ fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [] }),
         );
         if (!proposal) {
           emit({ type: 'log', message: `Blue has no further strategies for ${fault.id}` });

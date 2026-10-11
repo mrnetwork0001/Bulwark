@@ -64,11 +64,11 @@ test('playbook fixer skips strategies the Judge already rejected, and follows me
   const before = {} as ExperimentResult;
   const fixer = new PlaybookFixer();
 
-  const first = await fixer.propose({ fault, findings: [], files, before, failed: [], preferred: [] });
+  const first = await fixer.propose({ fault, findings: [], files, before, failed: [], rules: [], preferred: [] });
   assert.equal(first?.strategy, 'retry-backoff');
-  const second = await fixer.propose({ fault, findings: [], files, before, failed: [{ strategy: 'retry-backoff', author: 'playbook', rationale: '', reasons: [] }], preferred: [] });
+  const second = await fixer.propose({ fault, findings: [], files, before, failed: [{ strategy: 'retry-backoff', author: 'playbook', rationale: '', reasons: [] }], rules: [], preferred: [] });
   assert.equal(second?.strategy, 'idempotency-key');
-  const remembered = await fixer.propose({ fault, findings: [], files, before, failed: [], preferred: ['idempotency-key+escalate'] });
+  const remembered = await fixer.propose({ fault, findings: [], files, before, failed: [], rules: [], preferred: ['idempotency-key+escalate'] });
   assert.equal(remembered?.strategy, 'idempotency-key+escalate');
 });
 

@@ -23,6 +23,8 @@ export interface FixContext {
   files: Files;
   before: ExperimentResult;
   failed: FailedAttempt[];
+  /** Business rules and exactly how the Judge checks each one. */
+  rules: { rule: string; how: string }[];
   /** Strategy ids in the order memory suggests trying them (best first). */
   preferred: string[];
 }
@@ -105,6 +107,9 @@ export class ClaudeFixer implements Fixer {
       const prompt = [
         `## Fault: ${ctx.fault.id}`,
         `${ctx.fault.title}. Hypothesis: ${ctx.fault.hypothesis}`,
+        `## Business rules and exactly how the Judge checks them`,
+        ...ctx.rules.map((r) => `- "${r.rule}": ${r.how}`),
+        `Trials run against a sandbox. Side effects (refunds, emails) are read from the sandbox ledger, not from what the agent says it did.`,
         `## Evidence (${ctx.before.passed}/${ctx.before.trials} trials passed)`,
         ...Object.entries(ctx.before.violations)
           .filter(([, n]) => n > 0)
@@ -152,16 +157,21 @@ export class AutoFixer implements Fixer {
   }
 
   async propose(ctx: FixContext): Promise<Proposal | null> {
-    // The LLM gets two tries per fault before the playbook takes over.
-    if (this.llm && ctx.failed.filter((f) => f.author === this.llm!.name).length < 2) {
+    const tryLlm = async () => {
       try {
-        const p = await this.llm.propose(ctx);
-        if (p) return p;
+        return (await this.llm?.propose(ctx)) ?? null;
       } catch {
-        // fall through to the playbook
+        return null;
       }
+    };
+    // The LLM gets two tries per fault, then the playbook. The playbook's
+    // transforms target known code, so if earlier LLM fixes reshaped that code
+    // and nothing applies, the LLM keeps going with the Judge's feedback.
+    if (this.llm && ctx.failed.filter((f) => f.author === this.llm!.name).length < 2) {
+      const p = await tryLlm();
+      if (p) return p;
     }
-    return this.playbook.propose(ctx);
+    return (await this.playbook.propose(ctx)) ?? tryLlm();
   }
 }
 
