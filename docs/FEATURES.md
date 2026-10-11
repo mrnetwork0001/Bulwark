@@ -21,12 +21,12 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done + evidence capt
 | 11 | Strategy memory across runs | B | [x] .bulwark/memory.json; run 2 needs 4 attempts instead of 7 |
 | 12 | Cost guardrails as a fault class | B | [x] stuck-pending fault + step-budget fix |
 | 13 | Trace diff view | B | [ ] |
-| 14 | GitHub Action on every PR | C | [ ] |
-| 15 | ChatOps `/bulwark` PR commands | C | [ ] |
+| 14 | GitHub Action on every PR | C | [x] `.github/workflows/bulwark.yml`: tests + chaos specs for every target, offline scorecard per changed target vs committed `targets/<t>/resilience-baseline.json` (`npm run ci:scorecard`, exits 1 on regression), sticky PR comment with badge, artifact ([CI.md](CI.md), [evidence](evidence/07-ci-chatops-notify/)) |
+| 15 | ChatOps `/bulwark` PR commands | C | [x] `/bulwark attack\|fix [pr]\|replay\|help`, collaborators only; strict parser in `bulwark/chatops.ts` (allowlist + fault catalog, argv only), `fix … pr` opens a PR from a new `bulwark/fix-*` branch ([CI.md](CI.md)) |
 | 16 | Model-degradation fault | C | [ ] |
 | 17 | Live dashboard | C | [x] /app: live trials and the full loop timeline |
 | 18 | Framework-agnostic adapter | C | [x] generic BulwarkTarget (sandbox + `observe()` ledger, per-target endpoints, fault catalog, compiled rules, playbook); second target ResearchBot on the real Crustdata API, 49% → 100% ([evidence](evidence/06-researchbot/), [CRUSTDATA.md](CRUSTDATA.md)) |
-| 19 | Slack/Discord notification | C | [ ] |
+| 19 | Slack/Discord notification | C | [x] `bulwark/notify.ts`: Block Kit + Discord embed at run-done (fix.ts and dashboard loop), `--notify`, `--dry-run-notify`; [dry-run payloads](evidence/07-ci-chatops-notify/notify-dry-run.txt) |
 | 20 | Clock-skew / stale-data fault | C | [ ] |
 
 Details for each feature follow.

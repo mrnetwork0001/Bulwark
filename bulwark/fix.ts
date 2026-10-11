@@ -4,6 +4,7 @@
 //                [--max-latency-overhead 50%] [--max-step-overhead 2] [--max-cost-overhead 20%] [--overhead-policy reject|flag]
 //                [--tournament claude-sonnet-5,deepseek-v4-flash | playbook,playbook-strong]
 //                [--neatlogs-wait 20]  seconds Blue waits for a failing trial's neatlogs trace (0 = don't read back)
+//                [--notify] [--dry-run-notify]  Slack/Discord run summary (bulwark/notify.ts)
 //
 // The full loop: attack, fix, verify, prove. Writes artifacts to .bulwark/runs/<id>/.
 
@@ -20,6 +21,7 @@ import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent }
 import { describeObserve } from './observe/evidence';
 import { summarizeProvenance } from './provenance/entire';
 import { describeBlast } from './red/graph';
+import { notifyRunDone } from './notify';
 import { money } from './risk';
 import { loadTarget, resolveTargetDir } from './target';
 import { initTracing, shutdownTracing } from './tracing';
@@ -133,6 +135,8 @@ async function main() {
       'overhead-policy': { type: 'string', default: 'reject' },
       tournament: { type: 'string' },
       'neatlogs-wait': { type: 'string' },
+      notify: { type: 'boolean', default: false },
+      'dry-run-notify': { type: 'boolean', default: false },
     },
   });
   // Generative Red's accepted faults join the catalog, so Red, Blue, Judge and Guard all see them.
@@ -174,6 +178,7 @@ async function main() {
     print,
   );
 
+  await notifyRunDone(summary, { force: values.notify, dryRun: values['dry-run-notify'] });
   if ((values.apply || values.pr) && summary.fixed.length) {
     const branch = applyAsBranch(summary);
     console.log(c.green(`Committed verified fixes to branch ${branch}`));

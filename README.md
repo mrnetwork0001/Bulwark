@@ -27,8 +27,12 @@ npm run leaderboard                 # rank 0G models as RefundBot's brain (real 
 npm run chaos -- --target targets/researchbot                          # attack the second target (real Crustdata data, replayed)
 npm run fix -- --target targets/researchbot --fixer playbook --no-memory   # ResearchBot 49% → 100%
 npm run record:crustdata -- --record                                   # re-record the Crustdata cassettes (real credits; see docs/CRUSTDATA.md)
+npm run ci:scorecard                # CI gate: offline scorecard vs targets/<t>/resilience-baseline.json (exit 1 on regression)
+npm run fix -- --dry-run-notify     # print the Slack/Discord run summary (sent for real when a webhook URL is set)
 npm test
 ```
+
+In CI, every PR that touches `targets/` gets a sticky chaos-scorecard comment and fails if resilience drops. Collaborators can comment `/bulwark attack | fix [pr] | replay | help`. Setup is in [docs/CI.md](docs/CI.md).
 
 ## The loop
 

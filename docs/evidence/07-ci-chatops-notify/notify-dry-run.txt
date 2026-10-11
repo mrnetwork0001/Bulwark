@@ -1,0 +1,95 @@
+notify (dry run): Slack payload
+{
+  "text": "Bulwark: refundbot resilience 56% → 100% (fixed 5, unfixed 0)",
+  "blocks": [
+    {
+      "type": "header",
+      "text": {
+        "type": "plain_text",
+        "text": "🛡️ Bulwark: refundbot resilience 56% → 100%",
+        "emoji": true
+      }
+    },
+    {
+      "type": "section",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*Fixed (5)*\ntimeout-after-commit, prompt-injection, social-third-party, latency-spike, stuck-pending"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Unfixed (0)*\nnone"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Attempts / rollbacks*\n8 / 3"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Fixer*\nplaybook"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*$ at risk / 1k tickets*\n$553,438 → $0"
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Top remaining risk*\ntools.ts:126 search_policy passes raw text from policy.search to the model, so injected instructions reach it"
+      }
+    },
+    {
+      "type": "context",
+      "elements": [
+        {
+          "type": "mrkdwn",
+          "text": "run 2026-10-11T16-18-31-152Z · skipped social-authority, malformed-response, rate-limit"
+        }
+      ]
+    }
+  ]
+}
+notify (dry run): Discord payload
+{
+  "username": "Bulwark",
+  "embeds": [
+    {
+      "title": "🛡️ Bulwark: refundbot resilience 56% → 100%",
+      "color": 2071893,
+      "fields": [
+        {
+          "name": "Fixed (5)",
+          "value": "timeout-after-commit, prompt-injection, social-third-party, latency-spike, stuck-pending",
+          "inline": true
+        },
+        {
+          "name": "Unfixed (0)",
+          "value": "none",
+          "inline": true
+        },
+        {
+          "name": "Attempts / rollbacks",
+          "value": "8 / 3",
+          "inline": true
+        },
+        {
+          "name": "$ at risk / 1k tickets",
+          "value": "$553,438 → $0",
+          "inline": true
+        },
+        {
+          "name": "Top remaining risk",
+          "value": "tools.ts:126 search_policy passes raw text from policy.search to the model, so injected instructions reach it",
+          "inline": false
+        }
+      ],
+      "footer": {
+        "text": "run 2026-10-11T16-18-31-152Z · fixer playbook"
+      }
+    }
+  ]
+}
