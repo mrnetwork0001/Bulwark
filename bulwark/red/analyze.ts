@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { FAULTS, type FaultKind } from '../chaos/faults';
+import type { Provenance } from '../provenance/entire';
 import type { BulwarkTarget } from '../target';
 
 export interface Finding {
@@ -16,6 +17,8 @@ export interface Finding {
   tool?: string;
   why: string;
   faults: string[];
+  /** Who introduced this line: commit, and the Entire session/prompt when known (bulwark/provenance). */
+  provenance?: Provenance;
 }
 
 const WRITE_ENDPOINT = /\.(create|send)$/;

@@ -14,6 +14,7 @@ import { mutationCheck, withSpec, type ChaosSpec } from '../guard';
 import { judge, runAll, type Regression, type VerdictStatus } from '../judge/judge';
 import { StrategyMemory } from '../memory';
 import { compileRules } from '../invariants';
+import { attachProvenance, type Provenance } from '../provenance/entire';
 import { analyzeTarget, type Finding } from '../red/analyze';
 import { badgeSvg, overallPassRate, postmortem, prBody, type FaultRecord } from '../report/reports';
 import { renderMarkdown, type ExperimentResult } from '../scorecard';
@@ -51,7 +52,7 @@ export const DEFAULT_LOOP: Omit<LoopOptions, 'targetDir'> = {
 
 export type LoopEvent =
   | { type: 'run-start'; runId: string; target: string; fixer: string; faults: string[]; redTrials: number; judgeTrials: number }
-  | { type: 'analyze'; findings: Finding[] }
+  | { type: 'analyze'; findings: Finding[]; provenance?: Provenance[] }
   | { type: 'scorecard'; phase: 'before' | 'after'; results: ExperimentResult[]; overall: number }
   | { type: 'fault-start'; fault: string; title: string; hypothesis: string }
   | { type: 'fault-skip'; fault: string; reason: string }
@@ -107,7 +108,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
 
     // Red: find weak links, then measure the damage.
     const findings = await phase('1 red: analyze code', {}, async () => analyzeTarget(o.targetDir, original));
-    emit({ type: 'analyze', findings });
+    // Provenance: which commit, and which Entire session and prompt, introduced each weak link.
+    const provenance = attachProvenance(findings, o.targetDir);
+    emit({ type: 'analyze', findings, provenance });
 
     const redOpts = { trials: o.redTrials, seed: o.seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps };
     const before = await phase('2 red: attack scorecard BEFORE', { phase: 'before', trials: o.redTrials, seed: o.seed }, () => runAll(original, redOpts));
@@ -232,7 +235,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
       postmortems: records.map((r) => join(dir, `postmortem-${r.fault}.md`)),
     };
     writeFileSync(artifacts.patch, patch);
-    writeFileSync(artifacts.pr, prBody({ target: original.name, runId, records, before, after, diff: patch, traces, residual }));
+    writeFileSync(artifacts.pr, prBody({ target: original.name, runId, records, before, after, diff: patch, traces, residual, provenance }));
     writeFileSync(artifacts.badge, badgeSvg(overallPassRate(after)));
     records.forEach((r, i) => writeFileSync(artifacts.postmortems[i], postmortem(r, runId)));
     const meta = { run: runId, trials: o.redTrials, seed: o.seed };

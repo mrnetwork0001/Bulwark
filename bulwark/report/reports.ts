@@ -3,6 +3,7 @@
 
 import type { MutationCheck } from '../guard';
 import type { Verdict } from '../judge/judge';
+import { describeProvenance, summarizeProvenance, type Provenance } from '../provenance/entire';
 import type { Finding } from '../red/analyze';
 import type { ExperimentResult } from '../scorecard';
 
@@ -57,7 +58,11 @@ export function postmortem(rec: FaultRecord, runId: string): string {
     );
   }
   if (rec.findings.length) {
-    lines.push('## Weak links found in the code', ...rec.findings.map((f) => `- \`${f.file}:${f.line}\` ${f.why}`), '');
+    lines.push(
+      '## Weak links found in the code',
+      ...rec.findings.map((f) => `- \`${f.file}:${f.line}\` ${f.why}${f.provenance ? `\n  - Provenance: ${describeProvenance(f.provenance)}` : ''}`),
+      '',
+    );
   }
   if (rec.attempts.length) {
     lines.push('## Attempts', '');
@@ -96,6 +101,8 @@ export function prBody(args: {
   diff: string;
   traces: string;
   residual: Finding[];
+  /** Where the weak links came from (bulwark/provenance). */
+  provenance?: Provenance[];
 }): string {
   const fixed = args.records.filter((r) => r.status === 'fixed');
   const rows = Object.keys(args.before).map((id) => {
@@ -125,6 +132,7 @@ export function prBody(args: {
       ? args.residual.map((f) => `- \`${f.file}:${f.line}\` ${f.why}. Every attack now passes, but the weak link is still in the code.`)
       : ['- The analyzer finds no remaining weak links.']),
     '',
+    ...(args.provenance?.length ? ['### Provenance', ...summarizeProvenance(args.provenance).map((l) => `- ${l}`), ''] : []),
     '### Evidence',
     '- Each fix ships a chaos regression test in `chaos-tests/`, proven to fail without the fix and pass with it.',
     `- Postmortems: \`.bulwark/runs/${args.runId}/postmortem-*.md\``,

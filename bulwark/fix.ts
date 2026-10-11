@@ -6,6 +6,7 @@
 import './env';
 import { parseArgs } from 'node:util';
 import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent } from './loop/orchestrator';
+import { summarizeProvenance } from './provenance/entire';
 import { initTracing, shutdownTracing } from './tracing';
 
 const c = {
@@ -25,6 +26,7 @@ function print(e: LoopEvent) {
     case 'analyze':
       console.log(c.red('RED') + ` found ${e.findings.length} weak links:`);
       for (const f of e.findings) console.log(`  ${f.severity === 'high' ? c.red('high') : c.yellow('med ')}  ${f.file}:${f.line}  ${f.why}`);
+      for (const line of summarizeProvenance(e.provenance ?? [])) console.log(c.dim(`  provenance: ${line}`));
       return console.log();
     case 'scorecard': {
       const label = e.phase === 'before' ? c.red('RED') + ' scorecard (before)' : c.bold('Scorecard after fixes');
