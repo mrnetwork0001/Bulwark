@@ -1,0 +1,1958 @@
+{
+ "fps": 30,
+ "totalFrames": 4137,
+ "bpm": 96,
+ "beats": [
+  3,
+  22,
+  41,
+  59,
+  78,
+  97,
+  116,
+  134,
+  153,
+  172,
+  191,
+  209,
+  228,
+  247,
+  266,
+  284,
+  303,
+  322,
+  341,
+  359,
+  378,
+  397,
+  416,
+  434,
+  453,
+  472,
+  491,
+  509,
+  528,
+  547,
+  566,
+  584,
+  603,
+  622,
+  641,
+  659,
+  678,
+  697,
+  716,
+  734,
+  753,
+  772,
+  791,
+  809,
+  828,
+  847,
+  866,
+  884,
+  903,
+  922,
+  941,
+  959,
+  978,
+  997,
+  1016,
+  1034,
+  1053,
+  1072,
+  1091,
+  1109,
+  1128,
+  1147,
+  1166,
+  1184,
+  1203,
+  1222,
+  1241,
+  1259,
+  1278,
+  1297,
+  1316,
+  1334,
+  1353,
+  1372,
+  1391,
+  1409,
+  1428,
+  1447,
+  1466,
+  1484,
+  1503,
+  1522,
+  1541,
+  1559,
+  1578,
+  1597,
+  1616,
+  1634,
+  1653,
+  1672,
+  1691,
+  1709,
+  1728,
+  1747,
+  1766,
+  1784,
+  1803,
+  1822,
+  1841,
+  1859,
+  1878,
+  1897,
+  1916,
+  1934,
+  1953,
+  1972,
+  1990,
+  2009,
+  2028,
+  2047,
+  2066,
+  2084,
+  2103,
+  2122,
+  2141,
+  2159,
+  2178,
+  2197,
+  2216,
+  2234,
+  2253,
+  2272,
+  2291,
+  2309,
+  2328,
+  2347,
+  2366,
+  2384,
+  2403,
+  2422,
+  2441,
+  2459,
+  2478,
+  2497,
+  2516,
+  2534,
+  2553,
+  2572,
+  2591,
+  2609,
+  2628,
+  2647,
+  2666,
+  2684,
+  2703,
+  2722,
+  2741,
+  2759,
+  2778,
+  2797,
+  2816,
+  2834,
+  2853,
+  2872,
+  2891,
+  2909,
+  2928,
+  2947,
+  2966,
+  2984,
+  3003,
+  3022,
+  3041,
+  3059,
+  3078,
+  3097,
+  3116,
+  3134,
+  3153,
+  3172,
+  3191,
+  3209,
+  3228,
+  3247,
+  3266,
+  3284,
+  3303,
+  3322,
+  3341,
+  3359,
+  3378,
+  3397,
+  3416,
+  3434,
+  3453,
+  3472,
+  3491,
+  3509,
+  3528,
+  3547,
+  3566,
+  3584,
+  3603,
+  3622,
+  3641,
+  3659,
+  3678,
+  3697,
+  3716,
+  3734,
+  3753,
+  3772,
+  3791,
+  3809,
+  3828,
+  3847,
+  3866,
+  3884,
+  3903,
+  3922,
+  3941,
+  3959,
+  3978,
+  3997,
+  4016,
+  4034,
+  4053,
+  4072,
+  4091,
+  4109,
+  4128
+ ],
+ "music": {
+  "file": "audio/music.mp3",
+  "source": "elevenlabs-music"
+ },
+ "scenes": [
+  {
+   "id": "open",
+   "from": 0,
+   "durationInFrames": 480,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "A customer asks for a refund on a forty-nine dollar order. The payment goes through, but the reply is slow.",
+     "file": "audio/vo/open_0.mp3",
+     "startFrame": 12,
+     "durationFrames": 197,
+     "words": [
+      {
+       "word": "A",
+       "start": 12,
+       "end": 15
+      },
+      {
+       "word": "customer",
+       "start": 18,
+       "end": 31
+      },
+      {
+       "word": "asks",
+       "start": 33,
+       "end": 43
+      },
+      {
+       "word": "for",
+       "start": 44,
+       "end": 48
+      },
+      {
+       "word": "a",
+       "start": 49,
+       "end": 50
+      },
+      {
+       "word": "refund",
+       "start": 52,
+       "end": 66
+      },
+      {
+       "word": "on",
+       "start": 68,
+       "end": 70
+      },
+      {
+       "word": "a",
+       "start": 71,
+       "end": 72
+      },
+      {
+       "word": "forty-nine",
+       "start": 74,
+       "end": 91
+      },
+      {
+       "word": "dollar",
+       "start": 91,
+       "end": 99
+      },
+      {
+       "word": "order.",
+       "start": 100,
+       "end": 115
+      },
+      {
+       "word": "The",
+       "start": 125,
+       "end": 128
+      },
+      {
+       "word": "payment",
+       "start": 130,
+       "end": 139
+      },
+      {
+       "word": "goes",
+       "start": 141,
+       "end": 147
+      },
+      {
+       "word": "through,",
+       "start": 149,
+       "end": 160
+      },
+      {
+       "word": "but",
+       "start": 160,
+       "end": 164
+      },
+      {
+       "word": "the",
+       "start": 165,
+       "end": 167
+      },
+      {
+       "word": "reply",
+       "start": 168,
+       "end": 180
+      },
+      {
+       "word": "is",
+       "start": 182,
+       "end": 185
+      },
+      {
+       "word": "slow.",
+       "start": 187,
+       "end": 208
+      }
+     ]
+    },
+    {
+     "voice": "narrator",
+     "text": "After one second, the agent gives up and tries again. Ninety-eight dollars, refunded on a forty-nine dollar order.",
+     "file": "audio/vo/open_1.mp3",
+     "startFrame": 224,
+     "durationFrames": 207,
+     "words": [
+      {
+       "word": "After",
+       "start": 224,
+       "end": 233
+      },
+      {
+       "word": "one",
+       "start": 235,
+       "end": 241
+      },
+      {
+       "word": "second,",
+       "start": 242,
+       "end": 253
+      },
+      {
+       "word": "the",
+       "start": 253,
+       "end": 255
+      },
+      {
+       "word": "agent",
+       "start": 257,
+       "end": 268
+      },
+      {
+       "word": "gives",
+       "start": 269,
+       "end": 275
+      },
+      {
+       "word": "up",
+       "start": 277,
+       "end": 280
+      },
+      {
+       "word": "and",
+       "start": 282,
+       "end": 284
+      },
+      {
+       "word": "tries",
+       "start": 285,
+       "end": 293
+      },
+      {
+       "word": "again.",
+       "start": 294,
+       "end": 308
+      },
+      {
+       "word": "Ninety-eight",
+       "start": 317,
+       "end": 333
+      },
+      {
+       "word": "dollars,",
+       "start": 334,
+       "end": 349
+      },
+      {
+       "word": "refunded",
+       "start": 353,
+       "end": 369
+      },
+      {
+       "word": "on",
+       "start": 370,
+       "end": 372
+      },
+      {
+       "word": "a",
+       "start": 373,
+       "end": 374
+      },
+      {
+       "word": "forty-nine",
+       "start": 378,
+       "end": 397
+      },
+      {
+       "word": "dollar",
+       "start": 399,
+       "end": 406
+      },
+      {
+       "word": "order.",
+       "start": 408,
+       "end": 430
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "problem",
+   "from": 480,
+   "durationInFrames": 390,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "No crash. No failing test. Under real-world failures, this agent keeps its rules only fifty-six percent of the time.",
+     "file": "audio/vo/problem_0.mp3",
+     "startFrame": 492,
+     "durationFrames": 225,
+     "words": [
+      {
+       "word": "No",
+       "start": 492,
+       "end": 498
+      },
+      {
+       "word": "crash.",
+       "start": 499,
+       "end": 515
+      },
+      {
+       "word": "No",
+       "start": 521,
+       "end": 525
+      },
+      {
+       "word": "failing",
+       "start": 526,
+       "end": 535
+      },
+      {
+       "word": "test.",
+       "start": 537,
+       "end": 553
+      },
+      {
+       "word": "Under",
+       "start": 563,
+       "end": 570
+      },
+      {
+       "word": "real-world",
+       "start": 572,
+       "end": 587
+      },
+      {
+       "word": "failures,",
+       "start": 589,
+       "end": 603
+      },
+      {
+       "word": "this",
+       "start": 603,
+       "end": 609
+      },
+      {
+       "word": "agent",
+       "start": 611,
+       "end": 623
+      },
+      {
+       "word": "keeps",
+       "start": 624,
+       "end": 632
+      },
+      {
+       "word": "its",
+       "start": 633,
+       "end": 637
+      },
+      {
+       "word": "rules",
+       "start": 639,
+       "end": 647
+      },
+      {
+       "word": "only",
+       "start": 649,
+       "end": 656
+      },
+      {
+       "word": "fifty-six",
+       "start": 659,
+       "end": 678
+      },
+      {
+       "word": "percent",
+       "start": 680,
+       "end": 690
+      },
+      {
+       "word": "of",
+       "start": 691,
+       "end": 693
+      },
+      {
+       "word": "the",
+       "start": 694,
+       "end": 696
+      },
+      {
+       "word": "time.",
+       "start": 697,
+       "end": 716
+      }
+     ]
+    },
+    {
+     "voice": "narrator",
+     "text": "And every other approach waits for it to break, then heals it.",
+     "file": "audio/vo/problem_1.mp3",
+     "startFrame": 732,
+     "durationFrames": 102,
+     "words": [
+      {
+       "word": "And",
+       "start": 732,
+       "end": 738
+      },
+      {
+       "word": "every",
+       "start": 740,
+       "end": 747
+      },
+      {
+       "word": "other",
+       "start": 748,
+       "end": 754
+      },
+      {
+       "word": "approach",
+       "start": 755,
+       "end": 767
+      },
+      {
+       "word": "waits",
+       "start": 769,
+       "end": 776
+      },
+      {
+       "word": "for",
+       "start": 777,
+       "end": 779
+      },
+      {
+       "word": "it",
+       "start": 781,
+       "end": 783
+      },
+      {
+       "word": "to",
+       "start": 784,
+       "end": 786
+      },
+      {
+       "word": "break,",
+       "start": 787,
+       "end": 798
+      },
+      {
+       "word": "then",
+       "start": 799,
+       "end": 804
+      },
+      {
+       "word": "heals",
+       "start": 806,
+       "end": 816
+      },
+      {
+       "word": "it.",
+       "start": 818,
+       "end": 834
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "turn",
+   "from": 870,
+   "durationInFrames": 427,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "Bulwark breaks it first.",
+     "file": "audio/vo/turn_0.mp3",
+     "startFrame": 882,
+     "durationFrames": 55,
+     "words": [
+      {
+       "word": "Bulwark",
+       "start": 882,
+       "end": 899
+      },
+      {
+       "word": "breaks",
+       "start": 900,
+       "end": 909
+      },
+      {
+       "word": "it",
+       "start": 911,
+       "end": 913
+      },
+      {
+       "word": "first.",
+       "start": 914,
+       "end": 936
+      }
+     ]
+    },
+    {
+     "voice": "narrator",
+     "text": "It's chaos engineering for AI agents. It attacks your agent before your users do, writes the fix, and only accepts it when an independent Judge proves it.",
+     "file": "audio/vo/turn_1.mp3",
+     "startFrame": 952,
+     "durationFrames": 315,
+     "words": [
+      {
+       "word": "It's",
+       "start": 952,
+       "end": 958
+      },
+      {
+       "word": "chaos",
+       "start": 960,
+       "end": 972
+      },
+      {
+       "word": "engineering",
+       "start": 974,
+       "end": 989
+      },
+      {
+       "word": "for",
+       "start": 990,
+       "end": 993
+      },
+      {
+       "word": "AI",
+       "start": 995,
+       "end": 1006
+      },
+      {
+       "word": "agents.",
+       "start": 1007,
+       "end": 1027
+      },
+      {
+       "word": "It",
+       "start": 1038,
+       "end": 1043
+      },
+      {
+       "word": "attacks",
+       "start": 1045,
+       "end": 1056
+      },
+      {
+       "word": "your",
+       "start": 1056,
+       "end": 1060
+      },
+      {
+       "word": "agent",
+       "start": 1062,
+       "end": 1072
+      },
+      {
+       "word": "before",
+       "start": 1073,
+       "end": 1081
+      },
+      {
+       "word": "your",
+       "start": 1082,
+       "end": 1086
+      },
+      {
+       "word": "users",
+       "start": 1088,
+       "end": 1098
+      },
+      {
+       "word": "do,",
+       "start": 1100,
+       "end": 1111
+      },
+      {
+       "word": "writes",
+       "start": 1118,
+       "end": 1128
+      },
+      {
+       "word": "the",
+       "start": 1129,
+       "end": 1131
+      },
+      {
+       "word": "fix,",
+       "start": 1134,
+       "end": 1150
+      },
+      {
+       "word": "and",
+       "start": 1158,
+       "end": 1163
+      },
+      {
+       "word": "only",
+       "start": 1167,
+       "end": 1177
+      },
+      {
+       "word": "accepts",
+       "start": 1179,
+       "end": 1192
+      },
+      {
+       "word": "it",
+       "start": 1194,
+       "end": 1196
+      },
+      {
+       "word": "when",
+       "start": 1198,
+       "end": 1202
+      },
+      {
+       "word": "an",
+       "start": 1203,
+       "end": 1206
+      },
+      {
+       "word": "independent",
+       "start": 1208,
+       "end": 1227
+      },
+      {
+       "word": "Judge",
+       "start": 1229,
+       "end": 1238
+      },
+      {
+       "word": "proves",
+       "start": 1239,
+       "end": 1250
+      },
+      {
+       "word": "it.",
+       "start": 1252,
+       "end": 1267
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "attack",
+   "from": 1297,
+   "durationInFrames": 355,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "Red reads the code, finds the weak links, and attacks them in a sandbox. Timeouts. Rate limits. Prompt injection. A customer who claims to be the CEO.",
+     "file": "audio/vo/attack_0.mp3",
+     "startFrame": 1309,
+     "durationFrames": 328,
+     "words": [
+      {
+       "word": "Red",
+       "start": 1309,
+       "end": 1316
+      },
+      {
+       "word": "reads",
+       "start": 1317,
+       "end": 1324
+      },
+      {
+       "word": "the",
+       "start": 1325,
+       "end": 1327
+      },
+      {
+       "word": "code,",
+       "start": 1329,
+       "end": 1344
+      },
+      {
+       "word": "finds",
+       "start": 1350,
+       "end": 1361
+      },
+      {
+       "word": "the",
+       "start": 1362,
+       "end": 1364
+      },
+      {
+       "word": "weak",
+       "start": 1365,
+       "end": 1371
+      },
+      {
+       "word": "links,",
+       "start": 1373,
+       "end": 1386
+      },
+      {
+       "word": "and",
+       "start": 1391,
+       "end": 1395
+      },
+      {
+       "word": "attacks",
+       "start": 1397,
+       "end": 1408
+      },
+      {
+       "word": "them",
+       "start": 1409,
+       "end": 1412
+      },
+      {
+       "word": "in",
+       "start": 1414,
+       "end": 1415
+      },
+      {
+       "word": "a",
+       "start": 1416,
+       "end": 1417
+      },
+      {
+       "word": "sandbox.",
+       "start": 1419,
+       "end": 1444
+      },
+      {
+       "word": "Timeouts.",
+       "start": 1454,
+       "end": 1480
+      },
+      {
+       "word": "Rate",
+       "start": 1489,
+       "end": 1496
+      },
+      {
+       "word": "limits.",
+       "start": 1497,
+       "end": 1515
+      },
+      {
+       "word": "Prompt",
+       "start": 1521,
+       "end": 1530
+      },
+      {
+       "word": "injection.",
+       "start": 1532,
+       "end": 1553
+      },
+      {
+       "word": "A",
+       "start": 1563,
+       "end": 1565
+      },
+      {
+       "word": "customer",
+       "start": 1568,
+       "end": 1580
+      },
+      {
+       "word": "who",
+       "start": 1581,
+       "end": 1584
+      },
+      {
+       "word": "claims",
+       "start": 1586,
+       "end": 1594
+      },
+      {
+       "word": "to",
+       "start": 1595,
+       "end": 1596
+      },
+      {
+       "word": "be",
+       "start": 1598,
+       "end": 1601
+      },
+      {
+       "word": "the",
+       "start": 1602,
+       "end": 1604
+      },
+      {
+       "word": "CEO.",
+       "start": 1606,
+       "end": 1636
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "fix",
+   "from": 1652,
+   "durationInFrames": 339,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "Blue writes a fix. The Judge re-runs every attack, on seeds Blue never saw. The first fix still pays twice. Rejected. Rolled back to a checkpoint.",
+     "file": "audio/vo/fix_0.mp3",
+     "startFrame": 1664,
+     "durationFrames": 311,
+     "words": [
+      {
+       "word": "Blue",
+       "start": 1664,
+       "end": 1673
+      },
+      {
+       "word": "writes",
+       "start": 1673,
+       "end": 1682
+      },
+      {
+       "word": "a",
+       "start": 1683,
+       "end": 1684
+      },
+      {
+       "word": "fix.",
+       "start": 1686,
+       "end": 1702
+      },
+      {
+       "word": "The",
+       "start": 1713,
+       "end": 1717
+      },
+      {
+       "word": "Judge",
+       "start": 1719,
+       "end": 1728
+      },
+      {
+       "word": "re-runs",
+       "start": 1729,
+       "end": 1743
+      },
+      {
+       "word": "every",
+       "start": 1747,
+       "end": 1756
+      },
+      {
+       "word": "attack,",
+       "start": 1757,
+       "end": 1772
+      },
+      {
+       "word": "on",
+       "start": 1777,
+       "end": 1783
+      },
+      {
+       "word": "seeds",
+       "start": 1786,
+       "end": 1795
+      },
+      {
+       "word": "Blue",
+       "start": 1796,
+       "end": 1803
+      },
+      {
+       "word": "never",
+       "start": 1805,
+       "end": 1812
+      },
+      {
+       "word": "saw.",
+       "start": 1813,
+       "end": 1829
+      },
+      {
+       "word": "The",
+       "start": 1842,
+       "end": 1845
+      },
+      {
+       "word": "first",
+       "start": 1847,
+       "end": 1854
+      },
+      {
+       "word": "fix",
+       "start": 1856,
+       "end": 1862
+      },
+      {
+       "word": "still",
+       "start": 1864,
+       "end": 1870
+      },
+      {
+       "word": "pays",
+       "start": 1872,
+       "end": 1879
+      },
+      {
+       "word": "twice.",
+       "start": 1880,
+       "end": 1897
+      },
+      {
+       "word": "Rejected.",
+       "start": 1901,
+       "end": 1923
+      },
+      {
+       "word": "Rolled",
+       "start": 1927,
+       "end": 1935
+      },
+      {
+       "word": "back",
+       "start": 1936,
+       "end": 1941
+      },
+      {
+       "word": "to",
+       "start": 1942,
+       "end": 1944
+      },
+      {
+       "word": "a",
+       "start": 1946,
+       "end": 1946
+      },
+      {
+       "word": "checkpoint.",
+       "start": 1948,
+       "end": 1975
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "prove",
+   "from": 1991,
+   "durationInFrames": 471,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "The next adds an idempotency key, but three tickets get no reply. Rejected again. The third passes fifty-nine out of fifty-nine, enough to prove a ninety-five percent target.",
+     "file": "audio/vo/prove_0.mp3",
+     "startFrame": 2003,
+     "durationFrames": 321,
+     "words": [
+      {
+       "word": "The",
+       "start": 2003,
+       "end": 2008
+      },
+      {
+       "word": "next",
+       "start": 2009,
+       "end": 2017
+      },
+      {
+       "word": "adds",
+       "start": 2018,
+       "end": 2024
+      },
+      {
+       "word": "an",
+       "start": 2024,
+       "end": 2026
+      },
+      {
+       "word": "idempotency",
+       "start": 2027,
+       "end": 2045
+      },
+      {
+       "word": "key,",
+       "start": 2046,
+       "end": 2052
+      },
+      {
+       "word": "but",
+       "start": 2052,
+       "end": 2056
+      },
+      {
+       "word": "three",
+       "start": 2057,
+       "end": 2065
+      },
+      {
+       "word": "tickets",
+       "start": 2067,
+       "end": 2078
+      },
+      {
+       "word": "get",
+       "start": 2079,
+       "end": 2085
+      },
+      {
+       "word": "no",
+       "start": 2087,
+       "end": 2090
+      },
+      {
+       "word": "reply.",
+       "start": 2093,
+       "end": 2110
+      },
+      {
+       "word": "Rejected",
+       "start": 2120,
+       "end": 2134
+      },
+      {
+       "word": "again.",
+       "start": 2135,
+       "end": 2150
+      },
+      {
+       "word": "The",
+       "start": 2161,
+       "end": 2165
+      },
+      {
+       "word": "third",
+       "start": 2167,
+       "end": 2176
+      },
+      {
+       "word": "passes",
+       "start": 2178,
+       "end": 2187
+      },
+      {
+       "word": "fifty-nine",
+       "start": 2189,
+       "end": 2206
+      },
+      {
+       "word": "out",
+       "start": 2207,
+       "end": 2211
+      },
+      {
+       "word": "of",
+       "start": 2212,
+       "end": 2214
+      },
+      {
+       "word": "fifty-nine,",
+       "start": 2215,
+       "end": 2237
+      },
+      {
+       "word": "enough",
+       "start": 2243,
+       "end": 2251
+      },
+      {
+       "word": "to",
+       "start": 2252,
+       "end": 2254
+      },
+      {
+       "word": "prove",
+       "start": 2256,
+       "end": 2265
+      },
+      {
+       "word": "a",
+       "start": 2266,
+       "end": 2267
+      },
+      {
+       "word": "ninety-five",
+       "start": 2269,
+       "end": 2287
+      },
+      {
+       "word": "percent",
+       "start": 2288,
+       "end": 2298
+      },
+      {
+       "word": "target.",
+       "start": 2299,
+       "end": 2323
+      }
+     ]
+    },
+    {
+     "voice": "narrator",
+     "text": "Same seed, before and after. The second refund is gone.",
+     "file": "audio/vo/prove_1.mp3",
+     "startFrame": 2339,
+     "durationFrames": 108,
+     "words": [
+      {
+       "word": "Same",
+       "start": 2339,
+       "end": 2349
+      },
+      {
+       "word": "seed,",
+       "start": 2350,
+       "end": 2361
+      },
+      {
+       "word": "before",
+       "start": 2362,
+       "end": 2371
+      },
+      {
+       "word": "and",
+       "start": 2372,
+       "end": 2375
+      },
+      {
+       "word": "after.",
+       "start": 2376,
+       "end": 2389
+      },
+      {
+       "word": "The",
+       "start": 2396,
+       "end": 2399
+      },
+      {
+       "word": "second",
+       "start": 2401,
+       "end": 2410
+      },
+      {
+       "word": "refund",
+       "start": 2411,
+       "end": 2421
+      },
+      {
+       "word": "is",
+       "start": 2423,
+       "end": 2425
+      },
+      {
+       "word": "gone.",
+       "start": 2427,
+       "end": 2446
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "result",
+   "from": 2462,
+   "durationInFrames": 390,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "Fifty-six percent, to one hundred. Five hundred fifty-three thousand dollars at risk per thousand tickets, down to zero. And a pull request, with tests proven to catch the bug.",
+     "file": "audio/vo/result_0.mp3",
+     "startFrame": 2474,
+     "durationFrames": 329,
+     "words": [
+      {
+       "word": "Fifty-six",
+       "start": 2474,
+       "end": 2490
+      },
+      {
+       "word": "percent,",
+       "start": 2491,
+       "end": 2507
+      },
+      {
+       "word": "to",
+       "start": 2509,
+       "end": 2513
+      },
+      {
+       "word": "one",
+       "start": 2515,
+       "end": 2519
+      },
+      {
+       "word": "hundred.",
+       "start": 2520,
+       "end": 2536
+      },
+      {
+       "word": "Five",
+       "start": 2545,
+       "end": 2554
+      },
+      {
+       "word": "hundred",
+       "start": 2554,
+       "end": 2561
+      },
+      {
+       "word": "fifty-three",
+       "start": 2562,
+       "end": 2578
+      },
+      {
+       "word": "thousand",
+       "start": 2581,
+       "end": 2592
+      },
+      {
+       "word": "dollars",
+       "start": 2593,
+       "end": 2601
+      },
+      {
+       "word": "at",
+       "start": 2602,
+       "end": 2604
+      },
+      {
+       "word": "risk",
+       "start": 2606,
+       "end": 2613
+      },
+      {
+       "word": "per",
+       "start": 2615,
+       "end": 2619
+      },
+      {
+       "word": "thousand",
+       "start": 2621,
+       "end": 2632
+      },
+      {
+       "word": "tickets,",
+       "start": 2633,
+       "end": 2645
+      },
+      {
+       "word": "down",
+       "start": 2647,
+       "end": 2655
+      },
+      {
+       "word": "to",
+       "start": 2656,
+       "end": 2658
+      },
+      {
+       "word": "zero.",
+       "start": 2660,
+       "end": 2676
+      },
+      {
+       "word": "And",
+       "start": 2690,
+       "end": 2697
+      },
+      {
+       "word": "a",
+       "start": 2699,
+       "end": 2700
+      },
+      {
+       "word": "pull",
+       "start": 2701,
+       "end": 2707
+      },
+      {
+       "word": "request,",
+       "start": 2709,
+       "end": 2728
+      },
+      {
+       "word": "with",
+       "start": 2731,
+       "end": 2736
+      },
+      {
+       "word": "tests",
+       "start": 2738,
+       "end": 2751
+      },
+      {
+       "word": "proven",
+       "start": 2753,
+       "end": 2764
+      },
+      {
+       "word": "to",
+       "start": 2766,
+       "end": 2768
+      },
+      {
+       "word": "catch",
+       "start": 2770,
+       "end": 2778
+      },
+      {
+       "word": "the",
+       "start": 2780,
+       "end": 2782
+      },
+      {
+       "word": "bug.",
+       "start": 2784,
+       "end": 2803
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tools",
+   "from": 2852,
+   "durationInFrames": 480,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "Every run is a neatlogs session, one trace per phase, and Blue reads failing traces back before it writes a fix.",
+     "file": "audio/vo/tools_0.mp3",
+     "startFrame": 2864,
+     "durationFrames": 208,
+     "words": [
+      {
+       "word": "Every",
+       "start": 2864,
+       "end": 2874
+      },
+      {
+       "word": "run",
+       "start": 2875,
+       "end": 2881
+      },
+      {
+       "word": "is",
+       "start": 2883,
+       "end": 2885
+      },
+      {
+       "word": "a",
+       "start": 2887,
+       "end": 2888
+      },
+      {
+       "word": "neatlogs",
+       "start": 2890,
+       "end": 2906
+      },
+      {
+       "word": "session,",
+       "start": 2906,
+       "end": 2921
+      },
+      {
+       "word": "one",
+       "start": 2925,
+       "end": 2931
+      },
+      {
+       "word": "trace",
+       "start": 2932,
+       "end": 2941
+      },
+      {
+       "word": "per",
+       "start": 2942,
+       "end": 2946
+      },
+      {
+       "word": "phase,",
+       "start": 2948,
+       "end": 2962
+      },
+      {
+       "word": "and",
+       "start": 2966,
+       "end": 2971
+      },
+      {
+       "word": "Blue",
+       "start": 2973,
+       "end": 2982
+      },
+      {
+       "word": "reads",
+       "start": 2984,
+       "end": 2993
+      },
+      {
+       "word": "failing",
+       "start": 2995,
+       "end": 3006
+      },
+      {
+       "word": "traces",
+       "start": 3007,
+       "end": 3020
+      },
+      {
+       "word": "back",
+       "start": 3021,
+       "end": 3030
+      },
+      {
+       "word": "before",
+       "start": 3032,
+       "end": 3041
+      },
+      {
+       "word": "it",
+       "start": 3043,
+       "end": 3045
+      },
+      {
+       "word": "writes",
+       "start": 3045,
+       "end": 3053
+      },
+      {
+       "word": "a",
+       "start": 3055,
+       "end": 3055
+      },
+      {
+       "word": "fix.",
+       "start": 3058,
+       "end": 3072
+      }
+     ]
+    },
+    {
+     "voice": "narrator",
+     "text": "Entire names the AI session that wrote the bug. And the business plan is built in cfo.ai.",
+     "file": "audio/vo/tools_1.mp3",
+     "startFrame": 3088,
+     "durationFrames": 186,
+     "words": [
+      {
+       "word": "Entire",
+       "start": 3088,
+       "end": 3104
+      },
+      {
+       "word": "names",
+       "start": 3106,
+       "end": 3114
+      },
+      {
+       "word": "the",
+       "start": 3115,
+       "end": 3118
+      },
+      {
+       "word": "AI",
+       "start": 3120,
+       "end": 3129
+      },
+      {
+       "word": "session",
+       "start": 3131,
+       "end": 3141
+      },
+      {
+       "word": "that",
+       "start": 3142,
+       "end": 3145
+      },
+      {
+       "word": "wrote",
+       "start": 3147,
+       "end": 3152
+      },
+      {
+       "word": "the",
+       "start": 3153,
+       "end": 3155
+      },
+      {
+       "word": "bug.",
+       "start": 3157,
+       "end": 3167
+      },
+      {
+       "word": "And",
+       "start": 3174,
+       "end": 3179
+      },
+      {
+       "word": "the",
+       "start": 3181,
+       "end": 3183
+      },
+      {
+       "word": "business",
+       "start": 3184,
+       "end": 3195
+      },
+      {
+       "word": "plan",
+       "start": 3197,
+       "end": 3205
+      },
+      {
+       "word": "is",
+       "start": 3207,
+       "end": 3211
+      },
+      {
+       "word": "built",
+       "start": 3213,
+       "end": 3221
+      },
+      {
+       "word": "in",
+       "start": 3224,
+       "end": 3228
+      },
+      {
+       "word": "cfo.ai.",
+       "start": 3231,
+       "end": 3273
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "different",
+   "from": 3332,
+   "durationInFrames": 497,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "It isn't tied to one agent. ResearchBot, on real Crustdata data: forty-nine to one hundred. Several faults at once: forty-three to one hundred.",
+     "file": "audio/vo/different_0.mp3",
+     "startFrame": 3344,
+     "durationFrames": 356,
+     "words": [
+      {
+       "word": "It",
+       "start": 3344,
+       "end": 3349
+      },
+      {
+       "word": "isn't",
+       "start": 3351,
+       "end": 3358
+      },
+      {
+       "word": "tied",
+       "start": 3360,
+       "end": 3371
+      },
+      {
+       "word": "to",
+       "start": 3372,
+       "end": 3374
+      },
+      {
+       "word": "one",
+       "start": 3378,
+       "end": 3383
+      },
+      {
+       "word": "agent.",
+       "start": 3384,
+       "end": 3404
+      },
+      {
+       "word": "ResearchBot,",
+       "start": 3415,
+       "end": 3444
+      },
+      {
+       "word": "on",
+       "start": 3454,
+       "end": 3459
+      },
+      {
+       "word": "real",
+       "start": 3461,
+       "end": 3470
+      },
+      {
+       "word": "Crustdata",
+       "start": 3473,
+       "end": 3490
+      },
+      {
+       "word": "data:",
+       "start": 3491,
+       "end": 3508
+      },
+      {
+       "word": "forty-nine",
+       "start": 3521,
+       "end": 3543
+      },
+      {
+       "word": "to",
+       "start": 3544,
+       "end": 3546
+      },
+      {
+       "word": "one",
+       "start": 3549,
+       "end": 3554
+      },
+      {
+       "word": "hundred.",
+       "start": 3555,
+       "end": 3572
+      },
+      {
+       "word": "Several",
+       "start": 3586,
+       "end": 3598
+      },
+      {
+       "word": "faults",
+       "start": 3600,
+       "end": 3610
+      },
+      {
+       "word": "at",
+       "start": 3612,
+       "end": 3615
+      },
+      {
+       "word": "once:",
+       "start": 3617,
+       "end": 3633
+      },
+      {
+       "word": "forty-three",
+       "start": 3642,
+       "end": 3664
+      },
+      {
+       "word": "to",
+       "start": 3666,
+       "end": 3668
+      },
+      {
+       "word": "one",
+       "start": 3671,
+       "end": 3676
+      },
+      {
+       "word": "hundred.",
+       "start": 3677,
+       "end": 3699
+      }
+     ]
+    },
+    {
+     "voice": "narrator",
+     "text": "Bulwark even attacks itself. Eleven faults, eleven recovered.",
+     "file": "audio/vo/different_1.mp3",
+     "startFrame": 3715,
+     "durationFrames": 98,
+     "words": [
+      {
+       "word": "Bulwark",
+       "start": 3715,
+       "end": 3729
+      },
+      {
+       "word": "even",
+       "start": 3730,
+       "end": 3735
+      },
+      {
+       "word": "attacks",
+       "start": 3736,
+       "end": 3746
+      },
+      {
+       "word": "itself.",
+       "start": 3747,
+       "end": 3756
+      },
+      {
+       "word": "Eleven",
+       "start": 3757,
+       "end": 3765
+      },
+      {
+       "word": "faults,",
+       "start": 3767,
+       "end": 3776
+      },
+      {
+       "word": "eleven",
+       "start": 3777,
+       "end": 3787
+      },
+      {
+       "word": "recovered.",
+       "start": 3789,
+       "end": 3813
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "close",
+   "from": 3829,
+   "durationInFrames": 308,
+   "lines": [
+    {
+     "voice": "narrator",
+     "text": "Bulwark. Break it first. Agents you can trust to run without you watching.",
+     "file": "audio/vo/close_0.mp3",
+     "startFrame": 3841,
+     "durationFrames": 157,
+     "words": [
+      {
+       "word": "Bulwark.",
+       "start": 3841,
+       "end": 3861
+      },
+      {
+       "word": "Break",
+       "start": 3862,
+       "end": 3871
+      },
+      {
+       "word": "it",
+       "start": 3873,
+       "end": 3875
+      },
+      {
+       "word": "first.",
+       "start": 3878,
+       "end": 3897
+      },
+      {
+       "word": "Agents",
+       "start": 3902,
+       "end": 3916
+      },
+      {
+       "word": "you",
+       "start": 3917,
+       "end": 3920
+      },
+      {
+       "word": "can",
+       "start": 3921,
+       "end": 3926
+      },
+      {
+       "word": "trust",
+       "start": 3928,
+       "end": 3939
+      },
+      {
+       "word": "to",
+       "start": 3941,
+       "end": 3943
+      },
+      {
+       "word": "run",
+       "start": 3945,
+       "end": 3951
+      },
+      {
+       "word": "without",
+       "start": 3953,
+       "end": 3963
+      },
+      {
+       "word": "you",
+       "start": 3965,
+       "end": 3967
+      },
+      {
+       "word": "watching.",
+       "start": 3970,
+       "end": 3997
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
