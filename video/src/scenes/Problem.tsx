@@ -36,12 +36,12 @@ export const Problem: React.FC = () => {
           <Kicker at={t56 - 30}>refundbot · 8 real-world faults · 20 trials each</Kicker>
           <div style={{ display: "flex", alignItems: "baseline", gap: 26, marginTop: 14 }}>
             <div style={{ fontSize: 190, fontWeight: 300, letterSpacing: "-0.06em", lineHeight: 1 }}>
-              <Count to={56} at={t56 - 24} dur={28} suffix="%" />
+              <Count from={100} to={56} at={t56 - 24} dur={28} suffix="%" />
             </div>
             <div style={{ fontSize: 34, fontWeight: 300, letterSpacing: "-0.02em", color: C.ink2, maxWidth: 380, lineHeight: 1.2 }}>of trials keep every business rule</div>
           </div>
           <div style={{ marginTop: 22, width: 760, height: 10, borderRadius: 5, background: C.muted, overflow: "hidden" }}>
-            <div style={{ width: `${interpolate(f, [t56 - 24, t56 + 4], [0, 56], { ...clamp, easing: expo })}%`, height: "100%", background: GRAD, backgroundSize: "760px 10px" }} />
+            <div style={{ width: `${interpolate(f, [t56 - 24, t56 + 4], [100, 56], { ...clamp, easing: expo })}%`, height: "100%", background: GRAD, backgroundSize: "760px 10px" }} />
           </div>
         </div>
         <div style={{ marginTop: 56, fontSize: 44, fontWeight: 300, letterSpacing: "-0.025em", maxWidth: 900 }}>

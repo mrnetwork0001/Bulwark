@@ -30,7 +30,7 @@ const Big: React.FC<{ from: number; to: number; at: number; dark?: boolean }> = 
   <div style={{ display: "flex", alignItems: "baseline", gap: 12, fontSize: 80, fontWeight: 300, letterSpacing: "-0.055em", lineHeight: 1 }}>
     <span style={{ color: dark ? C.dim : "rgba(255,255,255,0.45)" }}>{from}%</span>
     <span style={{ fontSize: 48, color: dark ? C.dim : "rgba(255,255,255,0.45)" }}>→</span>
-    <span style={{ color: C.g2 }}><Count to={to} at={at} dur={24} suffix="%" /></span>
+    <span style={{ color: C.g2 }}><Count from={from} to={to} at={at} dur={24} suffix="%" /></span>
   </div>
 );
 
@@ -93,7 +93,7 @@ export const Different: React.FC = () => {
         <div style={{ position: "absolute", left: 36, bottom: 36 }}>
           <Label dark>faults injected into its own dependencies</Label>
           <div style={{ display: "flex", alignItems: "baseline", gap: 18, marginTop: 10, fontSize: 96, fontWeight: 300, letterSpacing: "-0.055em", lineHeight: 1 }}>
-            <span><Count to={data.selfChaos.recovered} at={rel("eleven") - 4} dur={18} /><span style={{ color: C.dim }}>/{data.selfChaos.injected}</span></span>
+            <span style={{ opacity: ramp(f, rel("eleven") - 5, rel("eleven")) }}><Count to={data.selfChaos.recovered} at={rel("eleven") - 4} dur={18} /><span style={{ color: C.dim }}>/{data.selfChaos.injected}</span></span>
             <span style={{ fontSize: 22, letterSpacing: 0, color: C.ink2, lineHeight: 1.3 }}>recovered<br />{data.selfChaos.bugsFixed} real bugs fixed</span>
           </div>
         </div>

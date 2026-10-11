@@ -80,8 +80,8 @@ export const Tools: React.FC = () => {
             <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginTop: 12, fontSize: 58, fontWeight: 300, letterSpacing: "-0.04em" }}>
               {N.arr.map((v, i) => (
                 <React.Fragment key={i}>
-                  {i ? <span style={{ fontSize: 34, color: C.dim }}>→</span> : null}
-                  <span style={{ color: i === 2 ? C.ink : C.ink2 }}><Count to={Math.round(v / 1000)} at={tCfo + 8 + i * 10} dur={24} prefix="$" suffix="k" /></span>
+                  {i ? <span style={{ fontSize: 34, color: C.dim, opacity: ramp(f, tCfo + 7 + i * 10, tCfo + 12 + i * 10) }}>→</span> : null}
+                  <span style={{ color: i === 2 ? C.ink : C.ink2 }}><Count to={Math.round(v / 1000)} at={tCfo + 8 + i * 10} dur={24} prefix="$" suffix="k" hideBefore /></span>
                 </React.Fragment>
               ))}
             </div>

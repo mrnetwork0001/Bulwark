@@ -53,10 +53,7 @@ npm run vo && npm run music && npm run sfx && npm run timing   # audio and timin
 npm run capture && npm run encode             # real footage -> public/footage, src/footage.json
 node scripts/stills.mjs 120 1000 ...          # check stills -> out/stills (half scale)
 npm run draft                                 # half-scale draft
-npm run render4k                              # 4K master (raw audio)
-node scripts/finish.mjs out/bulwark-demo-4k-raw.mp4 out/bulwark-demo-4k.mp4   # -14 LUFS, TP <= -1 dBTP
-ffmpeg -i out/bulwark-demo-4k.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 16 -preset slow -c:a copy out/bulwark-demo-1080p.mp4
-npx remotion still Poster out/bulwark-thumbnail.png
+sh scripts/render-final.sh                    # ProRes HQ 4K master -> H.264 4K ~45 Mbps + 1080p ~14 Mbps (-14 LUFS, TP <= -1 dBTP) + thumbnail
 ```
 
 `script.json` holds every spoken line. `src/timing.json` (from `scripts/timing.mjs`) places each word on the frame where it is spoken, and the scenes animate on those words (`useRel(scene)("word")`).
