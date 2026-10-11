@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { FAULTS, type FaultKind } from '../chaos/faults';
 import type { Provenance } from '../provenance/entire';
 import type { BulwarkTarget } from '../target';
+import type { BlastRadius } from './graph';
 
 export interface Finding {
   kind: FaultKind;
@@ -19,6 +20,8 @@ export interface Finding {
   faults: string[];
   /** Who introduced this line: commit, and the Entire session/prompt when known (bulwark/provenance). */
   provenance?: Provenance;
+  /** Blast radius from Entire Graph: the enclosing symbol and the code that calls it (bulwark/red/graph). */
+  blast?: Pick<BlastRadius, 'focus' | 'callers'>;
 }
 
 const WRITE_ENDPOINT = /\.(create|send)$/;

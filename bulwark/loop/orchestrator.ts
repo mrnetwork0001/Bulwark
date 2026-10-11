@@ -4,9 +4,10 @@
 // as an event (for the CLI and the live dashboard) and traced to neatlogs.
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
-import { trace } from 'neatlogs';
+import { flush, trace } from 'neatlogs';
 import { createFixer, type FailedAttempt, type Fixer } from '../blue/fixer';
 import { FAULTS, getFault, type Fault } from '../chaos/faults';
 import { CheckpointStore } from '../checkpoints';
@@ -21,7 +22,11 @@ import { StrategyMemory } from '../memory';
 import { compileRules } from '../invariants';
 import { attachProvenance, type Provenance } from '../provenance/entire';
 import { llmProvider } from '../llm';
+import { runTrial } from '../harness';
+import { observeFailure, recheckPending, type ObserveCandidate, type ObserveRecord } from '../observe/evidence';
+import type { ReadResult } from '../observe/neatlogs';
 import { analyzeTarget, type Finding } from '../red/analyze';
+import { attachBlast, graphFor } from '../red/graph';
 import { badgeSvg, overallPassRate, postmortem, prBody, type FaultRecord } from '../report/reports';
 import { renderMarkdown, type ExperimentResult } from '../scorecard';
 import { loadTarget, type BrainMode, type BulwarkTarget } from '../target';
@@ -46,6 +51,8 @@ export interface LoopOptions {
   budgets?: OverheadBudgets;
   /** Fix tournament entrants (models, `playbook`, `playbook-strong`); replaces the single fixer. */
   tournament?: string[];
+  /** How long Blue waits for a failing trial's neatlogs trace to finalize before falling back to local evidence (0 = don't read). */
+  readbackWaitMs?: number;
 }
 
 export const DEFAULT_LOOP: Omit<LoopOptions, 'targetDir'> = {
@@ -60,6 +67,7 @@ export const DEFAULT_LOOP: Omit<LoopOptions, 'targetDir'> = {
   deadlineMs: 5000,
   maxSteps: 50,
   stateDir: '.bulwark',
+  readbackWaitMs: Number(process.env.BULWARK_NEATLOGS_WAIT_MS ?? 20_000),
 };
 
 export type LoopEvent =
@@ -68,6 +76,7 @@ export type LoopEvent =
   | { type: 'scorecard'; phase: 'before' | 'after'; results: ExperimentResult[]; overall: number; ws?: string }
   | { type: 'fault-start'; fault: string; title: string; hypothesis: string }
   | { type: 'fault-skip'; fault: string; reason: string }
+  | ({ type: 'observe' } & ObserveRecord)
   | { type: 'checkpoint'; action: 'save' | 'restore'; id: string; label: string }
   | { type: 'slo-plan'; plans: SloPlan[]; confidence: number; method: string }
   | { type: 'attempt'; fault: string; n: number; strategy: string; title: string; rationale: string; author: string; diff: string; added: number; removed: number; round?: number }
@@ -132,7 +141,18 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     const findings = await phase('1 red: analyze code', {}, async () => analyzeTarget(o.targetDir, original));
     // Provenance: which commit, and which Entire session and prompt, introduced each weak link.
     const provenance = attachProvenance(findings, o.targetDir);
+    // Entire Graph: blast radius per weak link, and (below) fix-site search per fault. Queries run
+    // against the original target in the repo: the loop's patched copies live in
+    // .bulwark/runs/<id>/ws/, which is gitignored and outside the tree the graph indexes.
+    const graph = targetRel.startsWith('..') ? undefined : graphFor(process.cwd());
+    const blasts = attachBlast(findings, graph, targetRel);
     emit({ type: 'analyze', findings, provenance });
+    emit({
+      type: 'log',
+      message: graph
+        ? `Entire Graph: blast radius for ${blasts}/${findings.length} weak links`
+        : `Entire Graph ${process.env.BULWARK_ENTIRE_GRAPH === '0' ? 'switched off (BULWARK_ENTIRE_GRAPH=0)' : 'not available (needs the `entire graph` plugin)'}; using static analysis only`,
+    });
 
     const redOpts = { trials: o.redTrials, seed: o.seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps };
     const before = await phase('2 red: attack scorecard BEFORE', { phase: 'before', trials: o.redTrials, seed: o.seed }, () => runAll(original, redOpts));
@@ -151,6 +171,10 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     const records: FaultRecord[] = [];
     let attempts = 0;
     let rollbacks = 0;
+    const readbackWaitMs = Number.isFinite(o.readbackWaitMs) ? Math.max(0, o.readbackWaitMs!) : 20_000;
+    const readCache = new Map<string, ReadResult>();
+    const targetHash = hashFiles(originalFiles);
+    const previous = previousFailures(o.stateDir, targetHash);
 
     for (const fault of ordered) {
       emit({ type: 'fault-start', fault: fault.id, title: fault.title, hypothesis: fault.hypothesis });
@@ -179,13 +203,40 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
       }
 
       rec.before = baseResults[fault.id];
+
+      // Observe: read a failing trial back from neatlogs. Oldest trace first: the previous run's on
+      // the same code (minutes old), then this run's BEFORE scorecard (it ran earliest), then the
+      // Judge's baseline; if no sampled trial failed, one failing seed is replayed traced.
+      const candidates: ObserveCandidate[] = [
+        ...(previous[fault.id] ?? []).map((e) => ({ seed: e.seed, traceId: e.traceId, source: 'previous' as const })),
+        ...before[fault.id].examples.map((e) => ({ seed: e.seed, traceId: e.traceId, source: 'before' as const })),
+        ...baseResults[fault.id].examples.map((e) => ({ seed: e.seed, traceId: e.traceId, source: 'judge' as const })),
+      ];
+      const observed = await observeFailure({
+        fault: fault.id,
+        candidates,
+        waitMs: readbackWaitMs,
+        cache: readCache,
+        rerun: async (seed) => {
+          const obs = await phase(`observe: replay failing ${fault.id} trial (seed ${seed})`, { fault: fault.id, seed }, () =>
+            runTrial({ target: original, fault, seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps, traced: true }),
+          );
+          await flush().catch(() => false);
+          return obs.traceId;
+        },
+      });
+      rec.observe = observed.record;
+      emit({ type: 'observe', ...observed.record });
+      // Entire Graph fix-site search for this fault, limited to the target's own files.
+      const graphHints = graph?.search(fault.hypothesis, 3, targetRel) ?? undefined;
+
       const failed: FailedAttempt[] = [];
       const slo = sloPlans.find((p) => p.fault === fault.id);
       for (let round = 1; round <= o.maxAttempts; round++) {
         const cp = checkpoints.save(`before ${fault.id} ${entrants ? 'round' : 'attempt'} ${round}`, baseFiles, { fault: fault.id, attempt: round });
         emit({ type: 'checkpoint', action: 'save', id: cp.id, label: cp.label });
 
-        const ctx = { fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [] };
+        const ctx = { fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [], neatlogsEvidence: observed.evidence, graphHints };
         const entries: Entry[] = await phase(`3 blue: propose fix for ${fault.id} #${round}`, { fault: fault.id, attempt: round, ...(entrants ? { tournament: true } : {}) }, async () =>
           entrants ? proposeAll(entrants, ctx) : [{ entrant: fixer.name, proposal: await fixer.propose(ctx) }],
         );
@@ -293,6 +344,12 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     emit({ type: 'scorecard', phase: 'after', results: Object.values(after), overall: overallPassRate(after), ...(baseDir !== o.targetDir ? { ws: basename(baseDir) } : {}) });
     const residual = analyzeTarget(baseDir, baseTarget);
     emit({ type: 'residual', findings: residual });
+    // One last look at neatlogs traces that weren't finalized when Blue needed them, for the postmortems.
+    const late = await recheckPending(records.map((r) => r.observe), { cache: readCache });
+    if (records.some((r) => r.observe?.traceId)) {
+      const read = records.filter((r) => r.observe?.status === 'read').length;
+      emit({ type: 'log', message: `neatlogs read-back: ${read}/${records.filter((r) => r.observe).length} failing-trial traces read${late ? ` (${late} only at the end of the run)` : ''}` });
+    }
 
     const book = await loadPriceBook({ provider: llmProvider(), cachePath: join(o.stateDir, 'pricing-0g.json') });
     const cost = meter.summarize(book.priceFor, `0G router prices (${book.zgSource}); Anthropic-direct static table`);
@@ -335,11 +392,32 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
       targetRel,
       cost,
     };
-    writeFileSync(join(dir, 'summary.json'), JSON.stringify({ ...summary, records, before, after }, null, 2));
+    writeFileSync(join(dir, 'summary.json'), JSON.stringify({ ...summary, targetHash, records, before, after }, null, 2));
     writeFileSync(join(o.stateDir, 'latest.json'), JSON.stringify({ runId, dir }, null, 2));
     emit({ type: 'run-done', summary });
     return summary;
   });
+}
+
+/** Content hash of the target's editable files, so a later run knows whether a past trace shows the same code. */
+export function hashFiles(files: Files): string {
+  const h = createHash('sha256');
+  for (const path of Object.keys(files).sort()) h.update(`${path}\0${files[path]}\0`);
+  return h.digest('hex').slice(0, 16);
+}
+
+/** The previous run's traced failing trials per fault, when it attacked exactly this code. */
+export function previousFailures(stateDir: string, targetHash: string): Record<string, { seed: number; traceId: string }[]> {
+  try {
+    const { dir } = JSON.parse(readFileSync(join(stateDir, 'latest.json'), 'utf8')) as { dir: string };
+    const prev = JSON.parse(readFileSync(join(dir, 'summary.json'), 'utf8')) as { targetHash?: string; before?: Record<string, ExperimentResult> };
+    if (prev.targetHash !== targetHash || !prev.before) return {};
+    return Object.fromEntries(
+      Object.entries(prev.before).map(([fault, r]) => [fault, r.examples.flatMap((e) => (e.traceId ? [{ seed: e.seed, traceId: e.traceId }] : []))]),
+    );
+  } catch {
+    return {};
+  }
 }
 
 function git(args: string[], cwd?: string): string {

@@ -3,6 +3,7 @@
 //                [--slo 0.99[,<fault>=0.999]] [--slo-confidence 0.95] [--max-slo-trials 1000]
 //                [--max-latency-overhead 50%] [--max-step-overhead 2] [--max-cost-overhead 20%] [--overhead-policy reject|flag]
 //                [--tournament claude-sonnet-5,deepseek-v4-flash | playbook,playbook-strong]
+//                [--neatlogs-wait 20]  seconds Blue waits for a failing trial's neatlogs trace (0 = don't read back)
 //
 // The full loop: attack, fix, verify, prove. Writes artifacts to .bulwark/runs/<id>/.
 
@@ -16,7 +17,9 @@ import { describeOverhead, parsePercent, type OverheadBudgets } from './judge/ov
 import { DEFAULT_MAX_SLO_TRIALS, DEFAULT_SLO_CONFIDENCE, describePlan, fmtRate, parseSlo } from './judge/slo';
 import { parseTournament } from './judge/tournament';
 import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent } from './loop/orchestrator';
+import { describeObserve } from './observe/evidence';
 import { summarizeProvenance } from './provenance/entire';
+import { describeBlast } from './red/graph';
 import { money } from './risk';
 import { initTracing, shutdownTracing } from './tracing';
 
@@ -38,7 +41,10 @@ function print(e: LoopEvent) {
       return console.log(c.bold(`Bulwark loop → ${e.target}`) + c.dim(` | fixer ${e.fixer} | red ${e.redTrials} trials, judge ${e.judgeTrials} trials | run ${e.runId}\n`));
     case 'analyze':
       console.log(c.red('RED') + ` found ${e.findings.length} weak links:`);
-      for (const f of e.findings) console.log(`  ${f.severity === 'high' ? c.red('high') : c.yellow('med ')}  ${f.file}:${f.line}  ${f.why}`);
+      for (const f of e.findings) {
+        console.log(`  ${f.severity === 'high' ? c.red('high') : c.yellow('med ')}  ${f.file}:${f.line}  ${f.why}`);
+        if (f.blast) console.log(c.dim(`        blast radius (Entire Graph): ${describeBlast(f.blast)}`));
+      }
       for (const line of summarizeProvenance(e.provenance ?? [])) console.log(c.dim(`  provenance: ${line}`));
       return console.log();
     case 'scorecard': {
@@ -53,6 +59,10 @@ function print(e: LoopEvent) {
     }
     case 'fault-start':
       return console.log(c.bold(`▶ ${e.fault}`) + c.dim(`  ${e.hypothesis}`));
+    case 'observe': {
+      const tag = e.status === 'read' ? c.green('read') : e.status === 'pending' ? c.yellow('pending') : c.dim('unavailable');
+      return console.log(`  ${c.dim('OBSERVE')} neatlogs ${tag}: ${c.dim(describeObserve(e))}`);
+    }
     case 'fault-skip':
       return console.log(c.dim(`  skipped: ${e.reason}`));
     case 'checkpoint':
@@ -120,6 +130,7 @@ async function main() {
       'max-cost-overhead': { type: 'string' },
       'overhead-policy': { type: 'string', default: 'reject' },
       tournament: { type: 'string' },
+      'neatlogs-wait': { type: 'string' },
     },
   });
   // Generative Red's accepted faults join the catalog, so Red, Blue, Judge and Guard all see them.
@@ -152,6 +163,7 @@ async function main() {
       slo,
       budgets,
       tournament,
+      ...(values['neatlogs-wait'] !== undefined ? { readbackWaitMs: Number(values['neatlogs-wait']) * 1000 } : {}),
     },
     print,
   );

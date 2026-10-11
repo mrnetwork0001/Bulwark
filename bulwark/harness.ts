@@ -10,7 +10,7 @@ import { TrialRecorder, type TrialEvent } from './recorder';
 import { countTrial, recordLlmCall } from './cost/meter';
 import { mulberry32 } from './stats';
 import type { BrainMode, BulwarkTarget } from './target';
-import { untraced } from './tracing';
+import { isExporting, untraced } from './tracing';
 
 export type Outcome = 'completed' | 'crashed' | 'hung' | 'runaway';
 export type { BrainMode };
@@ -29,6 +29,8 @@ export interface TrialObservation {
   emails: Email[];
   /** Ordered event timeline, only when the trial ran with `record: true`. */
   timeline?: TrialEvent[];
+  /** neatlogs trace id, when this trial was traced. */
+  traceId?: string;
 }
 
 export interface TrialOptions {
@@ -136,6 +138,14 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
   if (opts.traced === false) return untraced(body);
   return trace(
     { name: 'bulwark.trial', kind: 'CHAIN', attributes: { target: opts.target.name, fault: opts.fault?.id ?? 'none', seed: opts.seed } },
-    body,
+    async (span) => {
+      const obs = await body();
+      // The trial span sits inside its phase's root trace, so this is the id to read back from
+      // neatlogs (bulwark/observe/neatlogs.ts narrows the trace to this trial by its seed).
+      // Only recorded when exporting: otherwise the id names a trace that exists nowhere.
+      const traceId = span?.spanContext?.().traceId;
+      if (isExporting() && traceId && !/^0+$/.test(traceId)) obs.traceId = traceId;
+      return obs;
+    },
   );
 }

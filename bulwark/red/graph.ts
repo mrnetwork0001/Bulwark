@@ -25,7 +25,7 @@ export interface BlastRadius {
   callees: GraphSymbol[];
 }
 
-type Runner = (args: string[], cwd: string) => { status: number | null; stdout: string; stderr: string };
+export type Runner = (args: string[], cwd: string) => { status: number | null; stdout: string; stderr: string };
 
 const defaultRunner: Runner = (args, cwd) => {
   const res = spawnSync(ENTIRE, ['graph', ...args], { cwd, encoding: 'utf8', timeout: 60_000, env: { ...process.env, PATH: PATH_WITH_LOCAL_BIN } });
@@ -65,9 +65,68 @@ export class EntireGraph {
     }
   }
 
-  /** Ranked fix-site candidates for a plain-language description, in Entire's compact agent format. */
-  search(query: string, topK = 3): string | null {
-    const res = this.run(['search', '--query', query, '--repo', '.', '--top-k', String(topK), '--format', 'agent', '--profile', 'full'], this.repo);
-    return res.status === 0 && res.stdout.trim() ? res.stdout.trim() : null;
+  /**
+   * Ranked fix-site candidates for a plain-language description. `under` keeps only hits inside
+   * that directory (the graph indexes the whole repo, Bulwark included, and Blue may only edit the
+   * target). Returns a compact list of `file:start-end symbol` headers, each with the hit's source.
+   */
+  search(query: string, topK = 3, under?: string): string | null {
+    // Ask for extra hits so filtering to the target still leaves topK.
+    const res = this.run(['search', '--query', query, '--repo', '.', '--top-k', String(under ? topK * 4 : topK), '--format', 'json', '--profile', 'full'], this.repo);
+    if (res.status !== 0) return null;
+    try {
+      const prefix = under ? `${under.replace(/\/$/, '')}/` : '';
+      const hits = ((JSON.parse(res.stdout).results ?? []) as SearchHit[]).filter((h) => !prefix || h.file_path?.startsWith(prefix)).slice(0, topK);
+      if (!hits.length) return null;
+      return hits
+        .map((h, i) => `${i + 1}. ${h.file_path}:${h.start_line}-${h.end_line}${h.symbol_name ? ` ${h.symbol_name}` : ''} (score ${Number(h.score ?? 0).toFixed(1)})\n${(h.snippet ?? '').trimEnd()}`)
+        .join('\n\n');
+    } catch {
+      return null;
+    }
   }
+}
+
+interface SearchHit {
+  file_path?: string;
+  start_line?: number;
+  end_line?: number;
+  symbol_name?: string;
+  score?: number;
+  snippet?: string;
+}
+
+/** The graph Bulwark uses, or undefined when switched off (BULWARK_ENTIRE_GRAPH=0) or the plugin isn't installed. */
+export function graphFor(repo: string, run?: Runner): EntireGraph | undefined {
+  if (process.env.BULWARK_ENTIRE_GRAPH === '0') return undefined;
+  const g = new EntireGraph(repo, run);
+  return g.available() ? g : undefined;
+}
+
+/**
+ * Attaches each finding's blast radius (Finding.blast). `targetRel` is the target's path from the
+ * graph's repo root, since findings name files relative to the target. One query per distinct line.
+ */
+export function attachBlast(findings: { file: string; line: number; blast?: Pick<BlastRadius, 'focus' | 'callers'> }[], graph: EntireGraph | undefined, targetRel: string): number {
+  if (!graph) return 0;
+  const cache = new Map<string, BlastRadius | null>();
+  let n = 0;
+  for (const f of findings) {
+    const at = `${targetRel ? `${targetRel}/` : ''}${f.file}:${f.line}`;
+    if (!cache.has(at)) cache.set(at, graph.impact(at.slice(0, at.lastIndexOf(':')), f.line));
+    const b = cache.get(at);
+    if (b) {
+      f.blast = { focus: b.focus, callers: b.callers };
+      n++;
+    }
+  }
+  return n;
+}
+
+/** One line for reports, e.g. "createTools (function, tools.ts:76) ← 1 caller: runRefundBot (agent.ts:54)". */
+export function describeBlast(b: Pick<BlastRadius, 'focus' | 'callers'>, max = 4): string {
+  const at = (s: GraphSymbol) => `${s.file}${s.line ? `:${s.line}` : ''}`;
+  const callers = b.callers.slice(0, max).map((c) => `${c.name} (${at(c)})`);
+  const more = b.callers.length > max ? `, +${b.callers.length - max} more` : '';
+  return `${b.focus.name} (${b.focus.kind}, ${at(b.focus)}) ← ${b.callers.length} caller${b.callers.length === 1 ? '' : 's'}${callers.length ? `: ${callers.join(', ')}${more}` : ''}`;
 }

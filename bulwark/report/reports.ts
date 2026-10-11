@@ -9,6 +9,8 @@ import { describeOverhead } from '../judge/overhead';
 import { describeSlo } from '../judge/slo';
 import type { TournamentResult } from '../judge/tournament';
 import type { Finding } from '../red/analyze';
+import { describeObserve, type ObserveRecord } from '../observe/evidence';
+import { describeBlast } from '../red/graph';
 import { combineRisk, money } from '../risk';
 import type { ExperimentResult } from '../scorecard';
 
@@ -41,6 +43,8 @@ export interface FaultRecord {
   mutation?: Pick<MutationCheck, 'ok'> & { unfixedPassed: number; fixedPassed: number; trials: number };
   /** One entry per tournament round, when --tournament was used. */
   tournament?: TournamentResult[];
+  /** neatlogs read-back of a failing trial before Blue proposed a fix (bulwark/observe). */
+  observe?: ObserveRecord;
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -66,17 +70,21 @@ export function postmortem(rec: FaultRecord, runId: string): string {
       '## Blast radius (before)',
       `${rec.before.passed}/${rec.before.trials} trials passed (95% CI ${pct(rec.before.ci95[0])}–${pct(rec.before.ci95[1])}).`,
       `Outcomes: ${Object.entries(rec.before.outcomes).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(', ')}. Broken rules: ${brokenRules(rec.before).replace(/\.$/, '')}.`,
-      ...rec.before.examples.map((e) => `- Replay: seed ${e.seed} → ${e.rule} (${e.detail ?? ''})`),
+      ...rec.before.examples.map((e) => `- Replay: seed ${e.seed} → ${e.rule} (${e.detail ?? ''})${e.traceId ? `, neatlogs trace \`${e.traceId}\`` : ''}`),
       '',
     );
   }
   if (rec.findings.length) {
     lines.push(
       '## Weak links found in the code',
-      ...rec.findings.map((f) => `- \`${f.file}:${f.line}\` ${f.why}${f.provenance ? `\n  - Provenance: ${describeProvenance(f.provenance)}` : ''}`),
+      ...rec.findings.map(
+        (f) =>
+          `- \`${f.file}:${f.line}\` ${f.why}${f.blast ? `\n  - Blast radius (Entire Graph): ${describeBlast(f.blast)}` : ''}${f.provenance ? `\n  - Provenance: ${describeProvenance(f.provenance)}` : ''}`,
+      ),
       '',
     );
   }
+  if (rec.observe) lines.push('## What neatlogs recorded', describeObserve(rec.observe), '');
   if (rec.attempts.length) {
     lines.push('## Attempts', '');
     for (const a of rec.attempts) {

@@ -23,7 +23,7 @@ export interface ExperimentResult {
   /** Failures priced as money: over-refunds plus lost-ticket and escalation assumptions. */
   dollarsAtRisk: DollarsAtRisk;
   /** One failing trial per broken rule, so a human can replay it from its seed. */
-  examples: { rule: string; seed: number; detail?: string }[];
+  examples: { rule: string; seed: number; detail?: string; traceId?: string }[];
   /** Every trial in index order, so any one can be replayed from its seed (the dashboard's squares). */
   perTrial: { seed: number; outcome: Outcome; passed: boolean }[];
 }
@@ -91,7 +91,11 @@ export async function runExperiment(
             if (res.ok) continue;
             broken.push({ rule, detail: res.detail });
             violations[rule]++;
-            if (!examples.some((e) => e.rule === rule)) examples.push({ rule, seed: obs.seed, detail: res.detail });
+            // One example per rule; a traced trial replaces an untraced one, so Blue can read it back from neatlogs.
+            const i = examples.findIndex((e) => e.rule === rule);
+            const ex = { rule, seed: obs.seed, detail: res.detail, ...(obs.traceId ? { traceId: obs.traceId } : {}) };
+            if (i === -1) examples.push(ex);
+            else if (obs.traceId && !examples[i].traceId) examples[i] = ex;
           }
           if (broken.length === 0) passed++;
           perTrial[i] = { seed: obs.seed, outcome: obs.outcome, passed: broken.length === 0 };
