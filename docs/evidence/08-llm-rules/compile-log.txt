@@ -1,0 +1,43 @@
+LLM rule compiler: real compile runs on the 0G Router (claude-sonnet-5), Oct 11 2026.
+Console lines are from `npm run rules -- --target <t>`; notes in [brackets] are ours.
+
+== RefundBot, first run ==
+  LLM compile "The customer's reply email must mention the order id." attempt 1: accepted
+  LLM compile "Never refund more than $200 in total per ticket." attempt 1: rejected: invalid check: check.left: "where" needs "as" to name the item
+  LLM compile "Never refund more than $200 in total per ticket." attempt 2: accepted
+LLM cost $0.022 (3 calls, 8305 tokens)
+
+  [Accepted $200 DSL, first version: it summed only the refunds whose orderId was the ticket's own order:
+   {"cmp":"<=","left":{"agg":"sum","as":"r","field":"amount","list":{"path":"refunds"},
+    "where":{"cmp":"==","left":{"path":"r.orderId"},"right":{"path":"ticket.orderId"}}},"right":200}
+   That misses a refund to someone else's order. The self-test can't catch it, because it is a
+   narrower reading, not a vacuous one. Fix: the compiler prompt now says one trial is one ticket,
+   so "per ticket" means the whole ledger. Recompiled, it became the plain sum.]
+
+== RefundBot, --recompile --lock ==
+  LLM compile "The customer's reply email must mention the order id." attempt 1: accepted
+  LLM compile "Never refund more than $200 in total per ticket." attempt 1: accepted
+  -> DSL {"cmp":"<=","left":{"agg":"sum","field":"amount","list":{"path":"refunds"}},"right":200}
+LLM cost $0.015 (2 calls, 5580 tokens)
+
+  [The email rule compiled to "every email to the customer has the order id in its BODY". The
+   self-chaos run then showed this was stricter than intended: the playbook's escalation email
+   puts the order id in the subject only, so latency-spike, malformed-response, rate-limit and
+   stuck-pending all came out unfixed (81% instead of 100%). Mentioning the order id in the subject is
+   still mentioning it. We made the rule say exactly what we mean and recompiled it.]
+
+== RefundBot, rule reworded ==
+  LLM compile "Every email to the customer mentions the order id in its subject or body." attempt 1: accepted
+  -> DSL {"as":"e","every":{"path":"emails"},"where":{"or":[
+       {"cmp":"contains","left":{"path":"e.subject"},"right":{"path":"ticket.orderId"}},
+       {"cmp":"contains","left":{"path":"e.body"},"right":{"path":"ticket.orderId"}}]}}
+LLM cost $0.0075 (1 call, 2890 tokens)
+
+== ResearchBot ==
+  LLM compile "A brief never lists more than 3 people." attempt 1: accepted
+  LLM compile "Never call the same API endpoint more than 20 times in one run." attempt 1: rejected: invalid check: check: unknown predicate ["agg","as","groupBy","list","where"]
+  LLM compile "Never call the same API endpoint more than 20 times in one run." attempt 2: accepted
+LLM cost $0.047 (3 calls, 14124 tokens)
+
+Total LLM rule-compiler spend: $0.092 over 9 calls. Every later run reads the cache or the committed
+lockfile (targets/<name>/compiled-rules.json): "LLM cost $0 (0 calls, 0 tokens)".

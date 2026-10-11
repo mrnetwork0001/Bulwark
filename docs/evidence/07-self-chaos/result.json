@@ -1,0 +1,372 @@
+{
+  "plan": {
+    "blue-llm": [
+      "429",
+      "5xx",
+      "timeout"
+    ],
+    "blue-proposal": [
+      "malformed",
+      "empty"
+    ],
+    "checkpoint": [
+      "corrupt",
+      "missing"
+    ],
+    "workspace": [
+      "syntax-error@1"
+    ],
+    "neatlogs": [
+      "down"
+    ],
+    "trial": [
+      "throw@5",
+      "throw-twice@15"
+    ]
+  },
+  "totals": {
+    "injected": 11,
+    "recovered": 11
+  },
+  "seams": [
+    {
+      "seam": "trial",
+      "injected": 2,
+      "recovered": 2,
+      "faults": [
+        "throw (opportunity 5)",
+        "throw-twice (opportunity 15)"
+      ],
+      "how": [
+        "baseline trial (seed 1657213266) threw: worker for baseline#4 crashed: EPIPE (self-chaos) → re-ran the trial from its seed; it completed",
+        "latency-spike trial (seed 2640519011) threw: worker for latency-spike#3 crashed: EPIPE (self-chaos) → threw again on re-run; counted as a crashed trial (not dropped) and the experiment carried on"
+      ]
+    },
+    {
+      "seam": "neatlogs",
+      "injected": 1,
+      "recovered": 1,
+      "faults": [
+        "down (opportunity 1)"
+      ],
+      "how": [
+        "neatlogs down (export hangs, read-back 503 / connection refused) → trace export timed out (bounded wait, not a hang); read-back pending (not finalized within 1s) after 1005ms; Blue used local evidence"
+      ]
+    },
+    {
+      "seam": "blue-llm",
+      "injected": 3,
+      "recovered": 3,
+      "faults": [
+        "429 (opportunity 1)",
+        "5xx (opportunity 2)",
+        "timeout (opportunity 3)"
+      ],
+      "how": [
+        "429 rate_limit_error: too many requests (self-chaos) → fell back: playbook proposed \"retry-backoff\" instead",
+        "503 overloaded_error: service unavailable (self-chaos) → fell back: playbook proposed \"idempotency-key\" instead",
+        "LLM fixer timed out after 2s → fell back: playbook proposed \"sanitize-output\" instead"
+      ]
+    },
+    {
+      "seam": "workspace",
+      "injected": 1,
+      "recovered": 1,
+      "faults": [
+        "syntax-error (opportunity 1)"
+      ],
+      "how": [
+        "syntax-error injected into the patch → the Judge rejected the attempt without running it; rolled back to the checkpoint"
+      ]
+    },
+    {
+      "seam": "checkpoint",
+      "injected": 2,
+      "recovered": 2,
+      "faults": [
+        "corrupt (opportunity 1)",
+        "missing (opportunity 2)"
+      ],
+      "how": [
+        "ckpt-001: checkpoint file corrupt (Unterminated string in JSON at position 43 (line 1 column 44)) (injected) → restored the verified in-memory copy of the checkpoint",
+        "ckpt-003: checkpoint file missing (injected) → restored the verified in-memory copy of the checkpoint"
+      ]
+    },
+    {
+      "seam": "blue-proposal",
+      "injected": 2,
+      "recovered": 2,
+      "faults": [
+        "malformed (opportunity 1)",
+        "empty (opportunity 2)"
+      ],
+      "how": [
+        "proposal has no strategy name → fell back: playbook proposed \"refund-guard\" instead",
+        "proposal changes nothing → fell back: playbook proposed \"refund-guard+ownership-check\" instead"
+      ]
+    }
+  ],
+  "injected": [
+    {
+      "seam": "trial",
+      "fault": "throw",
+      "at": 5
+    },
+    {
+      "seam": "trial",
+      "fault": "throw-twice",
+      "at": 15
+    },
+    {
+      "seam": "neatlogs",
+      "fault": "down",
+      "at": 1
+    },
+    {
+      "seam": "blue-llm",
+      "fault": "429",
+      "at": 1
+    },
+    {
+      "seam": "workspace",
+      "fault": "syntax-error",
+      "at": 1
+    },
+    {
+      "seam": "checkpoint",
+      "fault": "corrupt",
+      "at": 1
+    },
+    {
+      "seam": "blue-llm",
+      "fault": "5xx",
+      "at": 2
+    },
+    {
+      "seam": "blue-llm",
+      "fault": "timeout",
+      "at": 3
+    },
+    {
+      "seam": "checkpoint",
+      "fault": "missing",
+      "at": 2
+    },
+    {
+      "seam": "blue-proposal",
+      "fault": "malformed",
+      "at": 1
+    },
+    {
+      "seam": "blue-proposal",
+      "fault": "empty",
+      "at": 2
+    }
+  ],
+  "notInjected": [],
+  "events": [
+    {
+      "seam": "trial",
+      "fault": "baseline trial (seed 1657213266) threw: worker for baseline#4 crashed: EPIPE (self-chaos)",
+      "recovered": true,
+      "how": "re-ran the trial from its seed; it completed"
+    },
+    {
+      "seam": "trial",
+      "fault": "latency-spike trial (seed 2640519011) threw: worker for latency-spike#3 crashed: EPIPE (self-chaos)",
+      "recovered": true,
+      "how": "threw again on re-run; counted as a crashed trial (not dropped) and the experiment carried on"
+    },
+    {
+      "seam": "neatlogs",
+      "fault": "neatlogs down (export hangs, read-back 503 / connection refused)",
+      "recovered": true,
+      "how": "trace export timed out (bounded wait, not a hang); read-back pending (not finalized within 1s) after 1005ms; Blue used local evidence"
+    },
+    {
+      "seam": "blue-llm",
+      "fault": "429 rate_limit_error: too many requests (self-chaos)",
+      "recovered": true,
+      "how": "fell back: playbook proposed \"retry-backoff\" instead"
+    },
+    {
+      "seam": "workspace",
+      "fault": "syntax-error injected into the patch",
+      "recovered": true,
+      "how": "the Judge rejected the attempt without running it; rolled back to the checkpoint"
+    },
+    {
+      "seam": "checkpoint",
+      "fault": "ckpt-001: checkpoint file corrupt (Unterminated string in JSON at position 43 (line 1 column 44)) (injected)",
+      "recovered": true,
+      "how": "restored the verified in-memory copy of the checkpoint"
+    },
+    {
+      "seam": "blue-llm",
+      "fault": "503 overloaded_error: service unavailable (self-chaos)",
+      "recovered": true,
+      "how": "fell back: playbook proposed \"idempotency-key\" instead"
+    },
+    {
+      "seam": "blue-llm",
+      "fault": "LLM fixer timed out after 2s",
+      "recovered": true,
+      "how": "fell back: playbook proposed \"sanitize-output\" instead"
+    },
+    {
+      "seam": "checkpoint",
+      "fault": "ckpt-003: checkpoint file missing (injected)",
+      "recovered": true,
+      "how": "restored the verified in-memory copy of the checkpoint"
+    },
+    {
+      "seam": "blue-proposal",
+      "fault": "proposal has no strategy name",
+      "recovered": true,
+      "how": "fell back: playbook proposed \"refund-guard\" instead"
+    },
+    {
+      "seam": "blue-proposal",
+      "fault": "proposal changes nothing",
+      "recovered": true,
+      "how": "fell back: playbook proposed \"refund-guard+ownership-check\" instead"
+    }
+  ],
+  "organic": [],
+  "summary": {
+    "runId": "2026-10-11T16-40-08-792Z",
+    "dir": ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z",
+    "target": "refundbot",
+    "fixer": "llm-standin+playbook",
+    "overallBefore": 0.5888888888888889,
+    "overallAfter": 1,
+    "fixed": [
+      "timeout-after-commit",
+      "prompt-injection",
+      "social-third-party",
+      "latency-spike",
+      "stuck-pending"
+    ],
+    "unfixed": [],
+    "skipped": [
+      "social-authority",
+      "malformed-response",
+      "rate-limit"
+    ],
+    "attempts": 8,
+    "rollbacks": 3,
+    "residual": [
+      {
+        "kind": "injection",
+        "severity": "high",
+        "file": "tools.ts",
+        "line": 126,
+        "tool": "search_policy",
+        "why": "search_policy passes raw text from policy.search to the model, so injected instructions reach it",
+        "faults": [
+          "prompt-injection"
+        ]
+      }
+    ],
+    "artifacts": {
+      "patch": ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/fix.patch",
+      "pr": ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/PR.md",
+      "badge": ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/badge.svg",
+      "postmortems": [
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-timeout-after-commit.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-prompt-injection.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-social-authority.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-social-third-party.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-latency-spike.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-malformed-response.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-rate-limit.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-40-08-792Z/postmortem-stuck-pending.md"
+      ]
+    },
+    "targetRel": "targets/refundbot",
+    "cost": {
+      "llmUsd": 0,
+      "computeUsd": 0.002056599408555556,
+      "totalUsd": 0.002056599408555556,
+      "wallMs": 74037.578708,
+      "llmMs": 0,
+      "calls": 0,
+      "trials": 1820,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "byModel": [],
+      "assumptions": {
+        "computeUsdPerHour": 0.1,
+        "prices": "0G router prices (cache); Anthropic-direct static table"
+      }
+    }
+  },
+  "control": {
+    "runId": "2026-10-11T16-41-22-924Z",
+    "dir": ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z",
+    "target": "refundbot",
+    "fixer": "llm-standin+playbook",
+    "overallBefore": 0.5888888888888889,
+    "overallAfter": 1,
+    "fixed": [
+      "timeout-after-commit",
+      "prompt-injection",
+      "social-third-party",
+      "latency-spike",
+      "stuck-pending"
+    ],
+    "unfixed": [],
+    "skipped": [
+      "social-authority",
+      "malformed-response",
+      "rate-limit"
+    ],
+    "attempts": 8,
+    "rollbacks": 3,
+    "residual": [
+      {
+        "kind": "injection",
+        "severity": "high",
+        "file": "tools.ts",
+        "line": 126,
+        "tool": "search_policy",
+        "why": "search_policy passes raw text from policy.search to the model, so injected instructions reach it",
+        "faults": [
+          "prompt-injection"
+        ]
+      }
+    ],
+    "artifacts": {
+      "patch": ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/fix.patch",
+      "pr": ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/PR.md",
+      "badge": ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/badge.svg",
+      "postmortems": [
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-timeout-after-commit.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-prompt-injection.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-social-authority.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-social-third-party.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-latency-spike.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-malformed-response.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-rate-limit.md",
+        ".bulwark/self-chaos/runs/2026-10-11T16-41-22-924Z/postmortem-stuck-pending.md"
+      ]
+    },
+    "targetRel": "targets/refundbot",
+    "cost": {
+      "llmUsd": 0,
+      "computeUsd": 0.0015560409074166666,
+      "totalUsd": 0.0015560409074166666,
+      "wallMs": 56017.472666999995,
+      "llmMs": 0,
+      "calls": 0,
+      "trials": 2000,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "byModel": [],
+      "assumptions": {
+        "computeUsdPerHour": 0.1,
+        "prices": "0G router prices (cache); Anthropic-direct static table"
+      }
+    }
+  }
+}

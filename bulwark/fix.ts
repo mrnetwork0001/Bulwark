@@ -23,6 +23,7 @@ import { summarizeProvenance } from './provenance/entire';
 import { describeBlast } from './red/graph';
 import { notifyRunDone } from './notify';
 import { money } from './risk';
+import { describeRules } from './rules/compiler';
 import { loadTarget, resolveTargetDir } from './target';
 import { initTracing, shutdownTracing } from './tracing';
 import { relative } from 'node:path';
@@ -100,6 +101,12 @@ function print(e: LoopEvent) {
       return console.log();
     case 'log':
       return console.log(c.dim(`  ${e.message}`));
+    case 'rules':
+      console.log(c.bold('Business rules') + c.dim(' (how each one is checked)'));
+      for (const line of describeRules(e.rules)) console.log(`  ${line.startsWith(' ') ? c.dim(line) : line}`);
+      return console.log();
+    case 'self-fault':
+      return console.log(`  ${c.yellow('SELF-FAULT')} ${e.seam}: ${e.fault} ${e.recovered ? c.green('→ recovered') : c.red('→ NOT recovered')}${c.dim(`: ${e.how}`)}`);
     case 'run-done': {
       const s = e.summary;
       console.log(c.bold(`Resilience ${pct(s.overallBefore)} → ${pct(s.overallAfter)}`) + `  fixed ${s.fixed.length}, unfixed ${s.unfixed.length}, skipped ${s.skipped.length} · ${s.attempts} attempts, ${s.rollbacks} rollbacks`);

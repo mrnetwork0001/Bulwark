@@ -21,7 +21,9 @@
     "leaderboard": "tsx bulwark/leaderboard.ts",
     "record:crustdata": "tsx targets/researchbot/record.ts",
     "diff": "tsx bulwark/diff-cli.ts",
-    "replay-failures": "tsx bulwark/replay-failures.ts"
+    "replay-failures": "tsx bulwark/replay-failures.ts",
+    "rules": "tsx bulwark/rules/cli.ts",
+    "self-chaos": "tsx bulwark/selfchaos/cli.ts"
   },
   "engines": {
     "node": ">=20"

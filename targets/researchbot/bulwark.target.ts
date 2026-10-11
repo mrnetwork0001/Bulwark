@@ -118,7 +118,17 @@ const checks: TargetCheck[] = [
 
 export const target: BulwarkTarget<{ ticket: Ticket; domain: string }, CrustdataCassette> = {
   name: 'researchbot',
-  rules: [CITES_ONLY_API, PERSON_NEEDS_SOURCE, BRIEF_OR_NOT_FOUND, 'A run finishes within 5 seconds.', 'A run takes at most 8 steps.', CREDIT_BUDGET],
+  rules: [
+    CITES_ONLY_API,
+    PERSON_NEEDS_SOURCE,
+    BRIEF_OR_NOT_FOUND,
+    'A run finishes within 5 seconds.',
+    'A run takes at most 8 steps.',
+    CREDIT_BUDGET,
+    // Compiled by the LLM rule compiler into rule-DSL checks (cached in compiled-rules.json next to this file).
+    'A brief never lists more than 3 people.',
+    'Never call the same API endpoint more than 20 times in one run.',
+  ],
   checks,
   editableFiles: ['agent.ts', 'tools.ts'],
   endpoints: {

@@ -1,9 +1,12 @@
 // Turns plain-English business rules into checks over a trial's observed side
 // effects. A target may compile its own rules (BulwarkTarget.checks); the rest go
-// through a pattern library. Rules nobody can compile are reported, never
-// silently skipped. (An LLM rule compiler is planned on top of this.)
+// through a pattern library, then the LLM rule compiler's cache (rules Claude
+// compiled into the rule DSL, see bulwark/rules/). Rules nobody can compile are
+// reported, never silently skipped.
 
 import type { TrialObservation } from './harness';
+import { lookupCompiled } from './rules/cache';
+import { toCheck, validateCheck, type Pred } from './rules/dsl';
 import type { TargetCheck } from './target';
 
 export interface CheckResult {
@@ -16,6 +19,10 @@ export interface CompiledRule {
   /** Exactly how the rule is checked, in words. Given to the fixer so it fixes the real thing. */
   how: string;
   check: (obs: TrialObservation) => CheckResult;
+  /** Who compiled it: the target's own check, Bulwark's pattern library, or the LLM rule compiler (cached DSL). */
+  source?: 'target' | 'pattern' | 'llm';
+  /** The DSL check, for LLM-compiled rules. */
+  dsl?: Pred;
 }
 
 const PATTERNS: { match: RegExp; how: (m: RegExpMatchArray) => string; build: (m: RegExpMatchArray) => CompiledRule['check'] }[] = [
@@ -85,20 +92,44 @@ const PATTERNS: { match: RegExp; how: (m: RegExpMatchArray) => string; build: (m
 
 /**
  * Compiles each rule: a target-supplied check with the exact same text wins, then
- * the pattern library. Anything left is returned as uncompiled.
+ * the pattern library, then a cached LLM-compiled DSL check for this target and exact
+ * rule text (any target's lockfile when `target` isn't named). Anything left is returned
+ * as uncompiled.
  */
-export function compileRules(rules: string[], checks: TargetCheck[] = []): { compiled: CompiledRule[]; uncompiled: string[] } {
+export function compileRules(
+  rules: string[],
+  checks: TargetCheck[] = [],
+  opts: { target?: string; cachePaths?: string[] } = {},
+): { compiled: CompiledRule[]; uncompiled: string[] } {
   const compiled: CompiledRule[] = [];
   const uncompiled: string[] = [];
   for (const rule of rules) {
     const own = checks.find((c) => c.rule === rule);
     if (own) {
-      compiled.push({ rule, how: own.how, check: own.check });
+      compiled.push({ rule, how: own.how, check: own.check, source: 'target' });
       continue;
     }
     const hit = PATTERNS.map((p) => ({ p, m: rule.match(p.match) })).find((x) => x.m);
-    if (hit) compiled.push({ rule, how: hit.p.how(hit.m!), check: hit.p.build(hit.m!) });
-    else uncompiled.push(rule);
+    if (hit) {
+      compiled.push({ rule, how: hit.p.how(hit.m!), check: hit.p.build(hit.m!), source: 'pattern' });
+      continue;
+    }
+    const cached = lookupCompiled(opts.target, rule, opts.cachePaths);
+    if (cached && structurallyValid(cached.check)) {
+      compiled.push({ rule, how: cached.how, check: toCheck(cached.check), source: 'llm', dsl: cached.check });
+      continue;
+    }
+    uncompiled.push(rule);
   }
   return { compiled, uncompiled };
+}
+
+/** A cached check is re-validated structurally on load, so a hand-edited cache can't smuggle in a malformed one. */
+function structurallyValid(check: unknown): boolean {
+  try {
+    validateCheck(check, { shape: { kind: 'any' } });
+    return true;
+  } catch {
+    return false;
+  }
 }

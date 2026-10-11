@@ -43,6 +43,8 @@ export interface ObserveOptions {
   waitMs: number;
   pollMs?: number;
   fetcher?: Fetcher;
+  /** neatlogs API key (default NEATLOGS_API_KEY); the self-chaos seam points read-back at an outage with it. */
+  apiKey?: string;
   /** Reads already made in this run, by trace id; phase traces hold every fault's trials, so one read serves many faults. */
   cache?: Map<string, ReadResult>;
 }
@@ -67,7 +69,7 @@ function digest(record: ObserveRecord, res: ReadResult, fault: string): string |
 export async function observeFailure(o: ObserveOptions): Promise<{ record: ObserveRecord; evidence?: string }> {
   const base = { fault: o.fault, spans: 0, detections: 0, waitedMs: 0 };
   if (o.waitMs <= 0) return { record: { ...base, status: 'unavailable', reason: 'neatlogs read-back disabled (wait 0)' } };
-  if (!process.env.NEATLOGS_API_KEY) return { record: { ...base, status: 'unavailable', reason: 'NEATLOGS_API_KEY not set' } };
+  if (!(o.apiKey ?? process.env.NEATLOGS_API_KEY)) return { record: { ...base, status: 'unavailable', reason: 'NEATLOGS_API_KEY not set' } };
 
   const seen = new Set<string>();
   const traced = o.candidates.filter((c) => c.traceId && !seen.has(c.traceId) && seen.add(c.traceId));
@@ -91,7 +93,7 @@ export async function observeFailure(o: ObserveOptions): Promise<{ record: Obser
     // gets the wait budget; a trace that was already pending earlier in the run gets one re-check.
     const wait = cached || c.source === 'previous' || fullWaitUsed ? 0 : Math.max(0, o.waitMs - (Date.now() - started));
     if (wait > 0) fullWaitUsed = true;
-    const res = cached?.status === 'read' ? cached : await readTrace(c.traceId, { waitMs: wait, pollMs: o.pollMs, fetcher: o.fetcher });
+    const res = cached?.status === 'read' ? cached : await readTrace(c.traceId, { waitMs: wait, pollMs: o.pollMs, fetcher: o.fetcher, apiKey: o.apiKey });
     o.cache?.set(c.traceId!, res);
     const record: ObserveRecord = {
       ...base,

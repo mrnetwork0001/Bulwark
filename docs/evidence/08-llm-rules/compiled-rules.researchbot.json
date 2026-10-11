@@ -1,0 +1,303 @@
+{
+  "version": 1,
+  "rules": {
+    "researchbot::5089b4f7191a19ca": {
+      "target": "researchbot",
+      "rule": "A brief never lists more than 3 people.",
+      "dslVersion": 1,
+      "check": {
+        "cmp": "<=",
+        "left": {
+          "len": {
+            "path": "replyJson.people"
+          }
+        },
+        "right": 3
+      },
+      "how": "Checked on the trial observation (sandbox ledger lists, ticket, fixtures, outcome, reply): the length of replyJson.people is at most 3. A violation is any trial where this does not hold.",
+      "intent": "The brief's replyJson.people list must contain at most 3 entries.",
+      "counterexample": {
+        "replyJson": {
+          "domain": "retool.com",
+          "fundingUsd": 141000000,
+          "headcount": 416,
+          "industry": "Software Development",
+          "name": "Retool",
+          "people": [
+            {
+              "name": "David Hsu",
+              "title": "Founder, CEO"
+            },
+            {
+              "name": "Pep Guidote",
+              "title": "Vice President Go-To-Market Programs"
+            },
+            {
+              "name": "Todd Gracon",
+              "title": "Chief Revenue Officer (CRO)"
+            },
+            {
+              "name": "Jane Extra",
+              "title": "Head of Sales"
+            }
+          ],
+          "status": "ok"
+        }
+      },
+      "selfTest": {
+        "samples": 24,
+        "baselineSamples": 3,
+        "baselinePassed": 3,
+        "faultedSamples": 21,
+        "faultedFlagged": 0,
+        "counterexampleRejected": true,
+        "counterexampleDetail": "the length of replyJson.people <= 3 fails (4 vs 3)"
+      },
+      "model": "claude-sonnet-5",
+      "compiledAt": "2026-10-11T16:23:54.465Z"
+    },
+    "researchbot::568a9bb92046fb46": {
+      "target": "researchbot",
+      "rule": "Never call the same API endpoint more than 20 times in one run.",
+      "dslVersion": 1,
+      "check": {
+        "cmp": "<=",
+        "left": {
+          "agg": "count",
+          "groupBy": "endpoint",
+          "list": {
+            "path": "apiCalls"
+          }
+        },
+        "right": 20
+      },
+      "how": "Checked on the trial observation (sandbox ledger lists, ticket, fixtures, outcome, reply): the number of apiCalls per endpoint is at most 20. A violation is any trial where this does not hold.",
+      "intent": "For every endpoint, the number of apiCalls to that endpoint in the run must be at most 20.",
+      "counterexample": {
+        "apiCalls": [
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          },
+          {
+            "creditsUsed": 1,
+            "endpoint": "company.enrich",
+            "request": {
+              "domains": [
+                "retool.com"
+              ]
+            },
+            "status": 200
+          }
+        ]
+      },
+      "selfTest": {
+        "samples": 24,
+        "baselineSamples": 3,
+        "baselinePassed": 3,
+        "faultedSamples": 21,
+        "faultedFlagged": 0,
+        "counterexampleRejected": true,
+        "counterexampleDetail": "endpoint \"company.enrich\": the number of apiCalls per endpoint <= 20 fails (21 vs 20)"
+      },
+      "model": "claude-sonnet-5",
+      "compiledAt": "2026-10-11T16:24:17.388Z"
+    }
+  }
+}

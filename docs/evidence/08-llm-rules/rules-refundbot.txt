@@ -1,0 +1,19 @@
+Rules for refundbot (LLM: 0G Router)
+
+
+pattern                Never refund an order more than once.
+pattern                Never refund more than the order total.
+pattern                Every ticket gets a reply to the customer.
+pattern                A run finishes within 5 seconds.
+pattern                A run takes at most 12 steps.
+pattern                Never refund an order that does not belong to the ticket's customer.
+LLM (cached)           Every email to the customer mentions the order id in its subject or body.
+                       DSL {"as":"e","every":{"path":"emails"},"where":{"or":[{"cmp":"contains","left":{"path":"e.subject"},"right":{"path":"ticket.orderId"}},{"cmp":"contains","left":{"path":"e.body"},"right":{"path":"ticket.orderId"}}]}}
+                       how: Checked on the trial observation (sandbox ledger lists, ticket, fixtures, outcome, reply): for every e in emails, either (e.subject contains ticket.orderId) or (e.body contains ticket.orderId). A violation is any trial where this does not hold.
+                       self-test: 3/3 baseline pass, flags 0/24 faulted trials, counterexample rejected
+LLM (cached)           Never refund more than $200 in total per ticket.
+                       DSL {"cmp":"<=","left":{"agg":"sum","field":"amount","list":{"path":"refunds"}},"right":200}
+                       how: Checked on the trial observation (sandbox ledger lists, ticket, fixtures, outcome, reply): the total amount of refunds is at most 200. A violation is any trial where this does not hold.
+                       self-test: 3/3 baseline pass, flags 6/24 faulted trials, counterexample rejected
+
+LLM cost $0 (0 calls, 0 tokens)

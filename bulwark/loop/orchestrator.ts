@@ -8,7 +8,9 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { flush, trace } from 'neatlogs';
-import { createFixer, type FailedAttempt, type Fixer } from '../blue/fixer';
+import { createFixer, proposeSafely, type FailedAttempt, type Fixer, type SelfFaultReport } from '../blue/fixer';
+import { prepareRules, type RuleReport } from '../rules/compiler';
+import { flushWithin, SelfFaults } from '../selfchaos/faults';
 import { faultsFor, getFault, type Fault } from '../chaos/faults';
 import { CheckpointStore } from '../checkpoints';
 import { CostMeter, type CostSummary } from '../cost/meter';
@@ -53,6 +55,8 @@ export interface LoopOptions {
   tournament?: string[];
   /** How long Blue waits for a failing trial's neatlogs trace to finalize before falling back to local evidence (0 = don't read). */
   readbackWaitMs?: number;
+  /** Self-chaos: faults injected into Bulwark's own dependencies (see bulwark/selfchaos). Default: BULWARK_SELF_FAULTS. */
+  selfFaults?: SelfFaults;
 }
 
 export const DEFAULT_LOOP: Omit<LoopOptions, 'targetDir'> = {
@@ -86,6 +90,10 @@ export type LoopEvent =
   | { type: 'fault-done'; fault: string; status: FaultRecord['status']; attempts: number }
   | { type: 'residual'; findings: Finding[] }
   | { type: 'log'; message: string }
+  /** How each business rule is checked: target check, pattern, or LLM-compiled DSL. */
+  | { type: 'rules'; rules: RuleReport[] }
+  /** One of Bulwark's own dependencies failed (Blue's LLM, a checkpoint, a workspace, neatlogs, a trial worker) and how it recovered. */
+  | ({ type: 'self-fault' } & SelfFaultReport)
   | { type: 'run-done'; summary: LoopSummary };
 
 export interface LoopSummary {
@@ -111,6 +119,8 @@ export interface LoopSummary {
 
 export async function runLoop(input: Partial<LoopOptions> & { targetDir: string }, emit: (e: LoopEvent) => void): Promise<LoopSummary> {
   const o: LoopOptions = { ...DEFAULT_LOOP, ...input };
+  const sf = o.selfFaults ?? SelfFaults.fromEnv();
+  const selfFault = (f: SelfFaultReport) => emit({ type: 'self-fault', ...f });
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   const dir = join(o.stateDir, 'runs', runId);
   const ws = new Workspace(join(dir, 'ws'), o.targetDir);
@@ -118,7 +128,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
   const memory = new StrategyMemory(join(o.stateDir, 'memory.json'));
   // A tournament replaces the single fixer with several entrants; validate them up front.
   const entrants: Fixer[] | undefined = o.tournament?.map(createEntrant);
-  const fixer: Fixer = entrants ? { name: tournamentName(o.tournament!), propose: async () => null } : createFixer(o.fixer);
+  const fixer: Fixer = entrants
+    ? { name: tournamentName(o.tournament!), propose: async () => null }
+    : createFixer(o.fixer, { onSelfFault: selfFault, ...(sf ? { llm: sf.llm(), llmDeadlineMs: sf.llmDeadlineMs } : {}) });
   const targetRel = relative(process.cwd(), resolve(o.targetDir));
 
   // Each phase is its own root trace, grouped into one neatlogs session per run,
@@ -132,9 +144,15 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     const original = await loadTarget(o.targetDir);
     const originalFiles = readFiles(o.targetDir, original.editableFiles);
     const scope: Fault[] = o.faults === 'all' ? faultsFor(original) : o.faults.map((id) => getFault(id, original));
-    const rules = compileRules(original.rules, original.checks).compiled.map(({ rule, how }) => ({ rule, how }));
+    // Rules nothing else compiles go to the LLM rule compiler (cached; a no-op without a key).
+    const ruleReport = await prepareRules(original).catch((err) => {
+      emit({ type: 'log', message: `LLM rule compiler unavailable: ${err instanceof Error ? err.message : err}` });
+      return undefined;
+    });
+    const rules = compileRules(original.rules, original.checks, { target: original.name }).compiled.map(({ rule, how }) => ({ rule, how }));
     const sloPlans = planSlo(o.slo, scope.map((f) => f.id));
     emit({ type: 'run-start', runId, target: original.name, fixer: fixer.name, faults: scope.map((f) => f.id), redTrials: o.redTrials, judgeTrials: o.judgeTrials });
+    if (ruleReport) emit({ type: 'rules', rules: ruleReport });
     if (o.slo && sloPlans.length) emit({ type: 'slo-plan', plans: sloPlans, confidence: o.slo.confidence, method: sloPlans[0].method });
 
     // Red: find weak links, then measure the damage.
@@ -154,7 +172,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         : `Entire Graph ${process.env.BULWARK_ENTIRE_GRAPH === '0' ? 'switched off (BULWARK_ENTIRE_GRAPH=0)' : 'not available (needs the `entire graph` plugin)'}; using static analysis only`,
     });
 
-    const redOpts = { trials: o.redTrials, seed: o.seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps };
+    const redOpts = { trials: o.redTrials, seed: o.seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps, onSelfFault: selfFault, ...(sf ? { beforeTrial: sf.beforeTrial } : {}) };
     const before = await phase('2 red: attack scorecard BEFORE', { phase: 'before', trials: o.redTrials, seed: o.seed }, () => runAll(original, redOpts));
     emit({ type: 'scorecard', phase: 'before', results: Object.values(before), overall: overallPassRate(before) });
 
@@ -212,19 +230,37 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         ...before[fault.id].examples.map((e) => ({ seed: e.seed, traceId: e.traceId, source: 'before' as const })),
         ...baseResults[fault.id].examples.map((e) => ({ seed: e.seed, traceId: e.traceId, source: 'judge' as const })),
       ];
+      const down = sf?.neatlogs(); // self-chaos: neatlogs export and read-back are down for this fault
+      let flushed = true;
       const observed = await observeFailure({
         fault: fault.id,
         candidates,
-        waitMs: readbackWaitMs,
+        waitMs: down ? Math.max(readbackWaitMs, 1000) : readbackWaitMs,
         cache: readCache,
+        ...(down ? { apiKey: down.apiKey, fetcher: down.fetcher, pollMs: 250 } : {}),
         rerun: async (seed) => {
           const obs = await phase(`observe: replay failing ${fault.id} trial (seed ${seed})`, { fault: fault.id, seed }, () =>
             runTrial({ target: original, fault, seed, brain: o.brain, deadlineMs: o.deadlineMs, maxSteps: o.maxSteps, traced: true }),
           );
-          await flush().catch(() => false);
-          return obs.traceId;
+          // A hung exporter must not stall the loop: give it a bounded wait.
+          flushed = await flushWithin(down?.flush ?? flush, 10_000);
+          return obs.traceId ?? down?.traceId;
         },
+      }).catch((err): Awaited<ReturnType<typeof observeFailure>> => {
+        selfFault({ seam: 'neatlogs', fault: `observe step threw: ${err instanceof Error ? err.message : err}`, recovered: true, how: 'Blue used local evidence' });
+        return { record: { fault: fault.id, status: 'unavailable', spans: 0, detections: 0, waitedMs: 0, reason: 'observe step failed' } };
       });
+      if (down) {
+        const r = observed.record;
+        selfFault({
+          seam: 'neatlogs',
+          fault: down.fault,
+          recovered: r.status !== 'read',
+          how: `${flushed ? '' : 'trace export timed out (bounded wait, not a hang); '}read-back ${r.status}${r.reason ? ` (${r.reason})` : ''} after ${r.waitedMs}ms; Blue used local evidence`,
+        });
+      } else if (!flushed) {
+        selfFault({ seam: 'neatlogs', fault: 'trace export did not finish within 10s', recovered: true, how: 'continued without waiting; Blue used local evidence' });
+      }
       rec.observe = observed.record;
       emit({ type: 'observe', ...observed.record });
       // Entire Graph fix-site search for this fault, limited to the target's own files.
@@ -238,7 +274,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
 
         const ctx = { target: original.name, fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [], neatlogsEvidence: observed.evidence, graphHints };
         const entries: Entry[] = await phase(`3 blue: propose fix for ${fault.id} #${round}`, { fault: fault.id, attempt: round, ...(entrants ? { tournament: true } : {}) }, async () =>
-          entrants ? proposeAll(entrants, ctx) : [{ entrant: fixer.name, proposal: await fixer.propose(ctx) }],
+          entrants ? proposeAll(entrants, ctx) : [{ entrant: fixer.name, proposal: await proposeSafely(fixer, ctx, selfFault) }],
         );
         if (!entries.some((e) => e.proposal)) {
           emit({ type: 'log', message: `Blue has no further strategies for ${fault.id}${entrants ? ` (${entries.map((e) => `${e.entrant}: ${e.error}`).join('; ')})` : ''}` });
@@ -260,9 +296,13 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
           emit({ type: 'attempt', fault: fault.id, n, strategy: proposal.strategy, title: proposal.title, rationale: proposal.rationale, author: proposal.author, diff, ...stats, ...(entrants ? { round } : {}) });
 
           const candidateDir = ws.materialize(`${fault.id}-a${n}`, proposal.files);
+          const broken = sf?.workspace(candidateDir, Object.keys(proposal.files).filter((p) => proposal.files[p] !== baseFiles[p]));
           const v = await phase(`4 judge: verify ${fault.id} #${n}`, { fault: fault.id, attempt: n, strategy: proposal.strategy }, () =>
             judge({ fault, candidate: () => loadTarget(candidateDir), baseResults, opts: judgeOpts, slo, budgets: o.budgets }),
           );
+          if (v.reasons[0]?.startsWith('patched code failed to load')) {
+            selfFault({ seam: 'workspace', fault: broken ? `${broken} injected into the patch` : v.reasons[0], recovered: v.status === 'rejected', how: 'the Judge rejected the attempt without running it; rolled back to the checkpoint' });
+          }
           emit({
             type: 'verdict', fault: fault.id, n, status: v.status, reasons: v.reasons, pValue: v.pValue, afterPassed: v.after.passed, trials: v.after.trials, regressions: v.regressions,
             ...(v.slo ? { slo: v.slo } : {}), ...(v.overhead ? { overhead: v.overhead } : {}), ...(entrants ? { author: proposal.author, round } : {}),
@@ -331,7 +371,10 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         for (const c of candidates) {
           if (c.entry.proposal && c.v) failed.push({ strategy: c.entry.proposal.strategy, author: c.entry.proposal.author, rationale: c.entry.proposal.rationale, reasons: c.v.reasons });
         }
-        baseFiles = checkpoints.restore(cp.id);
+        const damaged = sf?.checkpoint(checkpoints.pathOf(cp.id));
+        const restored = checkpoints.restoreVerified(cp.id);
+        if (restored.issue) selfFault({ seam: 'checkpoint', fault: `${cp.id}: ${restored.issue}${damaged ? ' (injected)' : ''}`, recovered: true, how: 'restored the verified in-memory copy of the checkpoint' });
+        baseFiles = restored.files;
         rollbacks++;
         emit({ type: 'checkpoint', action: 'restore', id: cp.id, label: cp.label });
       }

@@ -50,7 +50,7 @@ test('each target has its own fault catalog, and faults must name endpoints the 
 test('rules: target-compiled checks win by exact text; unknown rules are still reported as uncompiled', () => {
   const { compiled, uncompiled } = compileRules(target.rules, target.checks);
   assert.equal(uncompiled.length, 0);
-  assert.equal(compiled.length, 6);
+  assert.equal(compiled.length, 8, '4 target checks, 2 patterns, 2 LLM-compiled (from the committed lockfile)');
   assert.deepEqual(compileRules(target.rules).uncompiled, [RULE.cites, RULE.person, RULE.brief, RULE.credits], 'without the target, its own rules are uncompiled');
   assert.deepEqual(compileRules([...target.rules, 'Always be polite.'], target.checks).uncompiled, ['Always be polite.']);
 });

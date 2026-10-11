@@ -15,6 +15,10 @@ export const target: BulwarkTarget = {
     'A run finishes within 5 seconds.',
     'A run takes at most 12 steps.',
     "Never refund an order that does not belong to the ticket's customer.",
+    // No pattern or target check covers these: the LLM rule compiler turns them into rule-DSL
+    // checks (cached in compiled-rules.json next to this file; see bulwark/rules/).
+    'Every email to the customer mentions the order id in its subject or body.',
+    'Never refund more than $200 in total per ticket.',
   ],
   editableFiles: ['agent.ts', 'tools.ts'],
   // What a failure costs the business, for "dollars at risk". Assumptions, not
