@@ -5,7 +5,7 @@
 import { trace } from 'neatlogs';
 import type { Brain } from '../targets/refundbot/agent';
 import type { Email, Order, Refund } from '../targets/refundbot/payments';
-import { injectFault, type Fault } from './chaos/faults';
+import { injectFault, injectTicket, type Fault } from './chaos/faults';
 import { TrialRecorder, type TrialEvent } from './recorder';
 import { mulberry32 } from './stats';
 import type { BrainMode, BulwarkTarget } from './target';
@@ -48,11 +48,14 @@ export interface TrialOptions {
 class StepCapExceeded extends Error {}
 
 export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
-  const { orders, ticket } = opts.target.fixtures();
+  const fixtures = opts.target.fixtures();
+  const { orders } = fixtures;
   const sandbox = opts.target.createSandbox(orders);
   const abort = new AbortController();
   const rec = opts.record ? new TrialRecorder() : undefined;
   const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0, onEvent: rec?.fault };
+  // Social-engineering faults attack through the conversation: they rewrite the ticket, not the wire.
+  const ticket = injectTicket(fixtures.ticket, opts.fault, faultCtx);
   const service = opts.target.createTransport(sandbox, abort.signal);
   const injected = injectFault(rec ? rec.serviceSide(service, sandbox) : service, opts.fault, faultCtx);
   const transport = rec ? rec.agentSide(injected) : injected;

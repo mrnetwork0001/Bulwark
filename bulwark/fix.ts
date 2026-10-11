@@ -1,10 +1,12 @@
 // npm run fix -- [--fault <id>|all] [--fixer auto|playbook|claude] [--red-trials 20]
-//                [--judge-trials 40] [--seed 42] [--max-attempts 4] [--no-memory] [--apply] [--pr]
+//                [--judge-trials 40] [--seed 42] [--max-attempts 4] [--no-memory] [--apply] [--pr] [--generated]
 //
 // The full loop: attack, fix, verify, prove. Writes artifacts to .bulwark/runs/<id>/.
 
 import './env';
 import { parseArgs } from 'node:util';
+import { registerFaults } from './chaos/faults';
+import { loadGeneratedFaults } from './red/generate';
 import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent } from './loop/orchestrator';
 import { summarizeProvenance } from './provenance/entire';
 import { initTracing, shutdownTracing } from './tracing';
@@ -78,8 +80,11 @@ async function main() {
       apply: { type: 'boolean', default: false },
       pr: { type: 'boolean', default: false },
       target: { type: 'string', default: 'targets/refundbot' },
+      generated: { type: 'boolean', default: false },
     },
   });
+  // Generative Red's accepted faults join the catalog, so Red, Blue, Judge and Guard all see them.
+  if (values.generated) registerFaults(loadGeneratedFaults());
   const fixer = values.fixer as 'auto' | 'playbook' | 'claude';
   if (!['auto', 'playbook', 'claude'].includes(fixer)) throw new Error('--fixer must be auto, playbook or claude');
 

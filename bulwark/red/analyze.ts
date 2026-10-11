@@ -79,6 +79,21 @@ export function analyzeTarget(dir: string, target: BulwarkTarget): Finding[] {
           });
         }
       }
+      // Social engineering arrives in the ticket, so the fault isn't tied to this endpoint.
+      if (writes && /amount/.test(body) && !/customerEmail/.test(body)) {
+        const faults = faultsFor('social');
+        if (faults.length) {
+          findings.push({
+            kind: 'social',
+            severity: 'high',
+            file,
+            line,
+            tool,
+            why: `${tool} moves money without checking that the order belongs to the ticket's customer, so a persuasive customer can redirect it`,
+            faults,
+          });
+        }
+      }
     });
 
     const loop = src.match(/while \(true\)/);

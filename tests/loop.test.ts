@@ -41,8 +41,8 @@ test('every playbook strategy applies cleanly to the original RefundBot', async 
 test('all winning strategies compose into code that loads and still passes the baseline', async () => {
   const target = await loadTarget(TARGET_DIR);
   let files: Files = readFiles(TARGET_DIR, target.editableFiles);
-  for (const id of ['idempotency-key+escalate', 'refund-guard', 'harden-lookup', 'step-budget']) {
-    const s = Object.values(PLAYBOOK).flat().find((x) => x.id === id)!;
+  for (const id of ['idempotency-key+escalate', 'refund-guard', 'refund-guard+ownership-check', 'harden-lookup', 'step-budget']) {
+    const s = Object.values(PLAYBOOK).flat().find((x) => x!.id === id)!;
     files = applyStrategy(s, files) ?? files;
   }
   const root = tmp();

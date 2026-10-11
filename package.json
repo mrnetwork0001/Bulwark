@@ -11,7 +11,8 @@
     "dashboard": "tsx bulwark/server.ts",
     "fix": "tsx bulwark/fix.ts",
     "replay": "tsx bulwark/replay-cli.ts",
-    "provenance": "tsx bulwark/provenance/cli.ts"
+    "provenance": "tsx bulwark/provenance/cli.ts",
+    "red:generate": "tsx bulwark/generate.ts"
   },
   "engines": {
     "node": ">=20"
