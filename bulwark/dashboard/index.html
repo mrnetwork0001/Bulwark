@@ -98,6 +98,53 @@
   ul.broken { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
   ul.broken li { padding: 3px 0; border-top: 1px dashed var(--border); }
   ul.broken li b { color: var(--crash); }
+  .dot[data-seed] { cursor: pointer; }
+  .dot[data-seed]:hover, .dot[data-seed]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* trial replay */
+  .modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; background: color-mix(in srgb, #000 45%, transparent); }
+  .modal[hidden] { display: none; }
+  .modal-box { width: min(880px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
+  .rp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .rp-head h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; word-break: break-word; }
+  .rp-head h3 code { color: var(--accent); }
+  .rp-close { padding: 4px 10px; flex: none; }
+  .rp-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  .rp-meta .badge { color: var(--text); }
+  .rp-out { font-weight: 700; }
+  .rp-out.completed { color: var(--pass); } .rp-out.crashed { color: var(--crash); } .rp-out.hung { color: var(--hung); } .rp-out.runaway { color: var(--runaway); }
+  ul.rp-broken { margin: 0; padding: 0; list-style: none; font-size: 13px; max-height: 30vh; overflow-y: auto; }
+  ul.rp-broken li { padding: 4px 0; border-top: 1px dashed var(--border); }
+  ul.rp-broken li:first-child { border-top: 0; }
+  ul.rp-broken b { color: var(--crash); }
+  ul.rp-broken small { display: block; color: var(--muted); }
+  .rp-nav { display: flex; align-items: center; gap: 8px; flex: none; }
+  .rp-head, .rp-meta, ul.rp-broken { flex: none; }
+  .rp-nav button { padding: 5px 12px; }
+  .rp-nav .counter { font: 12px ui-monospace, monospace; color: var(--muted); flex: 1; text-align: center; }
+  ol.rp-steps { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 120px; flex: 1; border: 1px solid var(--border); border-radius: 8px; }
+  .rp-step { display: grid; grid-template-columns: 92px 1fr; gap: 2px 10px; padding: 7px 10px; border-top: 1px solid var(--border); border-left: 3px solid transparent; cursor: pointer; font-size: 13px; }
+  .rp-step:first-child { border-top: 0; }
+  .rp-step:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+  .rp-step.rp-bad { border-left-color: var(--crash); background: color-mix(in srgb, var(--crash) 9%, transparent); }
+  .rp-step.rp-warn { border-left-color: var(--broken); background: color-mix(in srgb, var(--broken) 9%, transparent); }
+  .rp-step.current { background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 2px var(--accent); }
+  .rp-step .when { font: 11px ui-monospace, monospace; color: var(--muted); }
+  .rp-step .what { min-width: 0; word-break: break-word; }
+  .rp-step pre { grid-column: 2; margin: 3px 0 0; padding: 5px 8px; background: var(--code-bg); border-radius: 6px; font: 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 3.2em; overflow: hidden; }
+  .rp-step.current pre { max-height: 260px; overflow-y: auto; }
+  .rp-step pre .k { color: var(--muted); }
+  .rtype { display: inline-block; font: 700 10px ui-monospace, monospace; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; color: #fff; margin-bottom: 2px; }
+  .rtype.brain { background: var(--blue-agent); } .rtype.tool { background: var(--muted); } .rtype.fault { background: var(--crash); }
+  .rtype.timeout { background: var(--broken); } .rtype.effect { background: var(--guard); } .rtype.outcome { background: var(--text); color: var(--bg); }
+  .rp-hint { font-size: 11px; color: var(--muted); }
+  @media (max-width: 560px) {
+    .modal { padding: 0; }
+    .modal-box { width: 100%; max-height: 100vh; height: 100vh; height: 100dvh; border-radius: 0; padding: 14px 16px; }
+    .rp-step { grid-template-columns: 1fr; }
+    .rp-step pre { grid-column: 1; }
+    .modal .rp-hint { display: none; }
+  }
   @media (max-width: 900px) { .top, .loopgrid { grid-template-columns: 1fr; } }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } }
 </style>
@@ -163,12 +210,31 @@
     <span><i style="background:var(--runaway)"></i>runaway loop</span>
   </div>
   <div class="grid" id="grid"></div>
+  <p class="rp-hint" style="margin-top:10px">Click any trial square to replay it step by step from its seed.</p>
+</div>
+
+<div class="modal" id="replay" hidden role="dialog" aria-modal="true" aria-labelledby="rpTitle">
+  <div class="panel modal-box">
+    <div class="rp-head">
+      <h3 id="rpTitle">Trial replay</h3>
+      <button class="ghost rp-close" id="rpClose" aria-label="Close replay">✕</button>
+    </div>
+    <div class="rp-meta" id="rpMeta"></div>
+    <ul class="rp-broken" id="rpBroken"></ul>
+    <div class="rp-nav">
+      <button class="ghost" id="rpPrev">← Prev</button>
+      <span class="counter" id="rpCounter"></span>
+      <button class="ghost" id="rpNext">Next →</button>
+    </div>
+    <ol class="rp-steps" id="rpSteps"></ol>
+    <div class="rp-hint">← → to step · Esc to close · timings are wall-clock; the events replay identically from the seed</div>
+  </div>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const pct = (x) => Math.round(x * 100) + '%';
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ORDER_TOTAL = 49;
 let meta, totals, busy = false;
 
@@ -210,7 +276,15 @@ function setStats(vals, labels) {
   ['s1', 's2', 's3'].forEach((id, i) => { $(id).textContent = vals[i]; if (labels) $(id + 'l').textContent = labels[i]; });
 }
 
-function dotsFromResult(r) {
+const dotClass = (t) => (t.passed ? 'pass' : t.outcome === 'completed' ? 'broken' : t.outcome);
+
+// Squares in trial order, each carrying its seed (and, for patched code, the loop workspace) so it can be replayed.
+function dotsFromResult(r, src = {}) {
+  if (r.perTrial) {
+    const extra = (src.run ? ` data-run="${esc(src.run)}"` : '') + (src.ws ? ` data-ws="${esc(src.ws)}"` : '');
+    return r.perTrial.map((t) =>
+      `<span class="dot ${dotClass(t)}" role="button" tabindex="0" data-fault="${esc(r.fault)}" data-seed="${t.seed}"${extra} title="seed ${t.seed} · ${esc(t.outcome)}${t.passed ? '' : ' · broke a rule'}${src.ws ? ' · patched code' : ''} · click to replay"></span>`).join('');
+  }
   const failedCompleted = r.outcomes.completed - r.passed;
   return [
     ...Array(r.passed).fill('pass'), ...Array(Math.max(0, failedCompleted)).fill('broken'),
@@ -246,8 +320,11 @@ function runChaos() {
   es.addEventListener('trial', (e) => {
     const t = JSON.parse(e.data);
     const dot = $('card-' + t.fault).querySelectorAll('.dots.before .dot')[t.index];
-    dot.className = 'dot ' + (t.passed ? 'pass' : t.outcome === 'completed' ? 'broken' : t.outcome);
-    dot.title = `seed ${t.seed} · ${t.outcome} · ${t.steps} steps · ${t.durationMs}ms` +
+    dot.className = 'dot ' + dotClass(t);
+    Object.assign(dot.dataset, { fault: t.fault, seed: t.seed });
+    dot.setAttribute('role', 'button');
+    dot.tabIndex = 0;
+    dot.title = `click to replay · seed ${t.seed} · ${t.outcome} · ${t.steps} steps · ${t.durationMs}ms` +
       (t.refunds.length ? ` · refunds: $${t.refunds.join(', $')}` : '') +
       (t.broken.length ? '\n✗ ' + t.broken.map((b) => b.rule + (b.detail ? ` (${b.detail})` : '')).join('\n✗ ') : '') +
       (t.error ? `\nerror: ${t.error}` : '');
@@ -313,7 +390,7 @@ const handlers = {
     for (const r of e.results) {
       const el = $('card-' + r.fault);
       if (!el) continue;
-      el.querySelector(after ? '.dots.after' : '.dots.before').innerHTML = dotsFromResult(r);
+      el.querySelector(after ? '.dots.after' : '.dots.before').innerHTML = dotsFromResult(r, after && e.ws ? { run: runId, ws: e.ws } : {});
       if (after) {
         el.querySelector('.after-row').style.display = 'flex';
         const before = el.dataset.before;
@@ -399,6 +476,142 @@ function runLoopUI() {
   es.addEventListener('loop-error', (m) => { tl(`<span class="bad">Error: ${esc(JSON.parse(m.data).message)}</span>`); es.close(); setBusy(false); });
   es.addEventListener('error', () => { es.close(); setBusy(false); });
 }
+
+/* ---------- Trial replay ---------- */
+const rp = { steps: [], cur: 0, opener: null, req: 0 };
+const OUTCOME_LABEL = { completed: 'completed', crashed: 'crashed', hung: 'hung', runaway: 'runaway loop' };
+const json = (v) => esc(JSON.stringify(v) ?? 'undefined');
+const kv = (label, v) => `<span class="k">${label}</span> ${json(v)}`;
+
+function stepView(e) {
+  const kind = { brain: 'brain', call: 'tool', result: 'tool', error: 'tool', timeout: 'timeout', fault: 'fault', effect: 'effect', outcome: 'outcome' }[e.type] ?? 'tool';
+  const label = kind === 'effect' ? 'side effect' : kind;
+  let what = '', body = '', cls = '';
+  switch (e.type) {
+    case 'brain':
+      if (e.decision.type === 'tool') { what = `step ${e.step}: decides to call <b>${esc(e.decision.name)}</b>`; body = kv('input', e.decision.input); }
+      else { what = `step ${e.step}: final reply`; body = kv('reply', e.decision.reply); }
+      break;
+    case 'call':
+      what = `→ <b>${esc(e.endpoint)}</b> <span class="chip">#${e.call}</span>` + (e.retryOf ? ` <span class="warn">RETRY of #${e.retryOf} (attempt ${e.attempt})</span>` : '');
+      body = kv('input', e.input);
+      if (e.retryOf) cls = 'rp-warn';
+      break;
+    case 'result':
+      what = `← <b>${esc(e.endpoint)}</b> <span class="chip">#${e.call} · ${e.ms}ms</span>` + (e.late ? ' <span class="warn">late: the agent had already given up</span>' : '');
+      body = kv('output', e.output);
+      if (e.late) cls = 'rp-warn';
+      break;
+    case 'error':
+      what = `✗ <b>${esc(e.endpoint)}</b> <span class="chip">#${e.call} · ${e.ms}ms</span> <span class="bad">error</span>` + (e.late ? ' <span class="dim">(after the agent stopped waiting)</span>' : '');
+      body = kv('error', e.error);
+      cls = 'rp-bad';
+      break;
+    case 'timeout':
+      what = `<b>${esc(e.endpoint)}</b> <span class="chip">#${e.call}</span> ${esc(e.detail)}`;
+      cls = 'rp-warn';
+      break;
+    case 'fault':
+      what = `<b>${esc(e.fault)}</b> injected on <b>${esc(e.endpoint)}</b> <span class="chip">#${e.call}</span><br>${esc(e.detail)}`;
+      cls = 'rp-bad';
+      break;
+    case 'effect':
+      what = e.effect === 'refund' ? `money moved: refund of <b>$${esc(e.data.amount)}</b> on ${esc(e.data.orderId)}` : `email sent to ${esc(e.data.to)}`;
+      body = kv(esc(e.effect), e.data);
+      break;
+    case 'outcome':
+      what = `run <span class="rp-out ${esc(e.outcome)}">${esc(OUTCOME_LABEL[e.outcome] ?? e.outcome)}</span> after ${e.steps} steps, ${e.durationMs}ms`;
+      body = e.error ? kv('error', e.error) : e.reply !== undefined ? kv('reply', e.reply) : '';
+      if (e.outcome !== 'completed') cls = 'rp-bad';
+      break;
+    default:
+      what = esc(e.type);
+      body = json(e);
+  }
+  return `<li class="rp-step ${cls}" data-i="${e.i}"><div><span class="rtype ${kind}">${label}</span><div class="when">+${Number(e.t)}ms</div></div>` +
+    `<div class="what">${what}</div>${body ? `<pre>${body}</pre>` : ''}</li>`;
+}
+
+function rpGo(i) {
+  if (!rp.steps.length) return;
+  rp.cur = Math.max(0, Math.min(rp.steps.length - 1, i));
+  const lis = $('rpSteps').children;
+  for (const li of lis) li.classList.toggle('current', Number(li.dataset.i) === rp.cur);
+  lis[rp.cur]?.scrollIntoView({ block: 'nearest' });
+  $('rpCounter').textContent = `step ${rp.cur + 1} / ${rp.steps.length}`;
+  $('rpPrev').disabled = rp.cur === 0;
+  $('rpNext').disabled = rp.cur === rp.steps.length - 1;
+}
+
+async function openReplay(d) {
+  const req = ++rp.req;
+  if ($('replay').hidden) rp.opener = document.activeElement;
+  rp.steps = [];
+  const q = new URLSearchParams({ fault: d.fault, seed: d.seed });
+  if (d.run && d.ws) { q.set('run', d.run); q.set('ws', d.ws); }
+  $('rpTitle').innerHTML = `Replay <code>${esc(d.fault)}</code> · seed ${esc(d.seed)}`;
+  $('rpMeta').innerHTML = `<span class="badge">${d.ws ? 'patched code: ' + esc(d.ws) : 'original code'}</span><span class="badge">re-running this trial from its seed…</span>`;
+  $('rpBroken').innerHTML = '';
+  $('rpSteps').innerHTML = '';
+  $('rpCounter').textContent = '';
+  $('rpPrev').disabled = $('rpNext').disabled = true;
+  $('replay').hidden = false;
+  $('rpClose').focus();
+  let r;
+  try {
+    const res = await fetch('/api/replay?' + q);
+    r = await res.json();
+    if (!res.ok) throw new Error(r.error || res.statusText);
+  } catch (err) {
+    if (req === rp.req) $('rpMeta').innerHTML = `<span class="bad">Replay failed: ${esc(err.message)}</span>`;
+    return;
+  }
+  if (req !== rp.req) return;
+  const o = r.observation;
+  const refunds = o.refunds.map((x) => '$' + x.amount).join(' + ');
+  $('rpMeta').innerHTML = [
+    `<span class="badge"><span class="rp-out ${esc(o.outcome)}">${esc(OUTCOME_LABEL[o.outcome] ?? o.outcome)}</span></span>`,
+    `<span class="badge">${esc(r.source)}</span>`,
+    `<span class="badge">${Number(o.steps)} steps · ${Math.round(o.durationMs)}ms</span>`,
+    `<span class="badge">faults fired: ${Number(o.faultsFired)}</span>`,
+    `<span class="badge">refunds: ${refunds ? esc(refunds) : 'none'}</span>`,
+  ].join('');
+  $('rpBroken').innerHTML = r.broken.length
+    ? r.broken.map((b) => `<li><b>✗ ${esc(b.rule)}</b> ${esc(b.detail ?? '')}<small>How it's checked: ${esc(b.how)}</small></li>`).join('')
+    : '<li class="ok">✓ Every rule held</li>';
+  rp.steps = r.timeline;
+  $('rpSteps').innerHTML = r.timeline.map(stepView).join('');
+  rpGo(0);
+}
+
+function closeReplay() {
+  if ($('replay').hidden) return;
+  rp.req++;
+  $('replay').hidden = true;
+  rp.opener?.focus?.();
+}
+
+function dotTarget(ev) {
+  const dot = ev.target.closest?.('.dot[data-seed]');
+  return dot ? { fault: dot.dataset.fault, seed: dot.dataset.seed, run: dot.dataset.run, ws: dot.dataset.ws } : null;
+}
+$('grid').addEventListener('click', (ev) => { const d = dotTarget(ev); if (d) openReplay(d); });
+$('grid').addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  const d = dotTarget(ev);
+  if (d) { ev.preventDefault(); openReplay(d); }
+});
+$('rpSteps').addEventListener('click', (ev) => { const li = ev.target.closest('.rp-step'); if (li) rpGo(Number(li.dataset.i)); });
+$('rpPrev').addEventListener('click', () => rpGo(rp.cur - 1));
+$('rpNext').addEventListener('click', () => rpGo(rp.cur + 1));
+$('rpClose').addEventListener('click', closeReplay);
+$('replay').addEventListener('click', (ev) => { if (ev.target === $('replay')) closeReplay(); });
+document.addEventListener('keydown', (ev) => {
+  if ($('replay').hidden) return;
+  if (ev.key === 'Escape') closeReplay();
+  else if (ev.key === 'ArrowLeft') { ev.preventDefault(); rpGo(rp.cur - 1); }
+  else if (ev.key === 'ArrowRight') { ev.preventDefault(); rpGo(rp.cur + 1); }
+});
 
 $('run').addEventListener('click', runChaos);
 $('loopbtn').addEventListener('click', runLoopUI);

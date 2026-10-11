@@ -14,6 +14,7 @@ npm run fix -- --no-memory          # ignore past runs (shows the rejected fixes
 npm run fix -- --apply              # commit verified fixes to a bulwark/fix-* branch (worktree; main untouched)
 npm run fix -- --pr                 # …and open a PR with the report (needs a GitHub remote + gh)
 npm run chaos                       # attack only: all faults, 20 trials each
+npm run replay -- --fault timeout-after-commit --seed 1286473109   # step through one trial (or click any square on /app)
 npm test
 ```
 
