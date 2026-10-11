@@ -129,4 +129,6 @@ export function usageFromAnthropic(u: { input_tokens?: number | null; output_tok
   };
 }
 
-export const usd = (x: number) => (x >= 1 ? `$${x.toFixed(2)}` : x >= 0.01 ? `$${x.toFixed(3)}` : `$${x.toFixed(5)}`);
+/** "$1.23", "$0.042", "$0.00051": always two significant digits below a cent. */
+export const usd = (x: number) =>
+  x >= 1 ? `$${x.toFixed(2)}` : x >= 0.01 ? `$${x.toFixed(3)}` : x <= 0 ? '$0' : `$${x.toFixed(Math.min(12, 1 - Math.floor(Math.log10(x))))}`;
