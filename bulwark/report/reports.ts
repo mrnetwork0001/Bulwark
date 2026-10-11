@@ -1,6 +1,7 @@
 // Human-facing artifacts from a Bulwark run: a postmortem per fault, the PR
 // description, and a resilience badge.
 
+import { usd, type CostSummary } from '../cost/meter';
 import type { MutationCheck } from '../guard';
 import type { Verdict } from '../judge/judge';
 import { describeProvenance, summarizeProvenance, type Provenance } from '../provenance/entire';
@@ -8,6 +9,7 @@ import { describeOverhead } from '../judge/overhead';
 import { describeSlo } from '../judge/slo';
 import type { TournamentResult } from '../judge/tournament';
 import type { Finding } from '../red/analyze';
+import { combineRisk, money } from '../risk';
 import type { ExperimentResult } from '../scorecard';
 
 export interface AttemptRecord {
@@ -148,22 +150,26 @@ export function prBody(args: {
   residual: Finding[];
   /** Where the weak links came from (bulwark/provenance). */
   provenance?: Provenance[];
+  cost?: CostSummary;
 }): string {
   const fixed = args.records.filter((r) => r.status === 'fixed');
+  const risk1k = (r?: ExperimentResult) => (r?.dollarsAtRisk ? money(r.dollarsAtRisk.per1kTickets) : '—');
   const rows = Object.keys(args.before).map((id) => {
     const b = args.before[id];
     const a = args.after[id];
-    return `| ${id} | ${b.passed}/${b.trials} | ${a.passed}/${a.trials} | ${pct(a.ci95[0])}–${pct(a.ci95[1])} |`;
+    return `| ${id} | ${b.passed}/${b.trials} | ${a.passed}/${a.trials} | ${pct(a.ci95[0])}–${pct(a.ci95[1])} | ${risk1k(b)} → ${risk1k(a)} |`;
   });
+  const risk = riskSummary(args.before, args.after);
   return [
     `## Bulwark: resilience fixes for ${args.target}`,
     '',
     `Bulwark attacked \`${args.target}\` with ${Object.keys(args.before).length - 1} faults, fixed ${fixed.length}, and verified each fix on fresh seeds with an independent Judge.`,
     '',
-    '| Fault | Before | After | After 95% CI |',
-    '|---|---|---|---|',
+    '| Fault | Before | After | After 95% CI | $ at risk / 1k tickets |',
+    '|---|---|---|---|---|',
     ...rows,
     '',
+    ...(risk ? [risk, ''] : []),
     '### Fixes',
     ...fixed.map((r) => {
       const w = appliedAttempt(r)!;
@@ -188,6 +194,9 @@ export function prBody(args: {
     '- Each fix ships a chaos regression test in `chaos-tests/`, proven to fail without the fix and pass with it.',
     `- Postmortems: \`.bulwark/runs/${args.runId}/postmortem-*.md\``,
     `- Traces: ${args.traces}`,
+    ...(args.cost
+      ? [`- Run cost: ${usd(args.cost.totalUsd)} (LLM ${usd(args.cost.llmUsd)} over ${args.cost.calls} calls, compute ${usd(args.cost.computeUsd)} for ${Math.round(args.cost.wallMs / 1000)}s; ${args.cost.trials} trials)`]
+      : []),
     '',
     '<details><summary>Full diff</summary>',
     '',
@@ -209,6 +218,23 @@ function sloSection(records: FaultRecord[]): string[] {
   if (!rows.length) return [];
   const method = records.flatMap((r) => r.attempts).find((a) => a.verdict.slo)!.verdict.slo!.method;
   return ['### Reliability targets (SLO)', ...rows, `_Method: ${method}. "Demonstrated" means every planned trial passed; nothing stronger is claimed._`, ''];
+}
+
+/** One line: what every attack in the suite would cost per 1,000 tickets, before vs after. */
+export function riskSummary(before: Record<string, ExperimentResult>, after: Record<string, ExperimentResult>): string | undefined {
+  const pick = (rs: Record<string, ExperimentResult>) =>
+    Object.values(rs)
+      .filter((r) => r.fault !== 'baseline' && r.dollarsAtRisk)
+      .map((r) => r.dollarsAtRisk);
+  const b = pick(before);
+  const a = pick(after);
+  if (!b.length || !a.length) return undefined;
+  const cb = combineRisk(b);
+  const ca = combineRisk(a);
+  return (
+    `**Dollars at risk** across the attack suite: ${money(cb.per1kTickets)} → ${money(ca.per1kTickets)} per 1,000 tickets. ` +
+    `Over-refunds come from the payments ledger; each ticket left without a reply is priced at $${cb.costs.lostTicketUsd} and each crashed/hung run at $${cb.costs.escalationUsd} (assumptions set on the target).`
+  );
 }
 
 export function badgeSvg(passRate: number): string {

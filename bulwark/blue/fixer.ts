@@ -4,6 +4,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { trace } from 'neatlogs';
 import type { Fault } from '../chaos/faults';
+import { recordLlmCall, usageFromAnthropic } from '../cost/meter';
 import { createLlmClient, defaultModel, llmProvider } from '../llm';
 import type { Finding } from '../red/analyze';
 import type { ExperimentResult } from '../scorecard';
@@ -125,18 +126,26 @@ export class ClaudeFixer implements Fixer {
         ...Object.entries(ctx.files).map(([path, src]) => `### ${path}\n\`\`\`ts\n${src}\n\`\`\``),
       ].join('\n');
 
-      const res = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 16000,
-        system: FIXER_SYSTEM,
-        tools: [SUBMIT_FIX],
-        // submit_fix is the only tool, so "any" forces it too; unlike a named tool choice it is
-        // accepted by non-Claude models on the 0G Router (e.g. deepseek-v4-flash, which thinks by default).
-        tool_choice: { type: 'any' },
-        // Claude's default; models that think by default can otherwise spend the whole budget thinking.
-        thinking: { type: 'disabled' },
-        messages: [{ role: 'user', content: prompt }],
-      });
+      const start = performance.now();
+      let res: Anthropic.Message;
+      try {
+        res = await this.client.messages.create({
+          model: this.model,
+          max_tokens: 16000,
+          system: FIXER_SYSTEM,
+          tools: [SUBMIT_FIX],
+          // submit_fix is the only tool, so "any" forces it too; unlike a named tool choice it is
+          // accepted by non-Claude models on the 0G Router (e.g. deepseek-v4-flash, which thinks by default).
+          tool_choice: { type: 'any' },
+          // Claude's default; models that think by default can otherwise spend the whole budget thinking.
+          thinking: { type: 'disabled' },
+          messages: [{ role: 'user', content: prompt }],
+        });
+      } catch (err) {
+        recordLlmCall({ role: 'fixer', model: this.model, inputTokens: 0, outputTokens: 0, ms: performance.now() - start, error: true });
+        throw err;
+      }
+      recordLlmCall({ role: 'fixer', model: this.model, ...usageFromAnthropic(res.usage), ms: performance.now() - start });
       const call = res.content.find((b) => b.type === 'tool_use');
       if (!call || call.type !== 'tool_use') return null;
       const input = call.input as { strategy: string; title: string; rationale: string; files: { path: string; content: string }[] };

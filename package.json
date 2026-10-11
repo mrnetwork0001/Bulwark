@@ -12,7 +12,9 @@
     "fix": "tsx bulwark/fix.ts",
     "replay": "tsx bulwark/replay-cli.ts",
     "provenance": "tsx bulwark/provenance/cli.ts",
-    "red:generate": "tsx bulwark/generate.ts"
+    "red:generate": "tsx bulwark/generate.ts",
+    "economics": "tsx bulwark/economics.ts",
+    "leaderboard": "tsx bulwark/leaderboard.ts"
   },
   "engines": {
     "node": ">=20"

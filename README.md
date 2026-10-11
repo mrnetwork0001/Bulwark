@@ -21,6 +21,8 @@ npm run replay -- --fault timeout-after-commit --seed 1286473109   # step throug
 npm run provenance -- targets/refundbot/tools.ts:87   # which AI session/prompt wrote this line (Entire)
 npm run red:generate                # generative Red: the LLM invents new faults (DSL specs), Bulwark keeps the ones that break a rule
 npm run chaos -- --generated        # …attack with them too (also: npm run fix -- --generated)
+npm run economics                   # unit economics from recent runs → docs/business/unit-economics.{md,csv}
+npm run leaderboard                 # rank 0G models as RefundBot's brain (real LLM spend; keep --trials small)
 npm test
 ```
 

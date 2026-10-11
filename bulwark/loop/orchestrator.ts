@@ -10,6 +10,8 @@ import { trace } from 'neatlogs';
 import { createFixer, type FailedAttempt, type Fixer } from '../blue/fixer';
 import { FAULTS, getFault, type Fault } from '../chaos/faults';
 import { CheckpointStore } from '../checkpoints';
+import { CostMeter, type CostSummary } from '../cost/meter';
+import { loadPriceBook } from '../cost/pricing';
 import { mutationCheck, withSpec, type ChaosSpec } from '../guard';
 import { judge, runAll, type Regression, type Verdict, type VerdictStatus } from '../judge/judge';
 import type { Overhead, OverheadBudgets } from '../judge/overhead';
@@ -18,6 +20,7 @@ import { createEntrant, proposeAll, rankContenders, tournamentName, type Entry, 
 import { StrategyMemory } from '../memory';
 import { compileRules } from '../invariants';
 import { attachProvenance, type Provenance } from '../provenance/entire';
+import { llmProvider } from '../llm';
 import { analyzeTarget, type Finding } from '../red/analyze';
 import { badgeSvg, overallPassRate, postmortem, prBody, type FaultRecord } from '../report/reports';
 import { renderMarkdown, type ExperimentResult } from '../scorecard';
@@ -93,6 +96,8 @@ export interface LoopSummary {
   artifacts: { patch: string; pr: string; badge: string; postmortems: string[] };
   finalFiles: Files;
   targetRel: string;
+  /** What this run spent: LLM tokens (priced) plus compute time. */
+  cost?: CostSummary;
 }
 
 export async function runLoop(input: Partial<LoopOptions> & { targetDir: string }, emit: (e: LoopEvent) => void): Promise<LoopSummary> {
@@ -112,7 +117,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
   const phase = <T>(name: string, attributes: Record<string, unknown>, fn: () => Promise<T>) =>
     trace({ name, kind: 'WORKFLOW', sessionId: `bulwark-${runId}`, sessionFeatureName: 'bulwark-loop', attributes: { runId, target: targetRel, fixer: fixer.name, ...attributes } }, fn);
 
-  return (async () => {
+  // Every LLM call and trial inside this run is counted on its own meter.
+  const meter = new CostMeter();
+  return meter.run(async () => {
     const original = await loadTarget(o.targetDir);
     const originalFiles = readFiles(o.targetDir, original.editableFiles);
     const scope: Fault[] = o.faults === 'all' ? FAULTS : o.faults.map(getFault);
@@ -287,6 +294,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     const residual = analyzeTarget(baseDir, baseTarget);
     emit({ type: 'residual', findings: residual });
 
+    const book = await loadPriceBook({ provider: llmProvider(), cachePath: join(o.stateDir, 'pricing-0g.json') });
+    const cost = meter.summarize(book.priceFor, `0G router prices (${book.zgSource}); Anthropic-direct static table`);
+
     // Artifacts.
     mkdirSync(dir, { recursive: true });
     const patch = diffFiles(originalFiles, baseFiles, `${targetRel}/`);
@@ -298,7 +308,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
       postmortems: records.map((r) => join(dir, `postmortem-${r.fault}.md`)),
     };
     writeFileSync(artifacts.patch, patch);
-    writeFileSync(artifacts.pr, prBody({ target: original.name, runId, records, before, after, diff: patch, traces, residual, provenance }));
+    writeFileSync(artifacts.pr, prBody({ target: original.name, runId, records, before, after, diff: patch, traces, residual, provenance, cost }));
     writeFileSync(artifacts.badge, badgeSvg(overallPassRate(after)));
     records.forEach((r, i) => writeFileSync(artifacts.postmortems[i], postmortem(r, runId)));
     const meta = { run: runId, trials: o.redTrials, seed: o.seed };
@@ -323,12 +333,13 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
       artifacts,
       finalFiles: baseFiles,
       targetRel,
+      cost,
     };
     writeFileSync(join(dir, 'summary.json'), JSON.stringify({ ...summary, records, before, after }, null, 2));
     writeFileSync(join(o.stateDir, 'latest.json'), JSON.stringify({ runId, dir }, null, 2));
     emit({ type: 'run-done', summary });
     return summary;
-  })();
+  });
 }
 
 function git(args: string[], cwd?: string): string {

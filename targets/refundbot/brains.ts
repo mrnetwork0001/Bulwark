@@ -103,13 +103,34 @@ export class SimulatedBrain implements Brain {
   }
 }
 
+/** Token usage of one model call, reported to whoever runs the agent (e.g. for cost tracking). */
+export interface UsageReport {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheWriteTokens?: number;
+  cacheReadTokens?: number;
+  ms: number;
+  error?: boolean;
+}
+
+export interface ClaudeBrainOptions {
+  /** Any Anthropic-Messages-compatible model id (on 0G, also non-Claude models that speak it). */
+  model?: string;
+  onUsage?: (u: UsageReport) => void;
+}
+
 // The real thing: Claude picks each tool call. Every model call is traced to neatlogs.
 export class ClaudeBrain implements Brain {
   name: string;
   private client: Anthropic;
+  private model: string;
+  private onUsage?: (u: UsageReport) => void;
 
-  constructor(private model = defaultModel()) {
-    this.name = model;
+  constructor(opts: ClaudeBrainOptions = {}) {
+    this.model = opts.model || defaultModel();
+    this.onUsage = opts.onUsage;
+    this.name = this.model;
     this.client = wrapAnthropic(claudeClient());
   }
 
@@ -126,12 +147,28 @@ export class ClaudeBrain implements Brain {
       });
     });
 
-    const res = await this.client.messages.create({
+    const start = performance.now();
+    let res: Anthropic.Message;
+    try {
+      res = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        tools: TOOL_SCHEMAS,
+        messages,
+      });
+    } catch (err) {
+      this.onUsage?.({ model: this.model, inputTokens: 0, outputTokens: 0, ms: performance.now() - start, error: true });
+      throw err;
+    }
+    const u = res.usage;
+    this.onUsage?.({
       model: this.model,
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      tools: TOOL_SCHEMAS,
-      messages,
+      inputTokens: u?.input_tokens ?? 0,
+      outputTokens: u?.output_tokens ?? 0,
+      cacheWriteTokens: u?.cache_creation_input_tokens ?? 0,
+      cacheReadTokens: u?.cache_read_input_tokens ?? 0,
+      ms: performance.now() - start,
     });
     const toolUse = res.content.find((b) => b.type === 'tool_use');
     if (toolUse && toolUse.type === 'tool_use') {
