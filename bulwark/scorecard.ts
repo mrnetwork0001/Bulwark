@@ -5,6 +5,7 @@ import { trace } from 'neatlogs';
 import type { Fault } from './chaos/faults';
 import { runTrial, type BrainMode, type Outcome, type TrialObservation } from './harness';
 import { compileRules } from './invariants';
+import { dollarsAtRisk, money, riskCosts, type DollarsAtRisk } from './risk';
 import { hashSeed, percentile, wilson } from './stats';
 import type { BulwarkTarget } from './target';
 
@@ -19,6 +20,8 @@ export interface ExperimentResult {
   outcomes: Record<Outcome, number>;
   violations: Record<string, number>;
   p95Ms: number;
+  /** Failures priced as money: over-refunds plus lost-ticket and escalation assumptions. */
+  dollarsAtRisk: DollarsAtRisk;
   /** One failing trial per broken rule, so a human can replay it from its seed. */
   examples: { rule: string; seed: number; detail?: string }[];
 }
@@ -27,6 +30,8 @@ export interface ExperimentOptions {
   trials: number;
   seed: number;
   brain: BrainMode;
+  /** Model override for LLM brains. */
+  model?: string;
   deadlineMs: number;
   maxSteps: number;
   /** How many trials per experiment export full detail to neatlogs (default 2). */
@@ -71,6 +76,7 @@ export async function runExperiment(
             fault,
             seed: hashSeed(opts.seed, faultId, i),
             brain: opts.brain,
+            model: opts.model,
             deadlineMs: opts.deadlineMs,
             maxSteps: opts.maxSteps,
             traced: i < (opts.traceSample ?? Number(process.env.BULWARK_TRACE_SAMPLE ?? 2)),
@@ -101,6 +107,7 @@ export async function runExperiment(
         outcomes,
         violations,
         p95Ms: percentile(observations.map((o) => o.durationMs), 95),
+        dollarsAtRisk: dollarsAtRisk(observations, riskCosts(target.risk)),
         examples,
       };
     },
@@ -108,6 +115,19 @@ export async function runExperiment(
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+
+/** Per-1k figure plus what it's made of, e.g. "$1,234 (over-refund $980, 3 lost, 2 escalated of 20)". Over-refund is also per 1k. */
+export function riskCell(r: ExperimentResult): string {
+  const d = r.dollarsAtRisk;
+  if (!d) return '—';
+  if (d.totalUsd === 0) return '$0';
+  const parts = [
+    d.overRefundUsd ? `over-refund ${money((d.overRefundUsd / d.trials) * 1000)}` : '',
+    d.lostTickets ? `${d.lostTickets} lost` : '',
+    d.escalations ? `${d.escalations} escalated` : '',
+  ].filter(Boolean);
+  return `${money(d.per1kTickets)} (${parts.join(', ')}${d.lostTickets || d.escalations ? ` of ${d.trials}` : ''})`;
+}
 
 export function renderMarkdown(target: BulwarkTarget, results: ExperimentResult[], meta: Record<string, unknown>): string {
   const lines = [
@@ -117,8 +137,8 @@ export function renderMarkdown(target: BulwarkTarget, results: ExperimentResult[
       .map(([k, v]) => `**${k}**: ${v}`)
       .join(' · '),
     '',
-    '| Fault | Pass | 95% CI | Crashed | Hung | Runaway | p95 | Broken rules |',
-    '|---|---|---|---|---|---|---|---|',
+    '| Fault | Pass | 95% CI | Crashed | Hung | Runaway | p95 | $ at risk / 1k tickets | Broken rules |',
+    '|---|---|---|---|---|---|---|---|---|',
   ];
   for (const r of results) {
     const broken = Object.entries(r.violations)
@@ -126,7 +146,14 @@ export function renderMarkdown(target: BulwarkTarget, results: ExperimentResult[
       .map(([rule, n]) => `${rule} (${n})`)
       .join('<br>');
     lines.push(
-      `| ${r.fault} | ${r.passed}/${r.trials} | ${pct(r.ci95[0])}–${pct(r.ci95[1])} | ${r.outcomes.crashed} | ${r.outcomes.hung} | ${r.outcomes.runaway} | ${Math.round(r.p95Ms)}ms | ${broken || '—'} |`,
+      `| ${r.fault} | ${r.passed}/${r.trials} | ${pct(r.ci95[0])}–${pct(r.ci95[1])} | ${r.outcomes.crashed} | ${r.outcomes.hung} | ${r.outcomes.runaway} | ${Math.round(r.p95Ms)}ms | ${riskCell(r)} | ${broken || '—'} |`,
+    );
+  }
+  const costs = results[0]?.dollarsAtRisk?.costs;
+  if (costs) {
+    lines.push(
+      '',
+      `_$ at risk = over-refunds read from the payments ledger (measured) + $${costs.lostTicketUsd} per ticket left without a reply + $${costs.escalationUsd} per crashed/hung run needing a human (assumptions, set on the target)._`,
     );
   }
   lines.push('', '## Hypotheses and replayable failures', '');
@@ -148,8 +175,9 @@ export function renderConsole(results: ExperimentResult[]): string {
       `${r.passed}/${r.trials}`.padStart(6),
       `${pct(r.ci95[0])}–${pct(r.ci95[1])}`.padEnd(10),
       `crash ${r.outcomes.crashed} hung ${r.outcomes.hung} runaway ${r.outcomes.runaway}`.padEnd(28),
+      (r.dollarsAtRisk ? money(r.dollarsAtRisk.per1kTickets) : '—').padStart(9),
       broken || 'all rules held',
     ].join('  ');
   });
-  return [`${'fault'.padEnd(22)}  ${'pass'.padStart(6)}  ${'95% CI'.padEnd(10)}  ${'outcomes'.padEnd(28)}  broken rules`, ...rows].join('\n');
+  return [`${'fault'.padEnd(22)}  ${'pass'.padStart(6)}  ${'95% CI'.padEnd(10)}  ${'outcomes'.padEnd(28)}  ${'$risk/1k'.padStart(9)}  broken rules`, ...rows].join('\n');
 }

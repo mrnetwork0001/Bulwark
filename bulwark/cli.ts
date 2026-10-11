@@ -9,6 +9,8 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { target } from '../targets/refundbot/bulwark.target';
 import { FAULTS, getFault, type Fault } from './chaos/faults';
+import { CostMeter, usd } from './cost/meter';
+import { loadPriceBook } from './cost/pricing';
 import type { BrainMode } from './harness';
 import { renderConsole, renderMarkdown, runExperiment, type ExperimentResult } from './scorecard';
 import { llmProvider } from './llm';
@@ -46,18 +48,24 @@ async function main() {
   );
 
   const results: ExperimentResult[] = [];
-  for (const fault of faults) {
-    process.stdout.write(`  attacking: ${fault?.id ?? 'baseline'}… `);
-    const r = await runExperiment(target, fault, opts);
-    console.log(`${r.passed}/${r.trials} passed`);
-    results.push(r);
-  }
+  const meter = new CostMeter();
+  await meter.run(async () => {
+    for (const fault of faults) {
+      process.stdout.write(`  attacking: ${fault?.id ?? 'baseline'}… `);
+      const r = await runExperiment(target, fault, opts);
+      console.log(`${r.passed}/${r.trials} passed`);
+      results.push(r);
+    }
+  });
+  const book = await loadPriceBook({ provider: llmProvider() });
+  const cost = meter.summarize(book.priceFor, `0G router prices (${book.zgSource}); Anthropic-direct static table`);
   console.log('\n' + renderConsole(results) + '\n');
+  console.log(`Cost ${usd(cost.totalUsd)} = LLM ${usd(cost.llmUsd)} (${cost.calls} calls) + compute ${usd(cost.computeUsd)} (${Math.round(cost.wallMs / 1000)}s) over ${cost.trials} trials\n`);
 
   const dir = join('runs', new Date().toISOString().replace(/[:.]/g, '-'));
   mkdirSync(dir, { recursive: true });
   const meta = { trials: opts.trials, seed: opts.seed, brain, date: new Date().toISOString() };
-  writeFileSync(join(dir, 'scorecard.json'), JSON.stringify({ target: target.name, ...meta, results }, null, 2));
+  writeFileSync(join(dir, 'scorecard.json'), JSON.stringify({ target: target.name, ...meta, results, cost }, null, 2));
   writeFileSync(join(dir, 'scorecard.md'), renderMarkdown(target, results, meta));
   console.log(`Scorecard written to ${dir}/`);
 

@@ -5,7 +5,9 @@
 
 import './env';
 import { parseArgs } from 'node:util';
+import { usd } from './cost/meter';
 import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent } from './loop/orchestrator';
+import { money } from './risk';
 import { initTracing, shutdownTracing } from './tracing';
 
 const c = {
@@ -29,7 +31,10 @@ function print(e: LoopEvent) {
     case 'scorecard': {
       const label = e.phase === 'before' ? c.red('RED') + ' scorecard (before)' : c.bold('Scorecard after fixes');
       console.log(`${label}: overall ${pct(e.overall)} of trials kept every rule`);
-      for (const r of e.results) console.log(`  ${r.fault.padEnd(22)} ${(r.passed === r.trials ? c.green : c.red)(`${r.passed}/${r.trials}`)}`);
+      for (const r of e.results) {
+        const risk = r.dollarsAtRisk ? c.dim(`  ${money(r.dollarsAtRisk.per1kTickets)} at risk / 1k tickets`) : '';
+        console.log(`  ${r.fault.padEnd(22)} ${(r.passed === r.trials ? c.green : c.red)(`${r.passed}/${r.trials}`.padEnd(6))}${risk}`);
+      }
       return console.log();
     }
     case 'fault-start':
@@ -58,7 +63,11 @@ function print(e: LoopEvent) {
     case 'run-done': {
       const s = e.summary;
       console.log(c.bold(`Resilience ${pct(s.overallBefore)} → ${pct(s.overallAfter)}`) + `  fixed ${s.fixed.length}, unfixed ${s.unfixed.length}, skipped ${s.skipped.length} · ${s.attempts} attempts, ${s.rollbacks} rollbacks`);
-      return console.log(c.dim(`Artifacts: ${s.dir}/ (fix.patch, PR.md, postmortem-*.md, badge.svg)`));
+      if (s.cost) {
+        const k = s.cost;
+        console.log(`Run cost ${c.bold(usd(k.totalUsd))}` + c.dim(` = LLM ${usd(k.llmUsd)} (${k.calls} calls, ${k.inputTokens + k.outputTokens} tokens) + compute ${usd(k.computeUsd)} (${Math.round(k.wallMs / 1000)}s) · ${k.trials} trials`));
+      }
+      return console.log(c.dim(`Artifacts: ${s.dir}/ (fix.patch, PR.md, postmortem-*.md, badge.svg, summary.json)`));
     }
   }
 }

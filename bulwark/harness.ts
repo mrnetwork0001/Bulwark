@@ -6,6 +6,7 @@ import { trace } from 'neatlogs';
 import type { Brain } from '../targets/refundbot/agent';
 import type { Email, Order, Refund } from '../targets/refundbot/payments';
 import { injectFault, type Fault } from './chaos/faults';
+import { countTrial, recordLlmCall } from './cost/meter';
 import { mulberry32 } from './stats';
 import type { BrainMode, BulwarkTarget } from './target';
 import { untraced } from './tracing';
@@ -32,6 +33,8 @@ export interface TrialOptions {
   fault?: Fault;
   seed: number;
   brain: BrainMode;
+  /** Model override for LLM brains (default: the target's own choice). */
+  model?: string;
   /** Wall-clock budget before the trial is declared hung. */
   deadlineMs: number;
   /** Safety net so a looping agent can't run forever; exceeding it is a "runaway". */
@@ -49,7 +52,12 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
   const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0 };
   const transport = injectFault(opts.target.createTransport(sandbox, abort.signal), opts.fault, faultCtx);
 
-  const inner: Brain = opts.target.createBrain(opts.brain, mulberry32(opts.seed ^ 0x9e3779b9));
+  // Every LLM call the target makes is priced on the current run's cost meter.
+  const inner: Brain = opts.target.createBrain(opts.brain, mulberry32(opts.seed ^ 0x9e3779b9), {
+    model: opts.model,
+    onUsage: (u) => recordLlmCall({ role: 'agent', ...u }),
+  });
+  countTrial();
   let steps = 0;
   const brain: Brain = {
     name: inner.name,
