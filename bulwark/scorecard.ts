@@ -2,6 +2,7 @@
 // with 95% confidence intervals, outcome breakdowns, and which rules broke.
 
 import { trace } from 'neatlogs';
+import type { SelfFaultReport } from './blue/fixer';
 import type { Fault } from './chaos/faults';
 import { runTrial, type BrainMode, type Outcome, type TrialObservation } from './harness';
 import { compileRules } from './invariants';
@@ -42,6 +43,34 @@ export interface ExperimentOptions {
   sessionId?: string;
   /** Called as each trial finishes, for live views. */
   onTrial?: (t: { index: number; obs: TrialObservation; broken: BrokenRule[] }) => void;
+  /** Self-chaos seam: runs before each trial and may throw, as a worker trial failing inside Bulwark would. */
+  beforeTrial?: (t: { fault: string; index: number }) => void;
+  /** Called when a trial threw inside Bulwark's harness, with how the experiment carried on. */
+  onSelfFault?: (f: SelfFaultReport) => void;
+}
+
+/**
+ * Runs one trial, surviving a throw from Bulwark's own harness (not the agent: its crashes are
+ * caught inside runTrial). The trial is re-run once from its seed; if it throws again it is
+ * counted as a crashed trial, never silently dropped, and the experiment carries on.
+ */
+async function runTrialSafely(run: () => Promise<TrialObservation>, seed: number, opts: ExperimentOptions, where: string): Promise<TrialObservation> {
+  let first: unknown;
+  try {
+    return await run();
+  } catch (err) {
+    first = err;
+  }
+  const fault = `${where} trial (seed ${seed}) threw: ${first instanceof Error ? first.message.split('\n')[0] : String(first)}`.slice(0, 240);
+  try {
+    const obs = await run();
+    opts.onSelfFault?.({ seam: 'trial', fault, recovered: true, how: 're-ran the trial from its seed; it completed' });
+    return obs;
+  } catch (err) {
+    const error = `bulwark harness error: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`;
+    opts.onSelfFault?.({ seam: 'trial', fault, recovered: true, how: 'threw again on re-run; counted as a crashed trial (not dropped) and the experiment carried on' });
+    return { seed, outcome: 'crashed', error, durationMs: 0, steps: 0, faultsFired: 0 };
+  }
 }
 
 export interface BrokenRule {
@@ -55,8 +84,8 @@ export async function runExperiment(
   opts: ExperimentOptions,
 ): Promise<ExperimentResult> {
   const faultId = fault?.id ?? 'baseline';
-  const { compiled, uncompiled } = compileRules(target.rules, target.checks);
-  if (uncompiled.length) throw new Error(`could not compile rules: ${uncompiled.join(' | ')}`);
+  const { compiled, uncompiled } = compileRules(target.rules, target.checks, { target: target.name });
+  if (uncompiled.length) throw new Error(`could not compile rules: ${uncompiled.join(' | ')} (with an LLM key set, \`npm run rules -- --target targets/${target.name}\` compiles them)`);
 
   return trace(
     {
@@ -74,16 +103,25 @@ export async function runExperiment(
 
       const observations: TrialObservation[] = await Promise.all(
         Array.from({ length: opts.trials }, async (_, i) => {
-          const obs = await runTrial({
-            target,
-            fault,
-            seed: hashSeed(opts.seed, faultId, i),
-            brain: opts.brain,
-            model: opts.model,
-            deadlineMs: opts.deadlineMs,
-            maxSteps: opts.maxSteps,
-            traced: i < (opts.traceSample ?? Number(process.env.BULWARK_TRACE_SAMPLE ?? 2)),
-          });
+          const seed = hashSeed(opts.seed, faultId, i);
+          const obs = await runTrialSafely(
+            async () => {
+              opts.beforeTrial?.({ fault: faultId, index: i });
+              return runTrial({
+                target,
+                fault,
+                seed,
+                brain: opts.brain,
+                model: opts.model,
+                deadlineMs: opts.deadlineMs,
+                maxSteps: opts.maxSteps,
+                traced: i < (opts.traceSample ?? Number(process.env.BULWARK_TRACE_SAMPLE ?? 2)),
+              });
+            },
+            seed,
+            opts,
+            faultId,
+          );
           outcomes[obs.outcome]++;
           const broken: BrokenRule[] = [];
           for (const { rule, check } of compiled) {

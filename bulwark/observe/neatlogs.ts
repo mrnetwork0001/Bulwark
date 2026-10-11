@@ -55,9 +55,9 @@ export interface ReadResult {
  * Mirrors the neatlogs SDK's own doctor read-back: 202 and 404 mean "not ready yet, keep polling",
  * 401/403 mean the key was rejected, 409 is a terminal ingestion failure.
  */
-export async function readTrace(traceId: string | undefined, opts: { waitMs?: number; pollMs?: number; fetcher?: Fetcher } = {}): Promise<ReadResult> {
+export async function readTrace(traceId: string | undefined, opts: { waitMs?: number; pollMs?: number; fetcher?: Fetcher; apiKey?: string } = {}): Promise<ReadResult> {
   const started = Date.now();
-  const key = process.env.NEATLOGS_API_KEY;
+  const key = opts.apiKey ?? process.env.NEATLOGS_API_KEY;
   if (!key) return { status: 'unavailable', reason: 'NEATLOGS_API_KEY not set', waitedMs: 0 };
   if (!traceId) return { status: 'unavailable', reason: 'no traced failing trial', waitedMs: 0 };
   const fetcher = opts.fetcher ?? (fetch as unknown as Fetcher);

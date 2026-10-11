@@ -155,7 +155,7 @@ export class ClaudeFixer implements Fixer {
           // Claude's default; models that think by default can otherwise spend the whole budget thinking.
           thinking: { type: 'disabled' },
           messages: [{ role: 'user', content: prompt }],
-        });
+        }, { timeout: 240_000 });
       } catch (err) {
         recordLlmCall({ role: 'fixer', model: this.model, inputTokens: 0, outputTokens: 0, ms: performance.now() - start, error: true });
         throw err;
@@ -173,41 +173,122 @@ export class ClaudeFixer implements Fixer {
   }
 }
 
-/** LLM first when a key is configured; the playbook takes over if it gives up. */
+/** One of Bulwark's own dependencies failed and how Bulwark carried on (a `self-fault` loop event). */
+export interface SelfFaultReport {
+  seam: string;
+  fault: string;
+  recovered: boolean;
+  how: string;
+}
+
+export interface FixerOptions {
+  /** The LLM fixer AutoFixer tries first (default: ClaudeFixer when a key is configured). */
+  llm?: Fixer;
+  /** How long one LLM proposal may take before AutoFixer gives up on it and falls back. */
+  llmDeadlineMs?: number;
+  /** Called when an LLM call fails or returns an unusable proposal, with what Blue did instead. */
+  onSelfFault?: (f: SelfFaultReport) => void;
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Why a proposal can't be judged (malformed or empty), or undefined when it is usable. */
+export function proposalProblem(p: unknown, files: Files): string | undefined {
+  if (!isRecord(p)) return 'proposal is not an object';
+  if (typeof p.strategy !== 'string' || !p.strategy.trim()) return 'proposal has no strategy name';
+  if (!isRecord(p.files)) return 'proposal has no files';
+  for (const [path, content] of Object.entries(p.files)) {
+    if (!(path in files)) return `proposal edits ${path}, which is not an editable file`;
+    if (typeof content !== 'string' || !content.trim()) return `proposal's ${path} is empty or not text`;
+  }
+  if (!Object.entries(p.files).some(([path, content]) => files[path] !== content)) return 'proposal changes nothing';
+  return undefined;
+}
+
+/** Rejects after `ms`, so a hung LLM call can't stall the loop (the SDK's own default is 10 minutes, with retries). */
+export function withDeadline<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} timed out after ${Math.round(ms / 1000)}s`)), ms);
+  });
+  return Promise.race([p, deadline]).finally(() => clearTimeout(timer));
+}
+
+const errText = (err: unknown) => {
+  const status = isRecord(err) && typeof err.status === 'number' ? `${err.status} ` : '';
+  return `${status}${err instanceof Error ? err.message.split('\n')[0] : String(err)}`.slice(0, 200);
+};
+
+/** LLM first when a key is configured; the playbook takes over if it gives up, fails, or proposes something unusable. */
 export class AutoFixer implements Fixer {
   name: string;
-  private llm?: ClaudeFixer;
+  private llm?: Fixer;
   private playbook = new PlaybookFixer();
+  private deadlineMs: number;
+  private onSelfFault?: (f: SelfFaultReport) => void;
 
-  constructor() {
-    if (llmProvider()) this.llm = new ClaudeFixer();
+  constructor(opts: FixerOptions = {}) {
+    this.llm = opts.llm ?? (llmProvider() ? new ClaudeFixer() : undefined);
+    this.deadlineMs = opts.llmDeadlineMs ?? 300_000;
+    this.onSelfFault = opts.onSelfFault;
     this.name = this.llm ? `${this.llm.name}+playbook` : 'playbook';
   }
 
   async propose(ctx: FixContext): Promise<Proposal | null> {
-    const tryLlm = async () => {
+    const problems: { seam: string; fault: string }[] = [];
+    const tryLlm = async (): Promise<Proposal | null> => {
+      if (!this.llm) return null;
+      let p: Proposal | null;
       try {
-        return (await this.llm?.propose(ctx)) ?? null;
-      } catch {
+        p = await withDeadline(this.llm.propose(ctx), this.deadlineMs, 'LLM fixer');
+      } catch (err) {
+        problems.push({ seam: 'blue-llm', fault: errText(err) });
         return null;
       }
+      if (!p) return null; // the LLM gave up: not a fault
+      const bad = proposalProblem(p, ctx.files);
+      if (bad) {
+        problems.push({ seam: 'blue-proposal', fault: bad });
+        return null;
+      }
+      return { ...p, title: typeof p.title === 'string' ? p.title : p.strategy, rationale: typeof p.rationale === 'string' ? p.rationale : '' };
     };
     // The LLM gets two tries per fault, then the playbook. The playbook's
     // transforms target known code, so if earlier LLM fixes reshaped that code
     // and nothing applies, the LLM keeps going with the Judge's feedback.
-    if (this.llm && ctx.failed.filter((f) => f.author === this.llm!.name).length < 2) {
-      const p = await tryLlm();
-      if (p) return p;
+    let p: Proposal | null = null;
+    if (this.llm && ctx.failed.filter((f) => f.author === this.llm!.name).length < 2) p = await tryLlm();
+    if (!p) p = (await this.playbook.propose(ctx)) ?? (await tryLlm());
+    for (const pr of problems) {
+      this.onSelfFault?.({ ...pr, recovered: true, how: p ? `fell back: ${p.author} proposed "${p.strategy}" instead` : 'no usable proposal from the LLM or the playbook; the loop moves on' });
     }
-    return (await this.playbook.propose(ctx)) ?? tryLlm();
+    return p;
   }
 }
 
-export function createFixer(kind: 'auto' | 'playbook' | 'claude'): Fixer {
+/**
+ * Asks a fixer for a proposal without letting its failure end the run (e.g. `--fixer claude` hitting a 429).
+ * A throw becomes "no proposal", reported as a self-fault.
+ */
+export async function proposeSafely(fixer: Fixer, ctx: FixContext, onSelfFault?: (f: SelfFaultReport) => void): Promise<Proposal | null> {
+  try {
+    const p = await fixer.propose(ctx);
+    if (p && proposalProblem(p, ctx.files)) {
+      onSelfFault?.({ seam: 'blue-proposal', fault: proposalProblem(p, ctx.files)!, recovered: true, how: 'discarded before the Judge; treated as no proposal' });
+      return null;
+    }
+    return p;
+  } catch (err) {
+    onSelfFault?.({ seam: 'blue-llm', fault: errText(err), recovered: true, how: `${fixer.name} failed; treated as no proposal and the loop moves on` });
+    return null;
+  }
+}
+
+export function createFixer(kind: 'auto' | 'playbook' | 'claude', opts: FixerOptions = {}): Fixer {
   if (kind === 'playbook') return new PlaybookFixer();
   if (kind === 'claude') {
     if (!llmProvider()) throw new Error('--fixer claude needs ZG_ROUTER_API_KEY or ANTHROPIC_API_KEY');
     return new ClaudeFixer();
   }
-  return new AutoFixer();
+  return new AutoFixer(opts);
 }

@@ -17,7 +17,9 @@
     "economics": "tsx bulwark/economics.ts",
     "market": "tsx bulwark/market.ts",
     "leaderboard": "tsx bulwark/leaderboard.ts",
-    "record:crustdata": "tsx targets/researchbot/record.ts"
+    "record:crustdata": "tsx targets/researchbot/record.ts",
+    "rules": "tsx bulwark/rules/cli.ts",
+    "self-chaos": "tsx bulwark/selfchaos/cli.ts"
   },
   "engines": {
     "node": ">=20"
