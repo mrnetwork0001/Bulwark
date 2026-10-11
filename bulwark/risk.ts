@@ -4,6 +4,8 @@
 //   - lost ticket: the run finished but the customer never got a reply
 //   - escalation: the run crashed, hung or ran away, and a human has to pick it up
 // The last two are per-target assumptions (BulwarkTarget.risk), labelled as such.
+// This model prices RefundBot-style ledgers (refunds, reply emails). A target that
+// sets no `risk` gets no dollars-at-risk figure at all, never a made-up one.
 
 import type { TrialObservation } from './harness';
 import type { RiskCosts } from './target';
@@ -36,14 +38,14 @@ export function riskCosts(partial?: Partial<RiskCosts>): RiskCosts {
 
 export function trialRisk(obs: RiskInput, costs: RiskCosts): TrialRisk {
   let overRefundUsd = 0;
-  for (const order of obs.orders) {
-    const refunded = obs.refunds.filter((r) => r.orderId === order.id).reduce((s, r) => s + r.amount, 0);
+  for (const order of obs.orders ?? []) {
+    const refunded = (obs.refunds ?? []).filter((r) => r.orderId === order.id).reduce((s, r) => s + r.amount, 0);
     overRefundUsd += Math.max(0, refunded - order.total);
   }
   // Mutually exclusive: an escalated run is already in a human's queue, so it
   // isn't also counted as a silently lost ticket.
   const escalation = obs.outcome !== 'completed';
-  const lostTicket = !escalation && !obs.emails.some((e) => e.to === obs.customerEmail);
+  const lostTicket = !escalation && !(obs.emails ?? []).some((e) => e.to === obs.customerEmail);
   const usd = overRefundUsd + (escalation ? costs.escalationUsd : 0) + (lostTicket ? costs.lostTicketUsd : 0);
   return { overRefundUsd, lostTicket, escalation, usd };
 }

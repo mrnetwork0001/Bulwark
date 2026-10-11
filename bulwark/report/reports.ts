@@ -232,8 +232,7 @@ function sloSection(records: FaultRecord[]): string[] {
 export function riskSummary(before: Record<string, ExperimentResult>, after: Record<string, ExperimentResult>): string | undefined {
   const pick = (rs: Record<string, ExperimentResult>) =>
     Object.values(rs)
-      .filter((r) => r.fault !== 'baseline' && r.dollarsAtRisk)
-      .map((r) => r.dollarsAtRisk);
+      .flatMap((r) => (r.fault !== 'baseline' && r.dollarsAtRisk ? [r.dollarsAtRisk] : []));
   const b = pick(before);
   const a = pick(after);
   if (!b.length || !a.length) return undefined;

@@ -1,4 +1,4 @@
-// npm run red:generate -- [--count 6] [--trials 20] [--seed 42] [--from specs.json]
+// npm run red:generate -- [--target targets/refundbot] [--count 6] [--trials 20] [--seed 42] [--from specs.json]
 //                         [--out .bulwark/generated-faults.json] [--evidence docs/evidence/generated-faults.json]
 //
 // Generative Red: the LLM invents new faults as DSL specs; Bulwark validates them,
@@ -11,7 +11,8 @@ import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { llmLabel, llmProvider } from './llm';
 import { GENERATED_FAULTS_PATH, proposeFaultSpecs, saveReport, vetSpecs, type GenerationReport } from './red/generate';
-import { loadTarget } from './target';
+import { relative } from 'node:path';
+import { loadTarget, resolveTargetDir } from './target';
 import { initTracing, shutdownTracing } from './tracing';
 
 async function main() {
@@ -26,7 +27,7 @@ async function main() {
       target: { type: 'string', default: 'targets/refundbot' },
     },
   });
-  const dir = values.target!;
+  const dir = relative(process.cwd(), resolveTargetDir(values.target));
   const target = await loadTarget(dir);
   await initTracing('bulwark-red-generate');
 

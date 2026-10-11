@@ -9,7 +9,7 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { flush, trace } from 'neatlogs';
 import { createFixer, type FailedAttempt, type Fixer } from '../blue/fixer';
-import { FAULTS, getFault, type Fault } from '../chaos/faults';
+import { faultsFor, getFault, type Fault } from '../chaos/faults';
 import { CheckpointStore } from '../checkpoints';
 import { CostMeter, type CostSummary } from '../cost/meter';
 import { loadPriceBook } from '../cost/pricing';
@@ -131,8 +131,8 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
   return meter.run(async () => {
     const original = await loadTarget(o.targetDir);
     const originalFiles = readFiles(o.targetDir, original.editableFiles);
-    const scope: Fault[] = o.faults === 'all' ? FAULTS : o.faults.map(getFault);
-    const rules = compileRules(original.rules).compiled.map(({ rule, how }) => ({ rule, how }));
+    const scope: Fault[] = o.faults === 'all' ? faultsFor(original) : o.faults.map((id) => getFault(id, original));
+    const rules = compileRules(original.rules, original.checks).compiled.map(({ rule, how }) => ({ rule, how }));
     const sloPlans = planSlo(o.slo, scope.map((f) => f.id));
     emit({ type: 'run-start', runId, target: original.name, fixer: fixer.name, faults: scope.map((f) => f.id), redTrials: o.redTrials, judgeTrials: o.judgeTrials });
     if (o.slo && sloPlans.length) emit({ type: 'slo-plan', plans: sloPlans, confidence: o.slo.confidence, method: sloPlans[0].method });
@@ -236,7 +236,7 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
         const cp = checkpoints.save(`before ${fault.id} ${entrants ? 'round' : 'attempt'} ${round}`, baseFiles, { fault: fault.id, attempt: round });
         emit({ type: 'checkpoint', action: 'save', id: cp.id, label: cp.label });
 
-        const ctx = { fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [], neatlogsEvidence: observed.evidence, graphHints };
+        const ctx = { target: original.name, fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [], neatlogsEvidence: observed.evidence, graphHints };
         const entries: Entry[] = await phase(`3 blue: propose fix for ${fault.id} #${round}`, { fault: fault.id, attempt: round, ...(entrants ? { tournament: true } : {}) }, async () =>
           entrants ? proposeAll(entrants, ctx) : [{ entrant: fixer.name, proposal: await fixer.propose(ctx) }],
         );

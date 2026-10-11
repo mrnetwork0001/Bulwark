@@ -5,14 +5,15 @@ import './env';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createServer, type ServerResponse } from 'node:http';
-import { target } from '../targets/refundbot/bulwark.target';
-import { FAULTS, getFault, type Fault } from './chaos/faults';
+import { relative } from 'node:path';
+import { faultsFor, getFault, type Fault } from './chaos/faults';
 import { parseSlo } from './judge/slo';
 import { parseTournament } from './judge/tournament';
 import { runLoop } from './loop/orchestrator';
 import { replayFromParams } from './replay';
 import { runExperiment } from './scorecard';
 import { defaultModel, llmLabel, llmProvider } from './llm';
+import { listTargets, loadTarget, resolveTargetDir, type BulwarkTarget } from './target';
 import { initTracing } from './tracing';
 
 const PORT = Number(process.env.PORT ?? 5317);
@@ -25,10 +26,24 @@ function send(res: ServerResponse, event: string, data: unknown) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+// ?target=researchbot (default refundbot): only directories under targets/ with a bulwark.target.ts.
+const loaded = new Map<string, Promise<BulwarkTarget>>();
+function targetFrom(params: URLSearchParams): Promise<BulwarkTarget> {
+  let dir: string;
+  try {
+    dir = resolveTargetDir(params.get('target'));
+  } catch (err) {
+    return Promise.reject(err);
+  }
+  if (!loaded.has(dir)) loaded.set(dir, loadTarget(dir));
+  return loaded.get(dir)!;
+}
+
 async function streamRun(res: ServerResponse, params: URLSearchParams) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
   const faultParam = params.get('fault') ?? 'all';
-  const faults: (Fault | undefined)[] = faultParam === 'all' ? [undefined, ...FAULTS] : [undefined, getFault(faultParam)];
+  const target = await targetFrom(params);
+  const faults: (Fault | undefined)[] = faultParam === 'all' ? [undefined, ...faultsFor(target)] : [undefined, getFault(faultParam, target)];
   const opts = {
     trials: Math.min(200, Math.max(1, Number(params.get('trials') ?? 20))),
     seed: Number(params.get('seed') ?? 42),
@@ -55,7 +70,7 @@ async function streamRun(res: ServerResponse, params: URLSearchParams) {
             seed: obs.seed,
             durationMs: Math.round(obs.durationMs),
             steps: obs.steps,
-            refunds: obs.refunds.map((r) => r.amount),
+            refunds: (obs.refunds ?? []).map((r) => r.amount),
             error: obs.error,
           }),
       });
@@ -81,7 +96,7 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
     const tournament = params.get('tournament') ? parseTournament(params.get('tournament')!) : undefined;
     await runLoop(
       {
-        targetDir: 'targets/refundbot',
+        targetDir: relative(process.cwd(), resolveTargetDir(params.get('target'))),
         // neatlogs read-back wait per fault: short by default so the live demo stays snappy (wait=0 to skip).
         readbackWaitMs: Math.min(60_000, Math.max(0, Number(params.get('wait') ?? process.env.BULWARK_NEATLOGS_WAIT_MS ?? 5000))),
         ...(slo ? { slo } : {}),
@@ -128,18 +143,24 @@ async function main() {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(readFileSync(PAGES[url.pathname]));
     } else if (url.pathname === '/api/meta') {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          target: target.name,
-          rules: target.rules,
-          neatlogs: exporting,
-          fixer: llmProvider() ? `${defaultModel('fixer')} via ${llmLabel()} + playbook` : 'playbook (add an LLM key for Claude)',
-          faults: [
-            { id: 'baseline', title: 'No fault injected', hypothesis: 'The agent works when nothing breaks.' },
-            ...FAULTS.map(({ id, title, hypothesis }) => ({ id, title, hypothesis })),
-          ],
-        }),
+      targetFrom(url.searchParams).then(
+        (target) =>
+          res.writeHead(200, { 'content-type': 'application/json' }).end(
+            JSON.stringify({
+              target: target.name,
+              targets: listTargets(),
+              rules: target.rules,
+              // Dollars at risk is only shown for targets with a risk model.
+              risk: !!target.risk,
+              neatlogs: exporting,
+              fixer: llmProvider() ? `${defaultModel('fixer')} via ${llmLabel()} + playbook` : 'playbook (add an LLM key for Claude)',
+              faults: [
+                { id: 'baseline', title: 'No fault injected', hypothesis: 'The agent works when nothing breaks.' },
+                ...faultsFor(target).map(({ id, title, hypothesis }) => ({ id, title, hypothesis })),
+              ],
+            }),
+          ),
+        (err) => res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) })),
       );
     } else if (url.pathname === '/api/loop') {
       streamLoop(res, url.searchParams);

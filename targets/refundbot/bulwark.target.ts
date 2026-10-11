@@ -34,8 +34,10 @@ export const target: BulwarkTarget = {
       message: 'My order arrived broken. I would like a refund please.',
     },
   }),
-  createSandbox: (orders) => new PaymentsSandbox(orders),
+  createSandbox: ({ orders }) => new PaymentsSandbox(orders),
   createTransport: (sandbox, signal) => sandboxTransport(sandbox, signal),
+  // The ledger the rules read: money that moved and emails that went out.
+  observe: (sandbox) => ({ refunds: sandbox.refunds, emails: sandbox.emails }),
   createBrain: (mode, rng, opts) => (mode === 'claude' ? new ClaudeBrain(opts) : new SimulatedBrain(rng)),
   run: runRefundBot,
 };

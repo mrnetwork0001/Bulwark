@@ -1,5 +1,6 @@
+import { existsSync, readdirSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
 import type { CheckResult } from './invariants';
 
 export type BrainMode = 'simulated' | 'claude';
@@ -97,7 +98,30 @@ export interface BulwarkTarget<F extends TargetFixtures = any, S = any> {
   createBrain: (mode: BrainMode, rng: () => number, opts?: BrainOptions) => Brain;
   /** Cost assumptions for dollars at risk. Targets without them get no dollars-at-risk figure (never a made-up one). */
   risk?: Partial<RiskCosts>;
-  run: (ticket: F['ticket'], deps: { transport: Transport<any>; brain: Brain }) => Promise<RunResult>;
+  /** Runs one ticket. `deps.brain` is the harness's wrapper around the target's own brain (same interface). */
+  run: (ticket: F['ticket'], deps: { transport: Transport<any>; brain: any }) => Promise<RunResult>;
+}
+
+const TARGET_NAME = /^[\w-]{1,128}$/;
+
+/**
+ * Bulwark only attacks targets on its allowlist: directories under `targets/`
+ * with a `bulwark.target.ts`. Accepts "researchbot" or "targets/researchbot"
+ * (also from untrusted query strings); anything else throws.
+ */
+export function resolveTargetDir(target?: string | null): string {
+  const name = (target ?? 'targets/refundbot').replace(/^\.?\/?targets\//, '').replace(/\/$/, '');
+  if (!TARGET_NAME.test(name)) throw new Error('target must be a directory name under targets/');
+  const root = resolve('targets');
+  const dir = resolve(root, name);
+  if (!dir.startsWith(root + sep) || !existsSync(join(dir, 'bulwark.target.ts'))) throw new Error(`unknown target ${name}`);
+  return dir;
+}
+
+/** The target names on the allowlist, for UIs. */
+export function listTargets(): string[] {
+  const root = resolve('targets');
+  return existsSync(root) ? readdirSync(root).filter((d) => TARGET_NAME.test(d) && existsSync(join(root, d, 'bulwark.target.ts'))).sort() : [];
 }
 
 /** Loads `<dir>/bulwark.target.ts`. Each directory is a separate module graph, so patched copies never share code. */

@@ -8,7 +8,7 @@ import { getFault } from './chaos/faults';
 import { runTrial, type TrialObservation } from './harness';
 import { compileRules } from './invariants';
 import type { TrialEvent } from './recorder';
-import { loadTarget, type BulwarkTarget } from './target';
+import { loadTarget, resolveTargetDir, type BulwarkTarget } from './target';
 
 export interface ReplayResult {
   target: string;
@@ -42,12 +42,7 @@ export function resolveReplayDir(params: { target?: string | null; run?: string 
     if (!existsSync(join(dir, 'bulwark.target.ts'))) throw new Error(`no workspace ${run}/${ws}`);
     return dir;
   }
-  const name = (params.target ?? 'targets/refundbot').replace(/^targets\//, '');
-  if (!SAFE.test(name)) throw new Error('target must be a directory name under targets/');
-  const root = resolve('targets');
-  const dir = resolve(root, name);
-  if (!dir.startsWith(root + sep) || !existsSync(join(dir, 'bulwark.target.ts'))) throw new Error(`unknown target ${name}`);
-  return dir;
+  return resolveTargetDir(params.target);
 }
 
 export async function replayTrial(args: {
@@ -58,9 +53,9 @@ export async function replayTrial(args: {
   deadlineMs?: number;
   maxSteps?: number;
 }): Promise<ReplayResult> {
-  const fault = args.fault === 'baseline' ? undefined : getFault(args.fault);
+  const fault = args.fault === 'baseline' ? undefined : getFault(args.fault, args.target);
   if (!Number.isInteger(args.seed) || args.seed < 0 || args.seed > 0xffffffff) throw new Error('seed must be a 32-bit unsigned integer');
-  const { compiled, uncompiled } = compileRules(args.target.rules);
+  const { compiled, uncompiled } = compileRules(args.target.rules, args.target.checks);
   if (uncompiled.length) throw new Error(`could not compile rules: ${uncompiled.join(' | ')}`);
 
   const obs = await runTrial({
@@ -117,6 +112,6 @@ export function describeEvent(e: TrialEvent): string {
     case 'effect':
       return `effect   ${e.effect}: ${short(e.data)}`;
     case 'outcome':
-      return `outcome  ${e.outcome.toUpperCase()} after ${e.steps} steps, ${e.durationMs}ms${e.error ? ` · error: ${e.error}` : ''}${e.reply ? ` · reply: ${short(e.reply)}` : ''}`;
+      return `outcome  ${e.outcome.toUpperCase()} after ${e.steps} steps, ${e.durationMs}ms${e.error ? ` · error: ${e.error}` : ''}${e.reply ? ` · reply: ${short(e.reply)}` : ''}${e.dropped ? ` · ${e.dropped} later events not kept` : ''}`;
   }
 }

@@ -20,8 +20,8 @@ export interface ExperimentResult {
   outcomes: Record<Outcome, number>;
   violations: Record<string, number>;
   p95Ms: number;
-  /** Failures priced as money: over-refunds plus lost-ticket and escalation assumptions. */
-  dollarsAtRisk: DollarsAtRisk;
+  /** Failures priced as money (over-refunds plus lost-ticket and escalation assumptions). Only for targets with a risk model. */
+  dollarsAtRisk?: DollarsAtRisk;
   /** One failing trial per broken rule, so a human can replay it from its seed. */
   examples: { rule: string; seed: number; detail?: string; traceId?: string }[];
   /** Every trial in index order, so any one can be replayed from its seed (the dashboard's squares). */
@@ -55,7 +55,7 @@ export async function runExperiment(
   opts: ExperimentOptions,
 ): Promise<ExperimentResult> {
   const faultId = fault?.id ?? 'baseline';
-  const { compiled, uncompiled } = compileRules(target.rules);
+  const { compiled, uncompiled } = compileRules(target.rules, target.checks);
   if (uncompiled.length) throw new Error(`could not compile rules: ${uncompiled.join(' | ')}`);
 
   return trace(
@@ -115,7 +115,7 @@ export async function runExperiment(
         outcomes,
         violations,
         p95Ms: percentile(observations.map((o) => o.durationMs), 95),
-        dollarsAtRisk: dollarsAtRisk(observations, riskCosts(target.risk)),
+        ...(target.risk ? { dollarsAtRisk: dollarsAtRisk(observations, riskCosts(target.risk)) } : {}),
         examples,
         perTrial,
       };

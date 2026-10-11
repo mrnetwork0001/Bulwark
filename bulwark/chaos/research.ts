@@ -126,7 +126,7 @@ export const RESEARCH_FAULTS: Fault[] = [
     endpoint: 'person.search',
     scope: 'trial',
     rate: 0.5,
-    inject: async (next, _ctx, payload) => {
+    inject: async (next, _ctx, payload = {}) => {
       // The server ignores the cursor: every request is answered (and billed) as page 1.
       const { cursor, ...firstPage } = payload;
       return rewrite(await next(firstPage), (body) => {

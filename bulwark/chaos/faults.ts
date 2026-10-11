@@ -58,7 +58,7 @@ export interface Fault {
    * `next()` sends the call as the agent made it; `next(payload)` sends a changed request instead
    * (e.g. a server that ignores the pagination cursor). `payload` is the agent's own request.
    */
-  inject: (next: (payload?: Record<string, unknown>) => Promise<string>, ctx: FaultContext, payload: Record<string, unknown>) => Promise<string>;
+  inject: (next: (payload?: Record<string, unknown>) => Promise<string>, ctx: FaultContext, payload?: Record<string, unknown>) => Promise<string>;
   /** Ticket-level faults (endpoint 'ticket') rewrite the customer's message before the agent sees it. */
   rewriteTicket?: <T extends TicketLike>(ticket: T, ctx: FaultContext) => T;
   /** The declarative spec, for faults invented by generative Red (see chaos/spec.ts, red/generate.ts). */

@@ -4,7 +4,7 @@
 // the unpatched code on those exact seeds.
 
 import { trace } from 'neatlogs';
-import { FAULTS, type Fault } from '../chaos/faults';
+import { faultsFor, type Fault } from '../chaos/faults';
 import type { TrialObservation } from '../harness';
 import { runExperiment, type ExperimentOptions, type ExperimentResult } from '../scorecard';
 import { fisherGreater } from '../stats';
@@ -73,7 +73,7 @@ export async function runAll(
   // The baseline runs on its own first: it is the happy path the overhead budgets
   // are checked on, so its latency must not depend on how busy the fault runs are.
   const baseline = await measure(undefined);
-  const faults = await Promise.all(FAULTS.map(measure));
+  const faults = await Promise.all(faultsFor(target).map(measure));
   return Object.fromEntries([baseline, ...faults].map((r) => [r.fault, r]));
 }
 

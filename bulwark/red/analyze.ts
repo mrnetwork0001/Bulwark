@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FAULTS, type FaultKind } from '../chaos/faults';
+import { faultsFor as faultsForTarget, type FaultKind } from '../chaos/faults';
 import type { Provenance } from '../provenance/entire';
 import type { BulwarkTarget } from '../target';
 import type { BlastRadius } from './graph';
@@ -30,15 +30,17 @@ function lineOf(src: string, index: number): number {
   return src.slice(0, index).split('\n').length;
 }
 
-function faultsFor(kind: FaultKind, endpoint?: string): string[] {
-  return FAULTS.filter((f) => f.kind === kind && (!endpoint || f.endpoint === endpoint)).map((f) => f.id);
-}
-
 export function analyzeTarget(dir: string, target: BulwarkTarget): Finding[] {
   const findings: Finding[] = [];
+  // Only faults in this target's catalog can back a finding.
+  const catalog = faultsForTarget(target);
+  const faultsFor = (kind: FaultKind, endpoint?: string): string[] =>
+    catalog.filter((f) => f.kind === kind && (!endpoint || f.endpoint === endpoint)).map((f) => f.id);
 
   for (const file of target.editableFiles) {
     const src = readFileSync(join(dir, file), 'utf8');
+    // Resilience applied to the whole transport (`transport = withRetry(transport)`) covers every tool in the file.
+    const wrapped = (helper: string) => new RegExp(`transport = ${helper}\\(`).test(src);
 
     // Tool definitions: span({ kind: 'TOOL', name: '<tool>' ... }) up to the next tool.
     const toolStarts = [...src.matchAll(/span\(\{ kind: 'TOOL', name: '(\w+)'/g)];
@@ -58,9 +60,23 @@ export function analyzeTarget(dir: string, target: BulwarkTarget): Finding[] {
         if (faults.length) findings.push({ kind, severity, file, line, tool, why, faults });
       };
 
-      if (!/withTimeout\(/.test(body)) add('latency', 'medium', `${tool} calls ${endpoint} with no timeout`);
-      if (!/withRetry\(/.test(body)) add('rate-limit', 'medium', `${tool} never retries ${endpoint} on transient errors`);
-      if (/JSON\.parse\(/.test(body) && !/validate|parse[A-Z]\w*\(/.test(body)) {
+      const retries = /withRetry\(/.test(body) || wrapped('withRetry');
+      if (!/withTimeout\(/.test(body) && !wrapped('withTimeout')) add('latency', 'medium', `${tool} calls ${endpoint} with no timeout`);
+      if (!retries) {
+        add('rate-limit', 'medium', `${tool} never retries ${endpoint} on transient errors`);
+        add('server-error', 'medium', `${tool} never retries ${endpoint} when the server fails (5xx)`);
+      } else if (wrapped('withRetry') && !/retry-after|x-ratelimit-reset/i.test(src)) {
+        add('rate-limit', 'medium', `${tool} retries ${endpoint} without honouring the rate-limit reset header`);
+      }
+      // Reading nested fields straight off a parsed body (`[0].matches[0].x`, `a!.b`) crashes, or worse, on a partial record.
+      if (/JSON\.parse\(/.test(body) && /\]\.\w|\w!\.\w/.test(body) && !/parse[A-Z]\w*\(/.test(body)) {
+        add('partial', 'medium', `${tool} reads nested fields from ${endpoint} without checking they exist`);
+      }
+      // Pagination: following next_cursor with no page cap never ends if the cursor never advances.
+      if (/while \(cursor/.test(body) && !/MAX_PAGES/.test(body)) {
+        add('loop', 'medium', `${tool} follows ${endpoint}'s next_cursor with no page cap, so a stuck cursor means unbounded calls and credits`);
+      }
+      if (/JSON\.parse\(/.test(body) && !/validate|parse[A-Z]\w*\(/.test(body) && !wrapped('requireJson')) {
         add('malformed', 'medium', `${tool} trusts the JSON from ${endpoint} without validating it`);
       }
       if (writes && /withRetry\(/.test(body) && !/idempotencyKey/.test(body)) {
@@ -109,6 +125,22 @@ export function analyzeTarget(dir: string, target: BulwarkTarget): Finding[] {
         why: 'the agent loop has no step budget, so a stuck tool means unbounded steps and cost',
         faults: faultsFor('loop'),
       });
+    }
+
+    // The model's final answer goes out as-is: nothing checks that each fact in it came from a tool result.
+    const final = src.match(/decision\.type === 'final'/);
+    if (final && !/ground/i.test(src)) {
+      const faults = [...faultsFor('empty'), ...faultsFor('partial')];
+      if (faults.length) {
+        findings.push({
+          kind: 'empty',
+          severity: 'high',
+          file,
+          line: lineOf(src, final.index!),
+          why: "the model's final answer is returned unchecked, so when a tool returns nothing (or a field is missing) it can invent people and numbers",
+          faults,
+        });
+      }
     }
   }
 

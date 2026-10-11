@@ -1,4 +1,4 @@
-// npm run chaos -- [--fault <id>|all] [--trials 20] [--seed 42] [--brain simulated|claude]
+// npm run chaos -- [--target targets/refundbot] [--fault <id>|all] [--trials 20] [--seed 42] [--brain simulated|claude]
 //                  [--generated [--generated-file .bulwark/generated-faults.json]]
 //
 // Attacks the target agent with each fault, N trials apiece, and writes a
@@ -8,14 +8,15 @@ import './env';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { target } from '../targets/refundbot/bulwark.target';
-import { FAULTS, getFault, registerFaults, type Fault } from './chaos/faults';
+
+import { faultsFor, getFault, registerFaults, type Fault } from './chaos/faults';
 import { CostMeter, usd } from './cost/meter';
 import { loadPriceBook } from './cost/pricing';
 import { GENERATED_FAULTS_PATH, loadGeneratedFaults } from './red/generate';
 import type { BrainMode } from './harness';
 import { renderConsole, renderMarkdown, runExperiment, type ExperimentResult } from './scorecard';
 import { llmProvider } from './llm';
+import { loadTarget, resolveTargetDir } from './target';
 import { initTracing, shutdownTracing } from './tracing';
 
 async function main() {
@@ -29,10 +30,13 @@ async function main() {
       'max-steps': { type: 'string', default: '50' },
       generated: { type: 'boolean', default: false },
       'generated-file': { type: 'string', default: GENERATED_FAULTS_PATH },
+      target: { type: 'string', default: 'targets/refundbot' },
     },
   });
+  const targetDir = resolveTargetDir(values.target!);
+  const target = await loadTarget(targetDir);
   if (values.generated) {
-    const added = registerFaults(loadGeneratedFaults(values['generated-file']));
+    const added = registerFaults(loadGeneratedFaults(values['generated-file'], target), target);
     console.log(`+ ${added.filter((f) => f.spec).length} generated faults from ${values['generated-file']}`);
   }
   const brain = values.brain as BrainMode;
@@ -40,7 +44,7 @@ async function main() {
   if (brain === 'claude' && !llmProvider()) throw new Error('--brain claude needs ZG_ROUTER_API_KEY or ANTHROPIC_API_KEY');
 
   const faults: (Fault | undefined)[] =
-    values.fault === 'all' ? [undefined, ...FAULTS] : [undefined, getFault(values.fault!)];
+    values.fault === 'all' ? [undefined, ...faultsFor(target)] : [undefined, getFault(values.fault!, target)];
   const opts = {
     trials: Number(values.trials),
     seed: Number(values.seed),
