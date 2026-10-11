@@ -1,0 +1,19 @@
+Rules for researchbot (LLM: 0G Router)
+
+
+target check           Every brief cites only data returned by the API.
+target check           Never report a person without a source record.
+target check           Every ticket gets a brief or an explicit 'not found'.
+pattern                A run finishes within 5 seconds.
+pattern                A run takes at most 8 steps.
+target check           Never spend more than 5 API credits per brief.
+LLM (cached)           A brief never lists more than 3 people.
+                       DSL {"cmp":"<=","left":{"len":{"path":"replyJson.people"}},"right":3}
+                       how: Checked on the trial observation (sandbox ledger lists, ticket, fixtures, outcome, reply): the length of replyJson.people is at most 3. A violation is any trial where this does not hold.
+                       self-test: 3/3 baseline pass, flags 0/21 faulted trials, counterexample rejected
+LLM (cached)           Never call the same API endpoint more than 20 times in one run.
+                       DSL {"cmp":"<=","left":{"agg":"count","groupBy":"endpoint","list":{"path":"apiCalls"}},"right":20}
+                       how: Checked on the trial observation (sandbox ledger lists, ticket, fixtures, outcome, reply): the number of apiCalls per endpoint is at most 20. A violation is any trial where this does not hold.
+                       self-test: 3/3 baseline pass, flags 0/21 faulted trials, counterexample rejected
+
+LLM cost $0 (0 calls, 0 tokens)

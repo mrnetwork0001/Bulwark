@@ -92,8 +92,9 @@ const PATTERNS: { match: RegExp; how: (m: RegExpMatchArray) => string; build: (m
 
 /**
  * Compiles each rule: a target-supplied check with the exact same text wins, then
- * the pattern library, then (when `target` is named) a cached LLM-compiled DSL check
- * for this target and exact rule text. Anything left is returned as uncompiled.
+ * the pattern library, then a cached LLM-compiled DSL check for this target and exact
+ * rule text (any target's lockfile when `target` isn't named). Anything left is returned
+ * as uncompiled.
  */
 export function compileRules(
   rules: string[],

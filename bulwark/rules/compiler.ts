@@ -322,7 +322,7 @@ export function describeRules(reports: RuleReport[]): string[] {
     r.source === 'llm' ? `LLM (${r.fresh ? 'compiled now' : 'cached'})` : r.source === 'target' ? 'target check' : r.source === 'pattern' ? 'pattern' : 'UNCOMPILED';
   return reports.flatMap((r) => [
     `${tag(r).padEnd(22)} ${r.rule}`,
-    ...(r.dsl ? [`${' '.repeat(23)}DSL ${JSON.stringify(r.dsl)}`] : []),
+    ...(r.dsl ? [`${' '.repeat(23)}DSL ${JSON.stringify(r.dsl)}`, `${' '.repeat(23)}how: ${r.how}`] : []),
     ...(r.selfTest
       ? [`${' '.repeat(23)}self-test: ${r.selfTest.baselinePassed}/${r.selfTest.baselineSamples} baseline pass, flags ${r.selfTest.faultedFlagged}/${r.selfTest.faultedSamples} faulted trials, counterexample ${r.selfTest.counterexampleRejected ? 'rejected' : 'NOT rejected'}`]
       : []),

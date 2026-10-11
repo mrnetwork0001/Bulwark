@@ -149,10 +149,10 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
       emit({ type: 'log', message: `LLM rule compiler unavailable: ${err instanceof Error ? err.message : err}` });
       return undefined;
     });
-    if (ruleReport) emit({ type: 'rules', rules: ruleReport });
     const rules = compileRules(original.rules, original.checks, { target: original.name }).compiled.map(({ rule, how }) => ({ rule, how }));
     const sloPlans = planSlo(o.slo, scope.map((f) => f.id));
     emit({ type: 'run-start', runId, target: original.name, fixer: fixer.name, faults: scope.map((f) => f.id), redTrials: o.redTrials, judgeTrials: o.judgeTrials });
+    if (ruleReport) emit({ type: 'rules', rules: ruleReport });
     if (o.slo && sloPlans.length) emit({ type: 'slo-plan', plans: sloPlans, confidence: o.slo.confidence, method: sloPlans[0].method });
 
     // Red: find weak links, then measure the damage.
