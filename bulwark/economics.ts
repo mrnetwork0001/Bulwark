@@ -1,9 +1,12 @@
 // npm run economics -- [--runs 10] [--state-dir .bulwark] [--out docs/business]
 //                      [--leaderboard docs/evidence/leaderboard.json] [--real-trials-per-run 140]
+//                      [--market docs/business/market-data.json]
 //
 // Reads the latest loop runs (.bulwark/runs/*/summary.json), measures what they
 // actually cost, and writes unit-economics.md + unit-economics.csv for the
 // cfo.ai business plan. Measured numbers and assumptions are labelled separately.
+// If `npm run market` has cached real Crustdata counts, a market section and a
+// Year 1-3 revenue scenario are added.
 
 import './env';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -13,6 +16,7 @@ import { DEFAULT_PLANS, measure, scenarios, type RunRecord, type Scenario } from
 import { DEFAULT_COMPUTE_USD_PER_HOUR, usd, type CostSummary } from './cost/meter';
 import { combineRisk, money, type DollarsAtRisk } from './risk';
 import type { ExperimentResult } from './scorecard';
+import { derive, loadMarketData, marketCsvRows, marketSectionMd } from './market';
 
 interface LeaderboardEntry {
   model: string;
@@ -63,6 +67,7 @@ async function main() {
       out: { type: 'string', default: 'docs/business' },
       leaderboard: { type: 'string', default: 'docs/evidence/leaderboard.json' },
       'real-trials-per-run': { type: 'string', default: '140' },
+      market: { type: 'string', default: 'docs/business/market-data.json' },
     },
   });
   const runs = loadRuns(values['state-dir']!, Number(values.runs));
@@ -85,9 +90,15 @@ async function main() {
   const plans = scenarios(m, DEFAULT_PLANS, real);
   const computeRate = runs[0].cost.assumptions.computeUsdPerHour ?? DEFAULT_COMPUTE_USD_PER_HOUR;
 
+  const marketData = loadMarketData(values.market!);
+  const market = marketData && derive(marketData, DEFAULT_PLANS);
+  const marketMd = market ? marketSectionMd(market, marketData) : [];
+  const marketCsv = market ? marketCsvRows(market).map((r) => r.join(',')).join('\n') + '\n' : '';
+
   mkdirSync(values.out!, { recursive: true });
-  writeFileSync(join(values.out!, 'unit-economics.md'), renderMd(runs, m, plans, real, computeRate, realRange));
-  writeFileSync(join(values.out!, 'unit-economics.csv'), renderCsv(m, plans, real, computeRate));
+  writeFileSync(join(values.out!, 'unit-economics.md'), renderMd(runs, m, plans, real, computeRate, realRange, marketMd));
+  writeFileSync(join(values.out!, 'unit-economics.csv'), renderCsv(m, plans, real, computeRate) + marketCsv);
+  console.log(market ? `Market (Crustdata, ${marketData.ranAt.slice(0, 10)}): SAM ${market.sam.companies} companies, Year 3 ARR $${Math.round(market.years[2].arrUsd)}` : `No Crustdata market data at ${values.market} (run \`npm run market\`); market section skipped.`);
   console.log(`Measured ${m.runs} runs: ${usd(m.perRunUsd)}/run (LLM ${pct(m.llmShare)}, compute ${pct(m.computeShare)}), ${m.perFixedFaultUsd === null ? 'no faults fixed' : `${usd(m.perFixedFaultUsd)}/fault fixed`}, ${usd(m.perTrialUsd)}/trial`);
   for (const p of plans) console.log(`  ${p.name.padEnd(10)} $${p.priceUsd}/agent/mo  COGS ${usd(p.cogsSimulated)} → margin ${margin(p.marginSimulated)}${p.marginRealLlm !== undefined ? ` (real-LLM target: ${usd(p.cogsRealLlm!)} → ${margin(p.marginRealLlm)})` : ''}`);
   console.log(`Wrote ${values.out}/unit-economics.md and .csv`);
@@ -100,6 +111,7 @@ function renderMd(
   real: { perTrialUsd: number; trialsPerRun: number; model: string } | undefined,
   computeRate: number,
   realRange: { model: string; perTrialUsd: number }[],
+  marketMd: string[] = [],
 ): string {
   const lines = [
     '# Bulwark unit economics',
@@ -161,11 +173,13 @@ function renderMd(
     '',
     '_COGS = runs per month × measured cost per run' + (real ? ' (+ runs × real-LLM trials per run × measured real-LLM cost per trial)' : '') + '. Gross margin = (price − COGS) / price._',
     '',
+    ...marketMd,
     '## Reproduce',
     '',
     '```bash',
     'npm run fix -- --fixer auto          # one loop run (LLM fixer if a key is set), writes .bulwark/runs/<id>/summary.json',
     'npm run leaderboard                  # optional: measures real-LLM cost per trial',
+    'npm run market                       # optional: Crustdata market sizing (cached in market-data.json)',
     'npm run economics                    # rewrites this file and unit-economics.csv',
     '```',
     '',

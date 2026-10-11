@@ -15,6 +15,7 @@
     "provenance": "tsx bulwark/provenance/cli.ts",
     "red:generate": "tsx bulwark/generate.ts",
     "economics": "tsx bulwark/economics.ts",
+    "market": "tsx bulwark/market.ts",
     "leaderboard": "tsx bulwark/leaderboard.ts"
   },
   "engines": {

@@ -22,6 +22,7 @@ npm run provenance -- targets/refundbot/tools.ts:87   # which AI session/prompt 
 npm run red:generate                # generative Red: the LLM invents new faults (DSL specs), Bulwark keeps the ones that break a rule
 npm run chaos -- --generated        # …attack with them too (also: npm run fix -- --generated)
 npm run economics                   # unit economics from recent runs → docs/business/unit-economics.{md,csv}
+npm run market                      # market sizing from Crustdata (TAM/SAM/SOM) → docs/business/market-sizing.{md,csv}
 npm run leaderboard                 # rank 0G models as RefundBot's brain (real LLM spend; keep --trials small)
 npm test
 ```
@@ -60,6 +61,20 @@ Social-engineering faults rewrite the customer's ticket instead of a tool respon
 **Generative Red** (`npm run red:generate`) shows the LLM the agent's tool code and the fault catalog. The LLM invents new faults as declarative specs in a small DSL (`bulwark/chaos/spec.ts`: delay, delay-response, error, truncate, set-field, drop-field, append-text, ticket-append), never as code. Each spec is validated strictly (schema, known endpoint, bounds, safe field paths, and no duplicate of an existing fault's mechanism), then run against the unpatched agent. Only specs that break a business rule are kept. Rejected specs are reported with the reason. Example: [docs/evidence/03-generated-faults.json](docs/evidence/03-generated-faults.json).
 
 Every trial is checked against business rules written in plain English (`targets/refundbot/bulwark.target.ts`), using the sandbox ledger as ground truth. Pass rates come with 95% Wilson confidence intervals, and every failure is replayable from its seed.
+
+## Market sizing (Crustdata)
+
+`npm run market` counts Bulwark's buyers with the [Crustdata API](https://docs.crustdata.com): companies tagged AI or with agent/LLM specialities (TAM), the agent/LLM-builder subset (SAM), each by headcount band, plus companies posting AI-agent, LLM, agent-reliability and AI-support jobs in the last 90 days as a demand signal. Company counts come from `POST /company/search` with `limit: 1` (read `total_count`, ≤0.33 credits per query); job counts from `POST /job/search` with `limit: 0` and aggregations (no rows, no per-result credits). A full run is 20 queries and at most ~4.4 credits; `--max-credits` (default 25) aborts before anything is sent if the plan could cost more.
+
+Results are cached in `docs/business/market-data.json`, so reruns spend nothing unless you pass `--refresh`. The report keeps **Measured** (exact queries, counts, date, credits), **Assumptions** (agents per company by band, plan by band, adoption 0.1% / 0.3% / 1% for Years 1 to 3) and **Derived** (TAM/SAM/SOM in companies and ARR at the economics module's plan prices) apart. When the cache exists, `npm run economics` adds a "Market (Crustdata)" section and a Year 1 to 3 revenue scenario to `unit-economics.{md,csv}`.
+
+```bash
+npm run market -- --dry-run         # print the exact requests; no key, no credits
+npm run market                      # needs CRUSTDATA_API_KEY in .env the first time; then uses the cache
+npm run market -- --refresh         # re-query Crustdata
+```
+
+Without `CRUSTDATA_API_KEY` (and no cache) it exits with an error and writes nothing: no market numbers are ever made up.
 
 ## Layout
 
