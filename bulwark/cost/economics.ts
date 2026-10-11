@@ -78,7 +78,7 @@ export interface Plan {
 export const DEFAULT_PLANS: Plan[] = [
   { name: 'Starter', priceUsd: 49, runsPerMonth: 4, cadence: 'weekly loop run' },
   { name: 'Team', priceUsd: 199, runsPerMonth: 30, cadence: 'daily loop run' },
-  { name: 'Enterprise', priceUsd: 799, runsPerMonth: 120, cadence: '~4 runs/day (every PR)' },
+  { name: 'Enterprise', priceUsd: 799, runsPerMonth: 120, cadence: '~4 runs/day, one per PR' },
 ];
 
 export interface Scenario extends Plan {

@@ -50,8 +50,10 @@ function loadRuns(stateDir: string, limit: number): RunRecord[] {
   return runs;
 }
 
-const pct = (x: number) => (x > 0.99 && x < 1 ? `${(x * 100).toFixed(1)}%` : `${Math.round(x * 100)}%`);
-const fmt = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(2) : x.toPrecision(4));
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const fmt = (x: number) => (Number.isInteger(x) ? String(x) : Math.abs(x) >= 100 ? x.toFixed(2) : x.toPrecision(4));
+/** Margins always get one decimal: 98.5% and 97.3% must not both read "99%"/"97%". */
+const margin = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 async function main() {
   const { values } = parseArgs({
@@ -69,23 +71,36 @@ async function main() {
 
   // A real-LLM target: per-trial cost measured by the leaderboard (top-ranked model that ran).
   let real: { perTrialUsd: number; trialsPerRun: number; model: string } | undefined;
+  let realRange: { model: string; perTrialUsd: number }[] = [];
   if (existsSync(values.leaderboard!)) {
     const lb = JSON.parse(readFileSync(values.leaderboard!, 'utf8')) as { entries: LeaderboardEntry[] };
-    const ok = lb.entries.filter((e) => e.status === 'ok' && e.llmCostPerTrial > 0);
-    if (ok.length) real = { perTrialUsd: ok[0].llmCostPerTrial, trialsPerRun: Number(values['real-trials-per-run']), model: ok[0].model };
+    // Conservative: price the suite at the most expensive model that ran, so the
+    // margin holds whichever model a customer's agent uses.
+    const ok = lb.entries.filter((e) => e.status === 'ok' && e.llmCostPerTrial > 0).sort((a, b) => b.llmCostPerTrial - a.llmCostPerTrial);
+    if (ok.length) {
+      real = { perTrialUsd: ok[0].llmCostPerTrial, trialsPerRun: Number(values['real-trials-per-run']), model: ok[0].model };
+      realRange = ok.map((e) => ({ model: e.model, perTrialUsd: e.llmCostPerTrial }));
+    }
   }
   const plans = scenarios(m, DEFAULT_PLANS, real);
   const computeRate = runs[0].cost.assumptions.computeUsdPerHour ?? DEFAULT_COMPUTE_USD_PER_HOUR;
 
   mkdirSync(values.out!, { recursive: true });
-  writeFileSync(join(values.out!, 'unit-economics.md'), renderMd(runs, m, plans, real, computeRate));
+  writeFileSync(join(values.out!, 'unit-economics.md'), renderMd(runs, m, plans, real, computeRate, realRange));
   writeFileSync(join(values.out!, 'unit-economics.csv'), renderCsv(m, plans, real, computeRate));
   console.log(`Measured ${m.runs} runs: ${usd(m.perRunUsd)}/run (LLM ${pct(m.llmShare)}, compute ${pct(m.computeShare)}), ${m.perFixedFaultUsd === null ? 'no faults fixed' : `${usd(m.perFixedFaultUsd)}/fault fixed`}, ${usd(m.perTrialUsd)}/trial`);
-  for (const p of plans) console.log(`  ${p.name.padEnd(10)} $${p.priceUsd}/agent/mo  COGS ${usd(p.cogsSimulated)} → margin ${pct(p.marginSimulated)}${p.marginRealLlm !== undefined ? ` (real-LLM target: ${usd(p.cogsRealLlm!)} → ${pct(p.marginRealLlm)})` : ''}`);
+  for (const p of plans) console.log(`  ${p.name.padEnd(10)} $${p.priceUsd}/agent/mo  COGS ${usd(p.cogsSimulated)} → margin ${margin(p.marginSimulated)}${p.marginRealLlm !== undefined ? ` (real-LLM target: ${usd(p.cogsRealLlm!)} → ${margin(p.marginRealLlm)})` : ''}`);
   console.log(`Wrote ${values.out}/unit-economics.md and .csv`);
 }
 
-function renderMd(runs: RunRecord[], m: Measured, plans: Scenario[], real: { perTrialUsd: number; trialsPerRun: number; model: string } | undefined, computeRate: number): string {
+function renderMd(
+  runs: RunRecord[],
+  m: Measured,
+  plans: Scenario[],
+  real: { perTrialUsd: number; trialsPerRun: number; model: string } | undefined,
+  computeRate: number,
+  realRange: { model: string; perTrialUsd: number }[],
+): string {
   const lines = [
     '# Bulwark unit economics',
     '',
@@ -104,7 +119,7 @@ function renderMd(runs: RunRecord[], m: Measured, plans: Scenario[], real: { per
     `| Trials per loop run | ${Math.round(m.trialsPerRun)} |`,
     `| Wall-clock per loop run | ${Math.round(m.avgWallSec)}s |`,
     ...(m.riskRemoved1k !== null ? [`| Dollars at risk removed per run (per 1k tickets) | ${money(m.riskRemoved1k)} |`] : []),
-    ...(real ? [`| LLM cost per trial with a real-model target (${real.model}, from the leaderboard) | ${usd(real.perTrialUsd)} |`] : []),
+    ...realRange.map((r) => `| LLM cost per trial, real-model target \`${r.model}\` (from the leaderboard) | ${usd(r.perTrialUsd)} |`),
     '',
     '### Runs',
     '',
@@ -126,17 +141,22 @@ function renderMd(runs: RunRecord[], m: Measured, plans: Scenario[], real: { per
     `- **Compute rate**: $${computeRate}/hour, a 2 vCPU / 4 GB on-demand cloud VM running the loop (override with \`BULWARK_COMPUTE_USD_PER_HOUR\`).`,
     '- **LLM prices**: 0G Compute Router list prices from its public `/v1/models` endpoint (USD per token), Anthropic first-party list prices for direct calls. No volume discounts.',
     '- **Simulated target brain**: unless noted, trials run RefundBot on the deterministic simulated brain, so trials cost compute only. The real-LLM column below prices the same suite with a real model behind the agent.',
-    ...(real ? [`- **Real-LLM suite size**: ${real.trialsPerRun} real-model trials per run (one Red scorecard: baseline + 6 faults × 20 trials). The Judge's thousands of trials stay simulated.`] : []),
+    ...(real
+      ? [
+          `- **Real-LLM suite size**: ${real.trialsPerRun} real-model trials per run (one Red scorecard: baseline + 6 faults × 20 trials). The Judge's thousands of trials stay simulated.`,
+          `- **Real-LLM model**: priced at the most expensive model on the leaderboard (\`${real.model}\`, ${usd(real.perTrialUsd)}/trial), so the margin is a floor. Cheaper models raise it.`,
+        ]
+      : []),
     '- **Plans, prices and run cadence** below are proposals for the business plan, not market data.',
     '- **Not included**: hosting the dashboard, storage, support, sales, payment fees, neatlogs/Entire subscriptions.',
     '',
     '## Pricing scenarios (assumed prices × measured costs)',
     '',
-    `| Plan | Price / agent / month | Loop runs / month | COGS (simulated target) | Gross margin |${real ? ' COGS (real-LLM target) | Gross margin |' : ''}`,
+    `| Plan | Price / agent / month | Loop runs / month | COGS (simulated target) | Gross margin |${real ? ` COGS (real-LLM target, ${real.model}) | Gross margin |` : ''}`,
     `|---|---|---|---|---|${real ? '---|---|' : ''}`,
     ...plans.map(
       (p) =>
-        `| ${p.name} | $${p.priceUsd} | ${p.runsPerMonth} (${p.cadence}) | ${usd(p.cogsSimulated)} | ${pct(p.marginSimulated)} |${real ? ` ${usd(p.cogsRealLlm!)} | ${pct(p.marginRealLlm!)} |` : ''}`,
+        `| ${p.name} | $${p.priceUsd} | ${p.runsPerMonth} (${p.cadence}) | ${usd(p.cogsSimulated)} | ${margin(p.marginSimulated)} |${real ? ` ${usd(p.cogsRealLlm!)} | ${margin(p.marginRealLlm!)} |` : ''}`,
     ),
     '',
     '_COGS = runs per month × measured cost per run' + (real ? ' (+ runs × real-LLM trials per run × measured real-LLM cost per trial)' : '') + '. Gross margin = (price − COGS) / price._',
