@@ -1,8 +1,52 @@
 # Bulwark
 
-**Chaos engineering for AI agents.** Bulwark attacks your agent in a sandbox, watches what breaks, fixes it, and proves the fix with numbers.
+**Chaos engineering for AI agents.** Bulwark attacks your agent in a sandbox with the failures the real world throws at it, writes the fix, and only accepts it when an independent Judge proves it with statistics, before your users ever see the bug.
 
-Built for [#neatHack](https://neatlogs.com/hackathon) with neatlogs, Entire and cfo.ai.
+Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) with **neatlogs**, **Entire** and **cfo.ai**, plus 0G Compute and Crustdata.
+
+![Bulwark landing page](docs/screenshots/landing-hero-desktop.png)
+
+> Every other approach here waits for something to break, then heals it. Bulwark breaks it first, fixes it, and proves the fix on fresh seeds: a statistical result, not one lucky re-run.
+
+## Results
+
+| Agent under attack | Attacks | Before → after | What the Judge rejected on the way |
+|---|---|---|---|
+| **RefundBot** (refunds via a Dodo Payments sandbox) | 8 (wire + conversation) | **56% → 100%** of trials keep every business rule | backoff-only retry (still double-refunds), an output sanitizer (rephrased injections get through), an amount guard alone (still refunds a friend's order) |
+| **ResearchBot** (company briefs from real [Crustdata](https://crustdata.com) data) | 7 | **49% → 100%** | a retry that ignores `x-ratelimit-reset`, a step budget that can't see an in-tool pagination loop, "just ask again" for an empty result |
+| RefundBot, `--game-day` (several faults at once) | 16 | **43% → 100%** | found a leak single-fault testing missed: stacked per-call timeouts exceeded the run deadline |
+
+- **Money at risk:** $553,438 → $0 per 1,000 RefundBot tickets (over-refunds from the ledger, plus assumed costs of lost and escalated tickets).
+- **Every accepted fix:** passes every trial on the Judge's own seeds (Fisher exact p < 10⁻⁶ at 40 trials, or the trial count a `--slo` target needs), with no regressions, and ships a regression test that is **proven** to fail without the fix.
+- **Bulwark attacks itself** (`npm run self-chaos`): 11 faults injected into its own Claude calls, checkpoints, patch loading, neatlogs and workers. 11 recovered, and the run still reaches 100%. Building that found and fixed 5 real robustness bugs.
+
+## How it works
+
+**Red** reads the agent's code (Entire Graph sizes each weak link's blast radius; Entire checkpoints name the AI session that wrote it) and attacks it with seeded, sandboxed trials checked against business rules written in plain English. **Blue** writes a fix (Claude through the 0G Router, a playbook of known fixes, or both in a tournament), after reading the failing trial's trace back from neatlogs. **Judge** re-runs *every* attack on an isolated copy, on seeds Blue never saw. Rejected fixes roll back to a checkpoint. **Guard** proves the regression test. The output is a PR with postmortems, a patch, before/after scorecards and a resilience badge.
+
+## Evidence for judges
+
+| What the rules ask for | Where to check it |
+|---|---|
+| The agent improved (a before and after run, with the numbers compared) | neatlogs: one session per run, `2 red: attack scorecard BEFORE` vs `6 red: attack scorecard AFTER` traces · repo: [scorecards, PR, patch, postmortems](docs/evidence/02-claude-via-0g-loop/) |
+| Used neatlogs | Every experiment, trial, tool call, fault and verdict is traced; Blue and the incident sweep **read traces back** (`npm run readback`, `npm run replay-failures`). [docs/NEATLOGS.md](docs/NEATLOGS.md) |
+| Used Entire | `Entire-Checkpoint:` trailer on every commit since `e44db55`, 74 checkpoints pushed (`git fetch origin 'refs/entire/*:refs/entire/*'`), bug provenance (`npm run provenance -- targets/refundbot/tools.ts:87`), Entire Graph blast radius. [docs/ENTIRE.md](docs/ENTIRE.md) |
+| Used cfo.ai | Business plan built in cfo.ai: pricing, unit economics, Crustdata market, 36-month revenue, costs and runway. [Read-only plan](https://app.cfo.ai/s/xAu-NTAidKxJcCm7) · [summary](docs/business/cfo-ai-plan.md) |
+| The agent recovers from failures | Rejected fixes rolled back to checkpoints in every loop (e.g. [timeout-after-commit postmortem](docs/evidence/02-claude-via-0g-loop/postmortem-timeout-after-commit.md)) · [self-chaos: 11/11 recovered](docs/evidence/07-self-chaos/) |
+| Built in public | [Day 1 post](https://x.com/encrypt_wizard/status/2109130758770102283) · [log of posts](docs/BUILD_IN_PUBLIC.md) |
+| Code written during the hackathon | Commit history: Oct 10, 16:20 IST onwards |
+
+More evidence: [social engineering](docs/evidence/05-social-engineering/) · [generative Red](docs/evidence/03-generated-faults.json) · [Claude fixes a generated fault](docs/evidence/04-claude-fixes-generated-fault/) · [ResearchBot](docs/evidence/06-researchbot/) · [game days](docs/evidence/08-game-day/) · [LLM-compiled rules](docs/evidence/08-llm-rules/) · [incident replay](docs/evidence/09-incident-replay/) · [trace diff](docs/evidence/10-trace-diff/) · [CI gate & ChatOps](docs/evidence/07-ci-chatops-notify/) · [model leaderboard](docs/evidence/leaderboard.md) · [screenshots](docs/screenshots/)
+
+## Built with
+
+| Tool | What it does in Bulwark |
+|---|---|
+| **neatlogs** | One session per Bulwark run and one trace per phase; sampled trial traces show exactly where the agent broke; Blue reads a failing trial's trace back before writing a fix |
+| **Entire** | Checkpoints every commit with the AI session behind it; Bulwark traces each weak link to its session and prompt, and uses Entire Graph for blast radius and fix-site search |
+| **cfo.ai** | The business plan, built through cfo.ai's MCP server from measured run costs and Crustdata market counts, with assumptions labelled |
+| **0G Compute** | Claude (and other models) through the 0G Router for Blue's fixes, generative Red, LLM-compiled rules, fix tournaments and the model leaderboard |
+| **Crustdata** | ResearchBot's real company and people data (recorded once for 13 credits, replayed for free) and the market sizing (8.7 credits) |
 
 ## Quickstart
 
