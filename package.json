@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "dashboard": "tsx bulwark/server.ts",
     "fix": "tsx bulwark/fix.ts",
-    "replay": "tsx bulwark/replay-cli.ts"
+    "replay": "tsx bulwark/replay-cli.ts",
+    "provenance": "tsx bulwark/provenance/cli.ts"
   },
   "engines": {
     "node": ">=20"
