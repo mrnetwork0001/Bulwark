@@ -15,7 +15,7 @@ const scratch = () => {
 };
 
 // Tiny timelines: i/t filled in, timings deliberately different on each side.
-const tl = (events: Omit<TrialEvent, 'i' | 't'>[], t0 = 0): TrialEvent[] => events.map((e, i) => ({ ...e, i, t: t0 + i * 7 }) as TrialEvent);
+const tl = (events: Record<string, unknown>[], t0 = 0): TrialEvent[] => events.map((e, i) => ({ ...e, i, t: t0 + i * 7 }) as TrialEvent);
 const call = (endpoint: string, input: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({ type: 'call' as const, call: 1, endpoint, input, attempt: 1, ...extra });
 const result = (endpoint: string, output: unknown, ms = 1) => ({ type: 'result' as const, call: 1, endpoint, output, ms });
 const effect = (data: Record<string, unknown>) => ({ type: 'effect' as const, effect: 'refund', data });
