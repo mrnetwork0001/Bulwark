@@ -186,7 +186,7 @@ export function renderReplayReply(r: { target: string; fault: string; seed: numb
     ...(lines.length > MAX ? [`… ${lines.length - MAX} more events`] : []),
     '```',
     '',
-    r.broken.length ? r.broken.map((b) => `- ❌ ${b.rule}${b.detail ? `: ${b.detail}` : ''}`).join('\n') : '✅ Every rule held.',
+    r.broken.length ? r.broken.map((b) => `- ❌ ${b.rule.replace(/\.$/, '')}${b.detail ? `: ${b.detail}` : ''}`).join('\n') : '✅ Every rule held.',
   ].join('\n');
 }
 

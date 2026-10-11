@@ -153,7 +153,9 @@ export function renderTargetMarkdown(cmp: BaselineComparison, results: Experimen
   const priced = results.some((r) => r.dollarsAtRisk);
   const verdict = cmp.missingBaseline
     ? `⚠️ No committed baseline yet. Run \`npm run ci:scorecard -- --target ${cmp.target} --update-baseline\` and commit \`targets/${cmp.target}/${BASELINE_FILE}\`.`
-    : cmp.ok
+    : cmp.ok && cmp.faults.some((f) => f.status === 'improved')
+      ? `⬆️ Resilience improved: ${pct(cmp.overall)} vs baseline ${pct(cmp.baselineOverall ?? 0)}. Ratchet it with \`npm run ci:scorecard -- --target ${cmp.target} --update-baseline\` so it can't slip back.`
+      : cmp.ok
       ? `✅ Resilience held: ${pct(cmp.overall)} vs baseline ${pct(cmp.baselineOverall ?? 0)}.`
       : `❌ Resilience dropped below the committed baseline: ${pct(cmp.overall)} vs ${pct(cmp.baselineOverall ?? 0)}.`;
   const lines = [
