@@ -1,4 +1,5 @@
 // npm run chaos -- [--fault <id>|all] [--trials 20] [--seed 42] [--brain simulated|claude]
+//                  [--generated [--generated-file .bulwark/generated-faults.json]]
 //
 // Attacks the target agent with each fault, N trials apiece, and writes a
 // scorecard to runs/<timestamp>/.
@@ -8,7 +9,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { target } from '../targets/refundbot/bulwark.target';
-import { FAULTS, getFault, type Fault } from './chaos/faults';
+import { FAULTS, getFault, registerFaults, type Fault } from './chaos/faults';
+import { GENERATED_FAULTS_PATH, loadGeneratedFaults } from './red/generate';
 import type { BrainMode } from './harness';
 import { renderConsole, renderMarkdown, runExperiment, type ExperimentResult } from './scorecard';
 import { llmProvider } from './llm';
@@ -23,8 +25,14 @@ async function main() {
       brain: { type: 'string', default: 'simulated' },
       deadline: { type: 'string', default: '5000' },
       'max-steps': { type: 'string', default: '50' },
+      generated: { type: 'boolean', default: false },
+      'generated-file': { type: 'string', default: GENERATED_FAULTS_PATH },
     },
   });
+  if (values.generated) {
+    const added = registerFaults(loadGeneratedFaults(values['generated-file']));
+    console.log(`+ ${added.filter((f) => f.spec).length} generated faults from ${values['generated-file']}`);
+  }
   const brain = values.brain as BrainMode;
   if (brain !== 'simulated' && brain !== 'claude') throw new Error('--brain must be "simulated" or "claude"');
   if (brain === 'claude' && !llmProvider()) throw new Error('--brain claude needs ZG_ROUTER_API_KEY or ANTHROPIC_API_KEY');

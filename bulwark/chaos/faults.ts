@@ -5,6 +5,7 @@
 import { log } from 'neatlogs';
 import type { Ticket } from '../../targets/refundbot/agent';
 import { HttpError, type Endpoint, type Transport } from '../../targets/refundbot/payments';
+import type { FaultSpec } from './spec';
 
 export interface FaultContext {
   rng: () => number;
@@ -29,8 +30,8 @@ export interface Fault {
   inject: (next: () => Promise<string>, ctx: FaultContext) => Promise<string>;
   /** Ticket-level faults (endpoint 'ticket') rewrite the customer's message before the agent sees it. */
   rewriteTicket?: (ticket: Ticket, ctx: FaultContext) => Ticket;
-  /** Set on faults invented by generative Red (see red/generate.ts). */
-  generated?: boolean;
+  /** The declarative spec, for faults invented by generative Red (see chaos/spec.ts, red/generate.ts). */
+  spec?: FaultSpec;
 }
 
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
