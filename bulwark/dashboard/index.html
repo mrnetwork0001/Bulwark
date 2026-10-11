@@ -1039,7 +1039,7 @@ function dfCell(e, side, label, changes) {
     (payload !== undefined ? `<code>${esc(clipJson(payload))}</code>` : '') + chg + '</div>';
 }
 
-function renderDiff(r) {
+function renderTraceDiff(r) {
   const d = r.diff, B = r.before.timeline, A = r.after.timeline;
   const verdict = (x) => `<span class="rp-out ${esc(x.observation.outcome)}">${esc(OUTCOME_LABEL[x.observation.outcome] ?? x.observation.outcome)}</span>` +
     (x.broken.length ? ` · <span class="bad">${x.broken.length} rule${x.broken.length > 1 ? 's' : ''} broken</span>` : ' · <span class="ok">every rule held</span>');
@@ -1072,7 +1072,7 @@ async function loadDiff() {
     if (!res.ok) throw new Error(r.error || res.statusText);
     if (req !== rp.req) return;
     rp.diff = r;
-    renderDiff(r);
+    renderTraceDiff(r);
   } catch (err) {
     if (req !== rp.req) return;
     rp.diffReq = 0;
