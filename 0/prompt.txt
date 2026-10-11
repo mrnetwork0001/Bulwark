@@ -1,0 +1,478 @@
+these are the hackathon details; is it really a solid idea to win 1st place? if there's solid suggestions of features form you to add, go ahead:
+
+<pasted_content id="e961">
+can you access this hackathon: https://neatlogs.com/hackathon
+
+
+Oct 10–12
+Join neatHack · $19,000 in prizes & credits
+↗
+Manifesto
+Product
+Pricing
+Docs↗
+Blog
+Changelog
+Careers
+Start free
+↗
+#neatHack
+AI agent hackathon
+Build agents you’d trust to run without you watching.
+
+Join Discord
+Register on Luma
+1000+ registered
+Powered by
+cfo.ai
+entire.io
+Hackathon starts in
+
+Sat, 10 Oct · 9:00 AM GMT+2
+00
+days
+08
+hrs
+22
+min
+43
+sec
+Dates
+October 10–12, 2026
+Track
+One track
+Format
+Online
+Prizes
+$19,000 including credits
+Partners
+
+Dodo Payments
+AWS
+TheVibeFounder
+Crustdata
+Orchestrator
+Orchestrator.inc
+Dodo Payments
+AWS
+TheVibeFounder
+Crustdata
+Orchestrator
+Orchestrator.inc
+Dodo Payments
+AWS
+TheVibeFounder
+Crustdata
+Orchestrator
+Orchestrator.inc
+Get started
+01
+Register for neatHack
+Register on Luma
+02
+Join the neatHack Discord
+Join Discord
+03
+Check in and confirm your team
+Web check-in opens in
+
+Sat, 10 Oct · 4:30 AM GMT+2
+00
+days
+03
+hrs
+52
+min
+43
+sec
+Web check-in
+04
+Submit your project
+Monday, October 12 · 7:00–11:55 PM IST
+
+Submissions opening soon
+Prizes & people
+$4,000 in cash, plus partner credits and neatlogs Pro.
+
+1st place
+$2,000
+cash
+
++ $5,000
+Dodo Payments credits
+2nd place
+$1,000
+cash
+
++ $3,000
+Dodo Payments credits
+3rd place
+$500
+cash
+
++ $1,000
+Dodo Payments credits
+Each winner gets 3 months of neatlogs Pro (worth $1500).
+
+Community winner
+$500
+cash
+
+A separate award for community impact. You can win this alongside a top-three placement.
+
+Credits to build with
+AWS
+AWS credits
+First 200 teams to complete web check-in
+Crustdata
+5,000 credits
+Everyone participating
+The only track
+Build an agent that works (literally)
+Build an AI agent, or a team of agents, that completes a substantial task from start to finish.
+Give it a goal, tools and an environment; let each result guide its next action. All projects compete for the same prizes.
+
+Focus areas
+Planning
+Break a goal into actionable steps.
+
+Tool use
+Choose tools, supply inputs and handle responses.
+
+State
+Retain state across steps, runs and failures.
+
+Context
+Bring in relevant information; leave out the rest.
+
+Execution
+Keep long tasks running to completion.
+
+Recovery
+Handle failures and unexpected results.
+
+Verification
+Check that results are correct.
+
+Iteration
+Use each result to choose the next step.
+
+See example tasks
+These examples show the size of task we have in mind. They aren't separate tracks, and you don't have to build one of them.
+
+Fix a GitHub issue
+An agent investigates a GitHub issue, writes and tests a fix, and proposes the fix.
+Answer a research question with sources
+An agent splits a question into smaller questions and gathers evidence for each one. When sources disagree, the agent works out which source to trust and writes an answer with citations.
+Watch a running system
+An agent watches a running system for unusual behavior. When the agent finds a problem, it looks for the cause and takes an action to fix it.
+Several agents working together
+Several worker agents each solve part of a task on their own. A coordinator agent then combines their results and settles any disagreements.
+Work while things change
+An agent works on a long task while the environment it works in keeps changing.
+Requirements
+Use
+,
+
+and
+
+Your project must use neatlogs, Entire and cfo.ai. Use neatlogs and Entire to build and improve your agent, and cfo.ai to plan its business.
+
+neatlogs
+Works with any agent
+Trace every agent run
+Find the code behind a failure, then compare runs to verify your fix.
+
+Model and tool calls, inputs and responses
+State changes, retries, failures and agent messages
+Latency, token usage and cost
+neatlogs
+/
+traces
+Example run
+Research agent
+Every step, in context.
+Success
+Span tree
+Duration
+agent
+research_agent
+2.84s
+llm
+plan
+620ms
+tool
+search_documents
+480ms
+llm
+compose_answer
+1.42s
+tool
+verify_citations
+320ms
+5 spans
+1.8k tokens
+$0.003
+Entire
+For coding agents
+Give your coding agent repository context
+Open-source tools for understanding your codebase and the history of AI-made changes.
+
+Checkpoints: save the context behind each change
+entire-graph: map relationships across your repository
+agent-workspace
+Example PR
+Preserve state across retries #42
+agent/recovery → main
+
+Conversation 2
+Files changed 1
++3 −1
+src/agent/run.ts
+− const state = createState();
++ const state = checkpoint.restore();
++ await agent.run(state);
++ checkpoint.save(state);
+Entire
+Checkpoint attached
+Context, decisions & changes
+cfo.ai
+Plan the business with cfo.ai
+Use cfo.ai to plan your agent’s pricing, costs, revenue and runway. Include the resulting business plan in your submission.
+
+neatHack signup & credits
+Sign up at cfo.ai/neathacks ↗
+
+A card is required during signup. Immediately after signing up, cancel your subscription in Settings → Billing. You won’t be billed if you cancel immediately.
+
+The neatHack team will provide your cfo.ai credits directly.
+
+cfo.ai
+/
+agent economics
+Example model
+C6
+ƒx
+=(C3-C4)/C3
+Illustrative monthly economics for two scenarios
+A	B	C
+1	Monthly model	Base	Growth
+2	Customers	100	250
+3	Revenue	$2,000	$5,000
+4	Infra + inference	$400	$850
+5	Gross profit	$1,600	$4,150
+6	Gross margin	80%	83%
+Unit economics
+Runway
+Scenarios
+Judging criteria
+Judges score each project in five categories. Each category is scored out of 100, and the categories are weighted as shown to give a final score out of 100.
+
+The agent
+How well the agent, or the system of agents, handles a substantial task from start to finish.
+
+30%
+Use of neatlogs, Entire and cfo.ai
+How effectively you used neatlogs, Entire and cfo.ai to build, improve and plan a business around the agent.
+
+25%
+Demo video
+How clearly the demo video explains the agent and your use of neatlogs, Entire and cfo.ai.
+
+20%
+Building in public
+How you shared your project with other people while you built it.
+
+15%
+Usefulness and originality
+Whether the agent solves a problem that people have, in a new way.
+
+10%
+Evidence & verification
+Back up each claim in your submission with evidence that judges can check.
+
+The agent improved
+A run before your change and a run after it, e.g., two neatlogs traces, with the numbers you compared
+You used neatlogs
+Links to neatlogs traces from your project, or screenshots of them
+You used Entire
+Checkpoints or entire-graph output from your repository
+You used cfo.ai
+A business plan covering your agent’s pricing, costs, revenue and runway
+The agent recovers from failures
+A run where an action failed, showing what the agent did next
+You built in public
+Links to what you shared during the hackathon, tagged #neatHack
+You wrote the code during the hackathon
+A public repository with commits dated during the hackathon
+Schedule
+Build October 10–12, submit October 12. Winners are announced October 16. All times below are in IST.
+
+October 10
+Day 1
+9:00 AM IST — Kickoff call
+We’ll kick things off with TheVibeFounder, a surprise workshop (more on this later tonight), and a Q&A before everyone starts building. We’ll also introduce you to the judges and mentors, who’ll share more about the kind of projects they’re looking for during the hackathon.
+
+12:30 PM IST — Hackathon begins
+We’ll transfer AWS and CrustData credits to you.
+
+Workshops & office hours
+Technical sessions and support from neatlogs and sponsors.
+
+October 11–12
+Workshops & submission
+Final workshops & office hours
+Sunday, October 11 — The last round of technical support before submissions.
+
+Submit & share on X
+Monday, 12 October 2026 · 7:00–11:55 PM IST
+
+Submit on X by quoting the official neatlogs post with your team, name, project, public repo and demo. neatlogs and cfo.ai will engage with the first 50 quote tweets.
+
+October 16
+Results
+Winners announced
+We announce the three placed winners and the community winner.
+
+Judges & mentors
+Judges
+Haimantika Mitra
+Haimantika Mitra
+Senior developer advocate & forward deployed engineer
+
+Entire
+Abhi Singh
+Abhi Singh
+Solutions engineer · ex-GitHub · ex-BrowserStack
+
+Entire
+Prateek Karnal
+Prateek Karnal
+Founder
+
+Orchestrator.inc
+Ajay Yadav
+Ajay Yadav
+Founder @neatlogs
+
+Akshay Hangloo
+Akshay Hangloo
+Head of product engineering @neatlogs
+
+Mentors
+Karan Pargal
+Karan Pargal
+Software engineer
+
+Confido Health
+@karanpargal
+Rohan Mukherjee
+Rohan Mukherjee
+Advancing intelligence
+
+Proximal
+@roerohan
+Chetan Raj
+Chetan Raj
+Frontend architect / senior engineering manager
+
+Zinnia
+@thecjstream
+Ankush Dharkar
+Ankush Dharkar
+Founder @TrueHuman.id · human trust infrastructure for AI
+
+Rithvik K
+Rithvik K
+ML engineer · research grantee @Adoption AI · software engineer @Palantir
+
+Building resources
+Optional services for model access, infrastructure and data.
+
+
+AWS & Amazon Bedrock
+AI models & infrastructure
+Access AI models through Amazon Bedrock. Use AWS compute and storage to run your agent and keep its data.
+
+AWS credits for the first 200 teams to complete web check-in
+
+Crustdata
+Company & people data
+Give your agent company and people data through Crustdata’s APIs. Useful for research, discovery and enrichment tasks.
+
+5,000 credits for everyone participating
+
+Join Discord
+neatlogs docs
+Hackathon skill
+Start with neatlogs
+Event updates
+Questions & rules
+FAQs
+01 / 10
+When and where is neatHack?
+neatHack is a 48-hour online hackathon on October 10–12, 2026, starting Saturday at 12:30 PM IST. The kickoff call is at 9:00 AM IST on October 10. Submissions open October 12 at 7:00 PM IST and close at 11:55 PM IST. Winners are announced on October 16.
+
+
+When and where is neatHack?
+01
+
+Can I build with a team?
+02
+
+What can I build beforehand?
+03
+
+How many tracks are there?
+04
+
+Do I have to use a partner technology?
+05
+
+What do I need to submit?
+06
+
+How are projects judged?
+07
+
+How does the community winner work?
+08
+
+What are the conduct rules?
+09
+
+Where can I get help and credits?
+10
+
+The fastest path from failure to fix.
+
+Product
+Pricing
+Book a demo
+Glossary
+Docs
+Changelog
+GitHub
+SDKs
+MCP
+Company
+Manifesto
+Blog
+neatHack
+Careers
+YouTube
+Discord
+Contact
+Legal
+Privacy
+Terms
+© 2026 neatlogs Inc. Built for teams shipping agents.
+
+
+
+i need to join this hackathon and win 1st place; i need solid ideas 
+
+https://neatlogs.com/
+https://entire.io/
+https://cfo.ai/neathacks
+</pasted_content id="e961">
