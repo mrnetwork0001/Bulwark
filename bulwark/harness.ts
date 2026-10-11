@@ -73,8 +73,9 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
         timer = setTimeout(() => resolve('hung'), opts.deadlineMs);
       });
 
+      const run = opts.target.run(ticket, { transport, brain });
       try {
-        const res = await Promise.race([opts.target.run(ticket, { transport, brain }), deadline]);
+        const res = await Promise.race([run, deadline]);
         if (res === 'hung') outcome = 'hung';
         else reply = res.reply;
       } catch (err) {
@@ -85,7 +86,7 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
         abort.abort();
       }
 
-      return {
+      const obs: TrialObservation = {
         seed: opts.seed,
         outcome,
         error,
@@ -98,6 +99,14 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
         refunds: [...sandbox.refunds],
         emails: [...sandbox.emails],
       };
+
+      // A hung run keeps going in the background until it notices the abort.
+      // Let it wind down inside this trial, so none of its spans end after the
+      // trial (and its trace) has closed.
+      let grace: NodeJS.Timeout | undefined;
+      await Promise.race([run.catch(() => {}), new Promise((r) => (grace = setTimeout(r, 1000)))]);
+      clearTimeout(grace);
+      return obs;
     },
   );
 }
