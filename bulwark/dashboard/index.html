@@ -291,6 +291,7 @@
       Bulwark <span class="crumb">/</span> <span id="target">…</span>
     </a>
     <nav>
+      <div class="segment" id="tg" title="Which agent to attack (directories under targets/)"></div>
       <div class="segment" id="fx" title="Who writes the fixes">
         <span data-fixer="playbook">Playbook</span><span data-fixer="llm">Claude<em class="via">via 0G</em></span>
       </div>
@@ -415,6 +416,9 @@ const signedPct = (x) => (typeof x === 'number' && Number.isFinite(x) ? `${x >= 
 const arrow = (from, to) => `<span class="from">${from}</span><span class="to">→</span>${to}`;
 const ORDER_TOTAL = 49;
 let meta, totals, busy = false;
+// Which agent to attack: ?target=researchbot. The server only accepts directories under targets/.
+let TARGET = new URLSearchParams(location.search).get('target') || '';
+const tq = () => `target=${encodeURIComponent(meta?.target ?? TARGET)}`;
 
 /* Dollars at risk per 1,000 tickets across faults, weighted by trials (baseline excluded, like the reports). */
 function combinedRisk(results) {
@@ -448,7 +452,10 @@ function card(f) {
 function resetCards() { $('grid').replaceChildren(...meta.faults.map(card)); }
 
 async function load() {
-  meta = await (await fetch('/api/meta')).json();
+  meta = await (await fetch('/api/meta' + (TARGET ? `?target=${encodeURIComponent(TARGET)}` : ''))).json();
+  $('tg').innerHTML = (meta.targets ?? [meta.target])
+    .map((t) => `<span data-target="${esc(t)}" class="${t === meta.target ? 'on' : ''}" role="button" tabindex="0" style="cursor:pointer">${esc(t)}</span>`)
+    .join('');
   // Model tournaments need an LLM key; offer them only when the server has one.
   if (String(meta.fixer).startsWith('playbook')) document.querySelectorAll('#tournament option[data-llm]').forEach((o) => { o.disabled = true; o.textContent += ' · needs LLM key'; });
   $('target').textContent = meta.target;
@@ -528,7 +535,7 @@ function runChaos() {
   setResBar(null);
   setBusy(true);
   $('run').textContent = 'Attacking…';
-  const es = new EventSource(`/api/run?trials=${trials}&seed=${seed}`);
+  const es = new EventSource(`/api/run?trials=${trials}&seed=${seed}&${tq()}`);
   es.addEventListener('experiment-start', (e) => {
     const { fault, trials } = JSON.parse(e.data);
     const el = $('card-' + fault);
@@ -799,7 +806,7 @@ function runLoopUI() {
   setBusy(true);
   $('loop').scrollIntoView({ behavior: 'smooth', block: 'start' });
   const slo = $('slo').value, tournament = $('tournament').value;
-  const es = new EventSource(`/api/loop?trials=${trials}&seed=${seed}&memory=${memory}` +
+  const es = new EventSource(`/api/loop?trials=${trials}&seed=${seed}&memory=${memory}&${tq()}` +
     (slo ? `&slo=${encodeURIComponent(slo)}` : '') + (tournament ? `&tournament=${encodeURIComponent(tournament)}` : ''));
   es.addEventListener('loop', (m) => { const e = JSON.parse(m.data); handlers[e.type]?.(e); if (e.type === 'run-done') { es.close(); setBusy(false); } });
   es.addEventListener('loop-error', (m) => { tl(`<span class="bad">Error: ${esc(JSON.parse(m.data).message)}</span>`); es.close(); setBusy(false); });
@@ -845,7 +852,10 @@ function stepView(e) {
       cls = 'rp-bad';
       break;
     case 'effect':
-      what = e.effect === 'refund' ? `money moved: refund of <b>$${esc(e.data.amount)}</b> on ${esc(e.data.orderId)}` : `email sent to ${esc(e.data.to)}`;
+      what = e.effect === 'refund' ? `money moved: refund of <b>$${esc(e.data.amount)}</b> on ${esc(e.data.orderId)}`
+        : e.effect === 'email' ? `email sent to ${esc(e.data.to)}`
+        : e.effect === 'apiCall' ? `API call ${esc(e.data.endpoint)} → ${esc(e.data.status)}, <b>${esc(e.data.creditsUsed)} credits</b>`
+        : esc(e.effect);
       body = kv(esc(e.effect), e.data);
       break;
     case 'outcome':
@@ -876,7 +886,7 @@ async function openReplay(d) {
   const req = ++rp.req;
   if ($('replay').hidden) rp.opener = document.activeElement;
   rp.steps = [];
-  const q = new URLSearchParams({ fault: d.fault, seed: d.seed });
+  const q = new URLSearchParams({ fault: d.fault, seed: d.seed, target: meta.target });
   if (d.run && d.ws) { q.set('run', d.run); q.set('ws', d.ws); }
   $('rpTitle').innerHTML = `Seed ${esc(d.seed)} <code>${esc(d.fault)}</code>`;
   $('rpMeta').innerHTML = `<span class="badge">${d.ws ? 'patched code: ' + esc(d.ws) : 'original code'}</span><span class="badge">re-running this trial from its seed…</span>`;
@@ -898,7 +908,7 @@ async function openReplay(d) {
   }
   if (req !== rp.req) return;
   const o = r.observation;
-  const refunds = o.refunds.map((x) => '$' + x.amount).join(' + ');
+  const refunds = (o.refunds ?? []).map((x) => '$' + x.amount).join(' + ');
   $('rpMeta').innerHTML = [
     `<span class="badge"><span class="rp-out ${esc(o.outcome)}">${esc(OUTCOME_LABEL[o.outcome] ?? o.outcome)}</span></span>`,
     `<span class="badge">${esc(r.source)}</span>`,
@@ -946,6 +956,19 @@ document.addEventListener('keydown', (ev) => {
 
 $('run').addEventListener('click', runChaos);
 $('loopbtn').addEventListener('click', runLoopUI);
+// Target switch: reloads rules and fault cards for the chosen agent (not while a run is going).
+function pickTarget(ev) {
+  const s = ev.target.closest?.('[data-target]');
+  if (!s || busy || s.dataset.target === meta?.target) return;
+  if (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ') return;
+  TARGET = s.dataset.target;
+  history.replaceState(null, '', `?target=${encodeURIComponent(TARGET)}`);
+  $('loop').style.display = 'none';
+  load();
+}
+$('tg').addEventListener('click', pickTarget);
+$('tg').addEventListener('keydown', pickTarget);
+
 load();
 </script>
 </body>
