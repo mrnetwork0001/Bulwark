@@ -8,6 +8,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { target } from '../targets/refundbot/bulwark.target';
 import { FAULTS, getFault, type Fault } from './chaos/faults';
 import { runLoop } from './loop/orchestrator';
+import { replayFromParams } from './replay';
 import { runExperiment } from './scorecard';
 import { defaultModel, llmLabel, llmProvider } from './llm';
 import { initTracing } from './tracing';
@@ -133,6 +134,11 @@ async function main() {
       );
     } else if (url.pathname === '/api/loop') {
       streamLoop(res, url.searchParams);
+    } else if (url.pathname === '/api/replay') {
+      replayFromParams(url.searchParams).then(
+        (r) => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(r)),
+        (err) => res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) })),
+      );
     } else if (url.pathname === '/api/artifact') {
       serveArtifact(res, url.searchParams);
     } else if (url.pathname === '/badge.svg') {

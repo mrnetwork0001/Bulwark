@@ -72,5 +72,5 @@ All features ship, but the video and pitch lead with **1 + 2 + 3 + 5** (plus **4
 | 26 | **SLO-driven trial counts**: user sets a reliability target; Bulwark computes and runs the trials needed to prove it at 95% confidence | [ ] |
 | 27 | **Fix tournament**: two Blue agents (different models) compete; Judge picks by resilience, then overhead, then diff size | [ ] |
 | 28 | **Overhead-aware Judge**: reject fixes that add too much latency or cost, not only ones that fail | [ ] |
-| 29 | **Trial replay viewer**: step through a failing trial's tool calls from its seed in the dashboard | [ ] |
+| 29 | **Trial replay viewer**: step through a failing trial's tool calls from its seed in the dashboard | [x] Click any square on /app (Attack only, loop before/after; "after" replays the patched workspace). `/api/replay`, `npm run replay`. Deterministic timeline test in tests/replay.test.ts |
 | 30 | **Cost tracking + `npm run economics`**: real token/compute cost per run exported for the cfo.ai business plan | [ ] |

@@ -9,7 +9,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "dashboard": "tsx bulwark/server.ts",
-    "fix": "tsx bulwark/fix.ts"
+    "fix": "tsx bulwark/fix.ts",
+    "replay": "tsx bulwark/replay-cli.ts"
   },
   "engines": {
     "node": ">=20"

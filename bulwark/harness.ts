@@ -6,6 +6,7 @@ import { trace } from 'neatlogs';
 import type { Brain } from '../targets/refundbot/agent';
 import type { Email, Order, Refund } from '../targets/refundbot/payments';
 import { injectFault, type Fault } from './chaos/faults';
+import { TrialRecorder, type TrialEvent } from './recorder';
 import { mulberry32 } from './stats';
 import type { BrainMode, BulwarkTarget } from './target';
 import { untraced } from './tracing';
@@ -25,6 +26,8 @@ export interface TrialObservation {
   orders: Order[];
   refunds: Refund[];
   emails: Email[];
+  /** Ordered event timeline, only when the trial ran with `record: true`. */
+  timeline?: TrialEvent[];
 }
 
 export interface TrialOptions {
@@ -38,6 +41,8 @@ export interface TrialOptions {
   maxSteps: number;
   /** Export this trial's spans to neatlogs. Experiments trace a sample; the rest run quietly. */
   traced?: boolean;
+  /** Capture a step-by-step timeline for the replay viewer. Doesn't change results or randomness. */
+  record?: boolean;
 }
 
 class StepCapExceeded extends Error {}
@@ -46,8 +51,11 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
   const { orders, ticket } = opts.target.fixtures();
   const sandbox = opts.target.createSandbox(orders);
   const abort = new AbortController();
-  const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0 };
-  const transport = injectFault(opts.target.createTransport(sandbox, abort.signal), opts.fault, faultCtx);
+  const rec = opts.record ? new TrialRecorder() : undefined;
+  const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0, onEvent: rec?.fault };
+  const service = opts.target.createTransport(sandbox, abort.signal);
+  const injected = injectFault(rec ? rec.serviceSide(service, sandbox) : service, opts.fault, faultCtx);
+  const transport = rec ? rec.agentSide(injected) : injected;
 
   const inner: Brain = opts.target.createBrain(opts.brain, mulberry32(opts.seed ^ 0x9e3779b9));
   let steps = 0;
@@ -56,7 +64,10 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
     decide: async (ctx) => {
       if (abort.signal.aborted) throw new Error('aborted');
       if (++steps > opts.maxSteps) throw new StepCapExceeded(`exceeded ${opts.maxSteps} steps`);
-      return inner.decide(ctx);
+      if (!rec) return inner.decide(ctx);
+      const decision = await inner.decide(ctx);
+      rec.brain(steps, decision);
+      return decision;
     },
   };
 
@@ -96,6 +107,10 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
       refunds: [...sandbox.refunds],
       emails: [...sandbox.emails],
     };
+    if (rec) {
+      rec.outcome(obs);
+      obs.timeline = rec.events;
+    }
 
     // A hung run keeps going in the background until it notices the abort.
     // Let it wind down inside this trial, so none of its spans end after the
@@ -103,6 +118,7 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
     let grace: NodeJS.Timeout | undefined;
     await Promise.race([run.catch(() => {}), new Promise((r) => (grace = setTimeout(r, 1000)))]);
     clearTimeout(grace);
+    rec?.stop();
     return obs;
   };
 
