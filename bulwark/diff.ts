@@ -144,8 +144,24 @@ export function diffTimelines(before: TrialEvent[], after: TrialEvent[]): Timeli
   const counts: Record<DiffKind, number> = { same: 0, changed: 0, 'only-before': 0, 'only-after': 0 };
   for (const r of rows) counts[r.kind]++;
   const divergence = rows.findIndex((r) => r.kind !== 'same');
-  let pivot = rows.findIndex((r) => r.kind === 'only-before' || r.kind === 'only-after');
-  if (pivot === -1) pivot = rows.findIndex((r) => r.kind === 'changed' && ['effect', 'outcome'].includes(before[r.b!].type));
+  // The key difference, by business weight: a side effect that happens on one side only, then a side
+  // effect whose existing fields changed (not just gained one), then any event on one side only, then the outcome.
+  const isEffect = (r: DiffRow) => (r.b !== undefined ? before[r.b] : after[r.a!]).type === 'effect';
+  const oneSided = (r: DiffRow) => r.kind === 'only-before' || r.kind === 'only-after';
+  const altered = (r: DiffRow) => r.kind === 'changed' && !!r.changes?.some((c) => 'before' in c);
+  const pick = (...preds: ((r: DiffRow) => boolean)[]) => {
+    for (const p of preds) {
+      const k = rows.findIndex(p);
+      if (k !== -1) return k;
+    }
+    return -1;
+  };
+  const pivot = pick(
+    (r) => oneSided(r) && isEffect(r),
+    (r) => altered(r) && isEffect(r),
+    oneSided,
+    (r) => r.kind === 'changed' && before[r.b!].type === 'outcome',
+  );
   const diff: TimelineDiff = { rows, divergence, pivot, counts, explanation: '' };
   diff.explanation = explainDiff(diff, before, after);
   return diff;
@@ -205,9 +221,10 @@ function changePhrase(row: DiffRow, before: TrialEvent[], after: TrialEvent[]): 
   const removed = ch.filter((c) => !('after' in c));
   const altered = ch.filter((c) => 'before' in c && 'after' in c);
   const parts: string[] = [];
+  // Changed values first: "amount 5000 → 49" says more than a new key.
+  if (altered.length) parts.push(altered.map((c) => `${fieldName(c.path)} ${clip(c.before, 40)} → ${clip(c.after, 40)}`).join(', '));
   if (added.length) parts.push(`now carries ${added.map((c) => `${fieldName(c.path)}=${clip(c.after, 40)}`).join(', ')}`);
   if (removed.length) parts.push(`no longer has ${removed.map((c) => fieldName(c.path)).join(', ')}`);
-  if (altered.length) parts.push(altered.map((c) => `${fieldName(c.path)} ${clip(c.before, 40)} → ${clip(c.after, 40)}`).join(', '));
   const what = parts.join('; ');
   switch (b.type) {
     case 'call':
@@ -219,7 +236,7 @@ function changePhrase(row: DiffRow, before: TrialEvent[], after: TrialEvent[]): 
     case 'brain':
       return `the agent's ${b.decision.type === 'tool' ? `${b.decision.name} call` : 'reply'} ${what}`;
     case 'effect':
-      return `the ${effectPhrase(b)} ${what}`;
+      return `the ${effectPhrase(b)}: ${what}`;
     case 'outcome':
       return a.type === 'outcome' && a.outcome !== b.outcome ? `before, the run ended ${b.outcome}; after, it ended ${a.outcome}` : `the outcome ${what}`;
     default:
