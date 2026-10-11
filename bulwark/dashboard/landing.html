@@ -43,7 +43,19 @@
   .bubble.ink { background: #8a8a8f; color: #fff; }
   .bubble.mono { font-family: var(--font-mono); font-size: 12.5px; }
   .bubble.show { opacity: 1; transform: none; }
-  .bubble.fixed { text-decoration: line-through; text-decoration-color: rgba(0,0,0,.35); }
+  /* Always drifting, each on its own phase, so the hero never sits still. */
+  .bubble { animation: drift 5.5s ease-in-out infinite alternate; }
+  .bubble:nth-of-type(2) { animation-duration: 6.4s; animation-delay: -1.2s; }
+  .bubble:nth-of-type(3) { animation-duration: 5.1s; animation-delay: -2.6s; }
+  .bubble:nth-of-type(4) { animation-duration: 7s; animation-delay: -0.6s; }
+  .bubble:nth-of-type(5) { animation-duration: 6s; animation-delay: -3.3s; }
+  .bubble:nth-of-type(6) { animation-duration: 5.8s; animation-delay: -1.9s; }
+  @keyframes drift { from { translate: 0 0; } to { translate: 0 -9px; } }
+  /* The strike draws across like a pen stroke when Bulwark fixes the attack. */
+  .bubble::after { content: ""; position: absolute; left: 14px; right: 14px; top: 50%; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: left center; transition: transform .55s var(--ease-out); }
+  .bubble.fixed::after { transform: scaleX(1); }
+  .bubble.fixed { color: var(--fg-dim); }
+  .bubble.ink.fixed { color: rgba(255,255,255,.75); background: #a9a9ae; }
 
   .hero-copy { position: relative; z-index: 2; }
   .hero-copy { margin-top: 40px; }
@@ -532,14 +544,14 @@ function setDial(v) {
   num.textContent = Math.round(v);
 }
 const ease = (t) => 1 - Math.pow(1 - t, 3);
-function animate(from, to, ms, done) {
+function animate(from, to, ms, done, reveal = true) {
   const t0 = performance.now();
   const step = (now) => {
     // rAF timestamps can precede performance.now() at start, so clamp both ends.
     const t = Math.max(0, Math.min(1, (now - t0) / ms));
     const v = from + (to - from) * ease(t);
     setDial(v);
-    bubbles.forEach((b) => { if (v >= Number(b.dataset.at)) b.classList.add('show'); });
+    if (reveal) bubbles.forEach((b) => { if (v >= Number(b.dataset.at)) b.classList.add('show'); });
     t < 1 ? requestAnimationFrame(step) : done?.();
   };
   requestAnimationFrame(step);
@@ -547,13 +559,27 @@ function animate(from, to, ms, done) {
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (reduced) { setDial(100); phase.textContent = 'after Bulwark'; phase.classList.add('after'); bubbles.forEach((b) => b.classList.add('show', 'fixed')); }
 else {
+  // A continuous loop: under attack the agent holds 56%; Bulwark's verified fixes
+  // take it to 100% and strike out each attack; then the attacks return and it runs again.
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const run = (from, to, ms, reveal) => new Promise((r) => animate(from, to, ms, r, reveal));
   setDial(0);
-  // Before: the agent under attack holds 56%. Then Bulwark's verified fixes take it to 100%.
-  setTimeout(() => animate(0, 56, 1800, () => setTimeout(() => {
-    phase.textContent = 'after Bulwark'; phase.classList.add('after');
-    bubbles.forEach((b, i) => setTimeout(() => b.classList.add('fixed'), i * 140));
-    animate(56, 100, 1600);
-  }, 1300)), 400);
+  (async function cycle() {
+    while (true) {
+      phase.textContent = 'before'; phase.classList.remove('after');
+      await wait(400);
+      await run(0, 56, 1800, true);
+      await wait(1300);
+      phase.textContent = 'after Bulwark'; phase.classList.add('after');
+      bubbles.forEach((b, i) => setTimeout(() => b.classList.add('fixed'), i * 140));
+      await run(56, 100, 1600, false);
+      await wait(2800);
+      bubbles.forEach((b) => b.classList.remove('show'));
+      await wait(500);
+      bubbles.forEach((b) => b.classList.remove('fixed'));
+      await run(100, 0, 1100, false);
+    }
+  })();
 }
 
 // Fault cards from one real run (seed 42, 20 trials each): before → after.
