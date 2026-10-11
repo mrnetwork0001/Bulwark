@@ -29,6 +29,8 @@ export interface ExperimentOptions {
   brain: BrainMode;
   deadlineMs: number;
   maxSteps: number;
+  /** How many trials per experiment export full detail to neatlogs (default 2). */
+  traceSample?: number;
   /** Groups this experiment's trace into a neatlogs session (one per CLI/dashboard run). */
   sessionId?: string;
   /** Called as each trial finishes, for live views. */
@@ -71,6 +73,7 @@ export async function runExperiment(
             brain: opts.brain,
             deadlineMs: opts.deadlineMs,
             maxSteps: opts.maxSteps,
+            traced: i < (opts.traceSample ?? Number(process.env.BULWARK_TRACE_SAMPLE ?? 2)),
           });
           outcomes[obs.outcome]++;
           const broken: BrokenRule[] = [];
