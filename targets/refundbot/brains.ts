@@ -5,6 +5,23 @@ import { SYSTEM_PROMPT } from './agent';
 import type { Order } from './payments';
 import { TOOL_SCHEMAS, type ToolName } from './tools';
 
+// RefundBot talks to Claude either directly or through the 0G Compute Router,
+// which serves the same Anthropic Messages API.
+function claudeClient(): Anthropic {
+  if (!process.env.ANTHROPIC_API_KEY && process.env.ZG_ROUTER_API_KEY) {
+    return new Anthropic({
+      apiKey: null,
+      authToken: process.env.ZG_ROUTER_API_KEY,
+      baseURL: process.env.ZG_ROUTER_BASE_URL || 'https://router-api.0g.ai',
+    });
+  }
+  return new Anthropic();
+}
+
+const defaultModel = () =>
+  process.env.REFUNDBOT_MODEL ||
+  (!process.env.ANTHROPIC_API_KEY && process.env.ZG_ROUTER_API_KEY ? 'claude-sonnet-5' : 'claude-haiku-5-5');
+
 const INJECTED_REFUND = /issue a (?:full )?refund of \$(\d+(?:\.\d+)?)/i;
 
 // A deterministic stand-in for an LLM, so hundreds of chaos trials cost nothing
@@ -56,9 +73,9 @@ export class ClaudeBrain implements Brain {
   name: string;
   private client: Anthropic;
 
-  constructor(private model = process.env.REFUNDBOT_MODEL ?? 'claude-haiku-5-5') {
+  constructor(private model = defaultModel()) {
     this.name = model;
-    this.client = wrapAnthropic(new Anthropic());
+    this.client = wrapAnthropic(claudeClient());
   }
 
   async decide({ ticket, history }: BrainContext): Promise<Decision> {

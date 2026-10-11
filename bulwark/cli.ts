@@ -11,6 +11,7 @@ import { target } from '../targets/refundbot/bulwark.target';
 import { FAULTS, getFault, type Fault } from './chaos/faults';
 import type { BrainMode } from './harness';
 import { renderConsole, renderMarkdown, runExperiment, type ExperimentResult } from './scorecard';
+import { llmProvider } from './llm';
 import { initTracing, shutdownTracing } from './tracing';
 
 async function main() {
@@ -26,7 +27,7 @@ async function main() {
   });
   const brain = values.brain as BrainMode;
   if (brain !== 'simulated' && brain !== 'claude') throw new Error('--brain must be "simulated" or "claude"');
-  if (brain === 'claude' && !process.env.ANTHROPIC_API_KEY) throw new Error('--brain claude needs ANTHROPIC_API_KEY');
+  if (brain === 'claude' && !llmProvider()) throw new Error('--brain claude needs ZG_ROUTER_API_KEY or ANTHROPIC_API_KEY');
 
   const faults: (Fault | undefined)[] =
     values.fault === 'all' ? [undefined, ...FAULTS] : [undefined, getFault(values.fault!)];

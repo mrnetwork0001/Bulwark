@@ -1,9 +1,10 @@
 // Blue agent: proposes a patch for one fault. It never decides whether its own
 // patch works. That is the Judge's job.
 
-import Anthropic from '@anthropic-ai/sdk';
-import { trace, wrapAnthropic } from 'neatlogs';
+import type Anthropic from '@anthropic-ai/sdk';
+import { trace } from 'neatlogs';
 import type { Fault } from '../chaos/faults';
+import { createLlmClient, defaultModel, llmProvider } from '../llm';
 import type { Finding } from '../red/analyze';
 import type { ExperimentResult } from '../scorecard';
 import type { Files } from '../workspace';
@@ -94,9 +95,9 @@ export class ClaudeFixer implements Fixer {
   name: string;
   private client: Anthropic;
 
-  constructor(private model = process.env.BULWARK_MODEL ?? 'claude-sonnet-5-5') {
+  constructor(private model = defaultModel('fixer')) {
     this.name = model;
-    this.client = wrapAnthropic(new Anthropic());
+    this.client = createLlmClient();
   }
 
   async propose(ctx: FixContext): Promise<Proposal | null> {
@@ -146,7 +147,7 @@ export class AutoFixer implements Fixer {
   private playbook = new PlaybookFixer();
 
   constructor() {
-    if (process.env.ANTHROPIC_API_KEY) this.llm = new ClaudeFixer();
+    if (llmProvider()) this.llm = new ClaudeFixer();
     this.name = this.llm ? `${this.llm.name}+playbook` : 'playbook';
   }
 
@@ -167,7 +168,7 @@ export class AutoFixer implements Fixer {
 export function createFixer(kind: 'auto' | 'playbook' | 'claude'): Fixer {
   if (kind === 'playbook') return new PlaybookFixer();
   if (kind === 'claude') {
-    if (!process.env.ANTHROPIC_API_KEY) throw new Error('--fixer claude needs ANTHROPIC_API_KEY');
+    if (!llmProvider()) throw new Error('--fixer claude needs ZG_ROUTER_API_KEY or ANTHROPIC_API_KEY');
     return new ClaudeFixer();
   }
   return new AutoFixer();

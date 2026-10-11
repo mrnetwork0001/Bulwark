@@ -9,6 +9,7 @@ import { target } from '../targets/refundbot/bulwark.target';
 import { FAULTS, getFault, type Fault } from './chaos/faults';
 import { runLoop } from './loop/orchestrator';
 import { runExperiment } from './scorecard';
+import { defaultModel, llmLabel, llmProvider } from './llm';
 import { initTracing } from './tracing';
 
 const PORT = Number(process.env.PORT ?? 5317);
@@ -122,7 +123,7 @@ async function main() {
           target: target.name,
           rules: target.rules,
           neatlogs: exporting,
-          fixer: process.env.ANTHROPIC_API_KEY ? 'claude + playbook' : 'playbook (add ANTHROPIC_API_KEY for Claude)',
+          fixer: llmProvider() ? `${defaultModel('fixer')} via ${llmLabel()} + playbook` : 'playbook (add an LLM key for Claude)',
           faults: [
             { id: 'baseline', title: 'No fault injected', hypothesis: 'The agent works when nothing breaks.' },
             ...FAULTS.map(({ id, title, hypothesis }) => ({ id, title, hypothesis })),

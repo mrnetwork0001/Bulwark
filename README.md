@@ -29,7 +29,7 @@ npm test
 
 Offline result on RefundBot: **resilience 61% → 100%** in 7 attempts (3 rejected and rolled back). With memory, the next run takes 4 attempts and 0 rollbacks.
 
-Set `NEATLOGS_API_KEY` to export every experiment, trial, tool call and injected fault to neatlogs. Without it, everything still runs locally.
+Set `NEATLOGS_API_KEY` in `.env` to export every experiment, trial, tool call and injected fault to neatlogs. For Claude, set either `ZG_ROUTER_API_KEY` (0G Compute Router, which serves Claude over the Anthropic Messages API) or `ANTHROPIC_API_KEY`. Without keys, everything still runs locally with the playbook fixer and simulated LLM.
 
 ## What happens today
 
