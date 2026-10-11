@@ -5,6 +5,7 @@
 
 import { log } from 'neatlogs';
 import type { Transport } from '../target';
+import { gameDaysFor, REFUND_EXTRA, RESEARCH_EXTRA } from './extra';
 import { RESEARCH_FAULTS } from './research';
 import type { FaultSpec } from './spec';
 import { HttpError, sleep } from './util';
@@ -37,7 +38,13 @@ export type FaultKind =
   | 'server-error'
   | 'partial'
   | 'empty'
-  | 'novel';
+  | 'novel'
+  /** The data is out of date (a cached or lagging read), see chaos/extra.ts. */
+  | 'stale'
+  /** The provider silently routes the agent to a weaker model, see chaos/extra.ts. */
+  | 'degraded'
+  /** A game day: several faults active in the same trial, see chaos/gameday.ts. */
+  | 'cascade';
 
 /** Where a fault strikes: one of the target's endpoints on the wire, or 'ticket' (the conversation). */
 export type FaultTarget = string;
@@ -63,6 +70,18 @@ export interface Fault {
   rewriteTicket?: <T extends TicketLike>(ticket: T, ctx: FaultContext) => T;
   /** The declarative spec, for faults invented by generative Red (see chaos/spec.ts, red/generate.ts). */
   spec?: FaultSpec;
+  /**
+   * The world the trial starts from (e.g. an order already refunded through another channel).
+   * Applied to the target's fixtures before the sandbox is built. Must not draw from the rng.
+   */
+  rewriteFixtures?: <F extends Record<string, unknown>>(fixtures: F) => F;
+  /**
+   * Model degradation (endpoint 'brain'): the agent's brain is swapped for a weaker one. Simulated
+   * brains switch to their seeded "degraded" profile; LLM brains run on `model` instead.
+   */
+  degrade?: { model: string };
+  /** Game days (kind 'cascade', endpoint 'cascade'): every component is active in the same trial. */
+  components?: Fault[];
 }
 
 // Real injections vary their wording, so a filter that only catches
@@ -226,11 +245,46 @@ export function faultsFor(target?: TargetRef): Fault[] {
   const catalog = CATALOGS.get(name);
   if (!catalog) throw new Error(`no fault catalog for target "${name}". Known: ${[...CATALOGS.keys()].join(', ')}`);
   if (typeof target === 'object' && target.endpoints) {
-    const ok = new Set(endpointsOf(target));
-    const bad = catalog.find((f) => !ok.has(f.endpoint));
+    const ok = new Set([...endpointsOf(target), 'brain']);
+    const bad = catalog.flatMap((f) => f.components ?? [f]).find((f) => !ok.has(f.endpoint));
     if (bad) throw new Error(`fault "${bad.id}" names endpoint "${bad.endpoint}", which ${name} does not serve (${[...ok].join(', ')})`);
   }
   return catalog;
+}
+
+/**
+ * Opt-in fault packs, kept out of the default catalogs so the headline numbers stay put:
+ * `stale` (stale-data faults), `degrade` (model degradation) and `game-day` (composite faults;
+ * it also enables the packs its components come from, so each component exists on its own too).
+ */
+export type FaultPack = 'stale' | 'degrade' | 'game-day';
+export const FAULT_PACKS: FaultPack[] = ['stale', 'degrade', 'game-day'];
+
+const PACKS: Record<string, () => Record<FaultPack, Fault[]>> = {
+  refundbot: () => ({ stale: REFUND_EXTRA.filter((f) => f.kind === 'stale'), degrade: REFUND_EXTRA.filter((f) => f.kind === 'degraded'), 'game-day': gameDaysFor('refundbot', [...FAULTS, ...REFUND_EXTRA]) }),
+  researchbot: () => ({ stale: RESEARCH_EXTRA.filter((f) => f.kind === 'stale'), degrade: RESEARCH_EXTRA.filter((f) => f.kind === 'degraded'), 'game-day': gameDaysFor('researchbot', [...RESEARCH_FAULTS, ...RESEARCH_EXTRA]) }),
+};
+
+/** The faults in one pack for a target (empty if the target has none). */
+export function packFaults(pack: FaultPack, target?: TargetRef): Fault[] {
+  return PACKS[nameOf(target)]?.()[pack] ?? [];
+}
+
+/** Adds packs to a target's catalog (idempotent). Returns the faults that were added. */
+export function enablePacks(packs: FaultPack[], target?: TargetRef): Fault[] {
+  const want = new Set(packs);
+  for (const p of packs) if (!FAULT_PACKS.includes(p)) throw new Error(`unknown fault pack "${p}". Known: ${FAULT_PACKS.join(', ')}`);
+  if (want.has('game-day')) {
+    // A game day's components join the catalog as single faults too, so their own fixes come first.
+    const ids = new Set(packFaults('game-day', target).flatMap((g) => (g.components ?? []).map((c) => c.id)));
+    for (const p of ['stale', 'degrade'] as const) if (packFaults(p, target).some((f) => ids.has(f.id))) want.add(p);
+  }
+  const catalog = faultsFor(target);
+  const added = FAULT_PACKS.filter((p) => want.has(p))
+    .flatMap((p) => packFaults(p, target))
+    .filter((f) => !catalog.some((x) => x.id === f.id));
+  registerFaults(added, target);
+  return added;
 }
 
 /** Adds faults (e.g. generative Red's accepted specs) to a target's catalog, so every consumer sees them. */
@@ -245,13 +299,15 @@ export function registerFaults(faults: Fault[], target?: TargetRef): Fault[] {
 
 export function getFault(id: string, target?: TargetRef): Fault {
   const catalog = faultsFor(target);
-  const fault = catalog.find((f) => f.id === id);
+  // Pack faults resolve even when their pack isn't enabled, so any recorded trial can be replayed.
+  const fault = catalog.find((f) => f.id === id) ?? FAULT_PACKS.flatMap((p) => packFaults(p, target)).find((f) => f.id === id);
   if (!fault) throw new Error(`unknown fault "${id}" for ${nameOf(target)}. Known: ${catalog.map((f) => f.id).join(', ')}`);
   return fault;
 }
 
 /** Applies a ticket-level fault to the trial's ticket. Other faults leave it (and the rng) untouched. */
 export function injectTicket<T extends TicketLike>(ticket: T, fault: Fault | undefined, ctx: FaultContext): T {
+  if (fault?.components) return fault.components.reduce((t, c) => injectTicket(t, c, ctx), ticket);
   if (!fault || fault.endpoint !== 'ticket' || !fault.rewriteTicket) return ticket;
   if (ctx.rng() >= fault.rate) return ticket;
   ctx.fired++;
@@ -260,7 +316,10 @@ export function injectTicket<T extends TicketLike>(ticket: T, fault: Fault | und
 }
 
 export function injectFault<T extends Transport<any>>(transport: T, fault: Fault | undefined, ctx: FaultContext): T {
-  if (!fault || fault.endpoint === 'ticket') return transport;
+  // A game day stacks its components on the wire: the first listed is outermost (closest to the agent).
+  // Each gets its own context (shared rng and fired count), so per-trial fault state never collides.
+  if (fault?.components) return fault.components.reduceRight((t, c) => injectFault(t, c, childContext(ctx)), transport);
+  if (!fault || fault.endpoint === 'ticket' || fault.endpoint === 'brain') return transport;
   const trialHit = fault.scope === 'trial' ? ctx.rng() < fault.rate : true;
   const injected: Transport = async (endpoint, payload) => {
     const next = (p: Record<string, unknown> = payload) => transport(endpoint, p);
@@ -272,4 +331,33 @@ export function injectFault<T extends Transport<any>>(transport: T, fault: Fault
     return fault.inject(next, ctx, payload);
   };
   return injected as T;
+}
+
+/** A component's own view of the trial's fault context: same rng, signal and observer; `fired` adds up on the parent. */
+function childContext(ctx: FaultContext): FaultContext {
+  return {
+    rng: ctx.rng,
+    signal: ctx.signal,
+    onEvent: ctx.onEvent,
+    get fired() {
+      return ctx.fired;
+    },
+    set fired(n: number) {
+      ctx.fired = n;
+    },
+  };
+}
+
+/** The fixtures a trial starts from under this fault (a game day applies each component's). Draws no randomness. */
+export function injectFixtures<F extends Record<string, unknown>>(fixtures: F, fault: Fault | undefined, ctx: FaultContext): F {
+  if (fault?.components) return fault.components.reduce((f, c) => injectFixtures(f, c, ctx), fixtures);
+  if (!fault?.rewriteFixtures) return fixtures;
+  ctx.fired++;
+  log('chaos: {fault} rewrites the world the trial starts from', { fault: fault.id, level: 'warn' });
+  return fault.rewriteFixtures(fixtures);
+}
+
+/** The brain degradation this fault (or one of a game day's components) applies, if any. */
+export function degradationOf(fault: Fault | undefined): Fault['degrade'] | undefined {
+  return fault?.degrade ?? fault?.components?.find((c) => c.degrade)?.degrade;
 }

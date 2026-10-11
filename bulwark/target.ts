@@ -42,6 +42,8 @@ export interface BrainOptions {
   model?: string;
   /** Called after every LLM call, so Bulwark can price the run. */
   onUsage?: (u: BrainUsage) => void;
+  /** Model degradation fault: a simulated brain uses its seeded degraded profile (LLM brains get a cheaper `model`). */
+  degraded?: boolean;
 }
 
 /** What one failure costs the business, used to price failures as "dollars at risk". */

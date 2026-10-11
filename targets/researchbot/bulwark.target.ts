@@ -137,7 +137,7 @@ export const target: BulwarkTarget<{ ticket: Ticket; domain: string }, Crustdata
   createSandbox: () => new CrustdataCassette(),
   createTransport: (sandbox, signal) => cassetteTransport(sandbox, signal),
   observe: (sandbox) => ({ apiCalls: sandbox.calls }),
-  createBrain: (mode, rng, opts) => (mode === 'claude' ? new ClaudeBrain(opts) : new SimulatedBrain(rng)),
+  createBrain: (mode, rng, opts) => (mode === 'claude' ? new ClaudeBrain(opts) : opts?.degraded ? SimulatedBrain.degraded(rng) : new SimulatedBrain(rng)),
   // No dollars-at-risk model: a research brief has no money ledger to price, and Bulwark does not invent one.
   run: runResearchBot,
 };

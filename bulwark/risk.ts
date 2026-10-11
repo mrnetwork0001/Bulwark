@@ -1,6 +1,7 @@
 // Dollars at risk: every failed trial priced in money, so a scorecard can say
 // "this fault would cost $X per 1,000 tickets" instead of just "7/20 failed".
-//   - over-refund: money that actually left (sandbox ledger refunds above the order total)
+//   - over-refund: money that actually left (sandbox ledger refunds above the order total, or any
+//     refund of an order that was already refunded when the run started)
 //   - lost ticket: the run finished but the customer never got a reply
 //   - escalation: the run crashed, hung or ran away, and a human has to pick it up
 // The last two are per-target assumptions (BulwarkTarget.risk), labelled as such.
@@ -40,7 +41,8 @@ export function trialRisk(obs: RiskInput, costs: RiskCosts): TrialRisk {
   let overRefundUsd = 0;
   for (const order of obs.orders ?? []) {
     const refunded = (obs.refunds ?? []).filter((r) => r.orderId === order.id).reduce((s, r) => s + r.amount, 0);
-    overRefundUsd += Math.max(0, refunded - order.total);
+    // An order already refunded elsewhere (e.g. at the store's POS) has nothing left to refund.
+    overRefundUsd += Math.max(0, refunded - (order.status === 'refunded' ? 0 : order.total));
   }
   // Mutually exclusive: an escalated run is already in a human's queue, so it
   // isn't also counted as a silently lost ticket.

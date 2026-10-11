@@ -37,18 +37,54 @@ const GUESSED_PEOPLE = [
 // missing it guesses one with probability `guessField`, and when the people
 // search comes back empty it invents plausible leaders with probability
 // `inventPeople` (as real models do when asked for "2-3 key people").
+//
+// `SimulatedBrain.degraded()` is the same brain after the provider silently swaps in
+// a weaker model: it guesses and invents more, and is sloppy in seeded, replayable
+// ways (skips the people search, rounds the headcount, answers in prose).
+export interface Sloppiness {
+  /** P(it skips search_people and names leaders from memory). */
+  skipSearch: number;
+  /** P(it rounds the headcount to the nearest hundred: "about 400"). */
+  roundNumbers: number;
+  /** P(it answers in prose instead of the JSON brief). */
+  prose: number;
+}
+
+export const DEGRADED_SLOPPINESS: Sloppiness = { skipSearch: 0.3, roundNumbers: 0.3, prose: 0.2 };
+
 export class SimulatedBrain implements Brain {
   name = 'simulated-llm';
+  private slips?: { skipSearch: boolean; roundNumbers: boolean; prose: boolean };
 
   constructor(
     private rng: () => number,
     private guessField = 0.6,
     private inventPeople = 0.7,
+    private sloppiness?: Sloppiness,
   ) {}
+
+  /** The weaker model a degraded provider routes to, deterministically from the seed. */
+  static degraded(rng: () => number): SimulatedBrain {
+    const b = new SimulatedBrain(rng, 0.95, 0.95, DEGRADED_SLOPPINESS);
+    b.name = 'simulated-llm-degraded';
+    return b;
+  }
+
+  /** Which slips this run makes, decided once. A healthy brain never draws the rng for this. */
+  private slipsFor() {
+    if (!this.slips) {
+      const s = this.sloppiness;
+      this.slips = s
+        ? { skipSearch: this.rng() < s.skipSearch, roundNumbers: this.rng() < s.roundNumbers, prose: this.rng() < s.prose }
+        : { skipSearch: false, roundNumbers: false, prose: false };
+    }
+    return this.slips;
+  }
 
   async decide({ ticket, history }: BrainContext): Promise<Decision> {
     const last = (tool: ToolName) => history.filter((s) => s.tool === tool).at(-1);
     const domain = ticket.message.match(DOMAIN)?.[1] ?? '';
+    const slips = this.slipsFor();
 
     const enriched = last('enrich_company');
     if (!enriched) return { type: 'tool', name: 'enrich_company', input: { domain } };
@@ -58,11 +94,12 @@ export class SimulatedBrain implements Brain {
     }
 
     const searched = last('search_people');
-    if (!searched) return { type: 'tool', name: 'search_people', input: { domain, limit: 3 } };
-    const found = Array.isArray(searched.output) ? (searched.output as PersonFacts[]) : [];
+    if (!searched && !slips.skipSearch) return { type: 'tool', name: 'search_people', input: { domain, limit: 3 } };
+    const found = Array.isArray(searched?.output) ? (searched!.output as PersonFacts[]) : [];
 
     // The rng is only drawn when something is missing, so a clean run never consumes it.
-    const headcount = company.headcount ?? (this.rng() < this.guessField ? GUESSED_HEADCOUNT : null);
+    let headcount = company.headcount ?? (this.rng() < this.guessField ? GUESSED_HEADCOUNT : null);
+    if (slips.roundNumbers && typeof headcount === 'number') headcount = Math.round(headcount / 100) * 100 || 100;
     const people = found.length
       ? found.slice(0, 3).map(({ name, title }) => ({ name, title }))
       : this.rng() < this.inventPeople
@@ -77,6 +114,10 @@ export class SimulatedBrain implements Brain {
       fundingUsd: company.fundingUsd ?? null,
       people,
     };
+    if (slips.prose) {
+      const who = people.map((p) => `${p.name} (${p.title})`).join(', ') || 'no leaders listed';
+      return { type: 'final', reply: `${company.name} (${brief.domain}) has about ${headcount ?? 'an unknown number of'} employees. Key people: ${who}.` };
+    }
     return { type: 'final', reply: JSON.stringify(brief) };
   }
 }

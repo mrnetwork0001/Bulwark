@@ -3,7 +3,7 @@
 // from the target's sandbox ledger rather than from the agent's own claims.
 
 import { trace } from 'neatlogs';
-import { injectFault, injectTicket, type Fault } from './chaos/faults';
+import { degradationOf, injectFault, injectFixtures, injectTicket, type Fault } from './chaos/faults';
 import { TrialRecorder, type TrialEvent } from './recorder';
 import { countTrial, recordLlmCall } from './cost/meter';
 import { mulberry32 } from './stats';
@@ -78,12 +78,13 @@ export interface TrialOptions {
 class StepCapExceeded extends Error {}
 
 export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
-  const fixtures = opts.target.fixtures();
-  const sandbox = opts.target.createSandbox(fixtures);
-  const observe = () => opts.target.observe(sandbox);
   const abort = new AbortController();
   const rec = opts.record ? new TrialRecorder() : undefined;
   const faultCtx = { rng: mulberry32(opts.seed), signal: abort.signal, fired: 0, onEvent: rec?.fault };
+  // Some faults change the world the trial starts from (e.g. an order already refunded elsewhere).
+  const fixtures = injectFixtures(opts.target.fixtures(), opts.fault, faultCtx);
+  const sandbox = opts.target.createSandbox(fixtures);
+  const observe = () => opts.target.observe(sandbox);
   // Social-engineering faults attack through the conversation: they rewrite the ticket, not the wire.
   const ticket = injectTicket(fixtures.ticket, opts.fault, faultCtx);
   const service = opts.target.createTransport(sandbox, abort.signal);
@@ -91,8 +92,12 @@ export async function runTrial(opts: TrialOptions): Promise<TrialObservation> {
   const transport = rec ? rec.agentSide(injected) : injected;
 
   // Every LLM call the target makes is priced on the current run's cost meter.
+  // Model degradation swaps the brain: a simulated brain's seeded degraded profile, or a cheaper LLM.
+  const degrade = degradationOf(opts.fault);
+  if (degrade) faultCtx.fired++;
   const inner: Brain = opts.target.createBrain(opts.brain, mulberry32(opts.seed ^ 0x9e3779b9), {
-    model: opts.model,
+    model: degrade && opts.brain !== 'simulated' ? degrade.model : opts.model,
+    ...(degrade ? { degraded: true } : {}),
     onUsage: (u) => recordLlmCall({ role: 'agent', ...u }),
   });
   countTrial();

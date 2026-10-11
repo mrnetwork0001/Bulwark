@@ -9,6 +9,8 @@ export interface Order {
   total: number;
   currency: string;
   status: 'paid' | 'pending' | 'refunded';
+  /** Set when the order was refunded outside this agent (e.g. at the store's POS). */
+  refundedVia?: string;
 }
 
 export interface Refund {

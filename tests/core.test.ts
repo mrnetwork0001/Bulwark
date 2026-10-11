@@ -19,7 +19,7 @@ test('wilson interval matches known values at the extremes', () => {
 });
 
 test('every RefundBot rule compiles; unknown rules are reported, not skipped', () => {
-  assert.equal(compileRules(target.rules).uncompiled.length, 0);
+  assert.equal(compileRules(target.rules, target.checks).uncompiled.length, 0);
   const { uncompiled } = compileRules(['Always be polite.']);
   assert.deepEqual(uncompiled, ['Always be polite.']);
 });
