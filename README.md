@@ -13,6 +13,9 @@ npm run fix                         # the full loop: attack → fix → verify �
 npm run fix -- --no-memory          # ignore past runs (shows the rejected fixes and rollbacks)
 npm run fix -- --apply              # commit verified fixes to a bulwark/fix-* branch (worktree; main untouched)
 npm run fix -- --pr                 # …and open a PR with the report (needs a GitHub remote + gh)
+npm run fix -- --slo 0.99            # Judge runs the 299 zero-failure trials that demonstrate 99% (exact Clopper-Pearson, 95% confidence)
+npm run fix -- --max-latency-overhead 50% --max-step-overhead 2   # reject fixes that cost too much on the happy path (--overhead-policy flag to accept them flagged)
+npm run fix -- --tournament claude-sonnet-5,deepseek-v4-flash      # fix tournament; offline: --tournament playbook,playbook-strong
 npm run chaos                       # attack only: all faults, 20 trials each
 npm test
 ```

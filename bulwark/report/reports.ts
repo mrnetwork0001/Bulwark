@@ -3,6 +3,9 @@
 
 import type { MutationCheck } from '../guard';
 import type { Verdict } from '../judge/judge';
+import { describeOverhead } from '../judge/overhead';
+import { describeSlo } from '../judge/slo';
+import type { TournamentResult } from '../judge/tournament';
 import type { Finding } from '../red/analyze';
 import type { ExperimentResult } from '../scorecard';
 
@@ -14,8 +17,14 @@ export interface AttemptRecord {
   author: string;
   diff: string;
   checkpoint: string;
-  verdict: Pick<Verdict, 'status' | 'reasons' | 'pValue'> & { afterPassed: number; trials: number };
+  verdict: Pick<Verdict, 'status' | 'reasons' | 'pValue' | 'slo' | 'overhead'> & { afterPassed: number; trials: number };
+  /** Set when this attempt was one candidate in a fix tournament. */
+  tournament?: { round: number; rank: number; outcome: 'winner' | 'loser' | 'no-winner'; reason: string };
 }
+
+/** The attempt that was applied: verdict fixed, and not a tournament loser. */
+export const appliedAttempt = (rec: Pick<FaultRecord, 'attempts'>) =>
+  rec.attempts.find((a) => a.verdict.status === 'fixed' && a.tournament?.outcome !== 'loser');
 
 export interface FaultRecord {
   fault: string;
@@ -27,6 +36,8 @@ export interface FaultRecord {
   before?: ExperimentResult;
   attempts: AttemptRecord[];
   mutation?: Pick<MutationCheck, 'ok'> & { unfixedPassed: number; fixedPassed: number; trials: number };
+  /** One entry per tournament round, when --tournament was used. */
+  tournament?: TournamentResult[];
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -37,7 +48,7 @@ const brokenRules = (r: ExperimentResult) =>
     .join('; ') || 'none';
 
 export function postmortem(rec: FaultRecord, runId: string): string {
-  const winner = rec.attempts.find((a) => a.verdict.status === 'fixed');
+  const winner = appliedAttempt(rec);
   const lines = [
     `# Postmortem: ${rec.fault}`,
     '',
@@ -64,17 +75,51 @@ export function postmortem(rec: FaultRecord, runId: string): string {
     for (const a of rec.attempts) {
       const icon = a.verdict.status === 'fixed' ? '✅' : a.verdict.status === 'inconclusive' ? '❔' : '❌';
       lines.push(
-        `### ${icon} Attempt ${a.n}: ${a.title} (\`${a.strategy}\`, by ${a.author})`,
+        `### ${icon} Attempt ${a.n}: ${a.title} (\`${a.strategy}\`, by ${a.author}${a.tournament ? `, tournament round ${a.tournament.round}` : ''})`,
         a.rationale,
         '',
-        `Checkpoint before attempt: \`${a.checkpoint}\`. Judge: **${a.verdict.status}**. ${a.verdict.reasons.join(' ')}`,
-        a.verdict.status === 'fixed' ? '' : `Rolled back to \`${a.checkpoint}\`.`,
+        `Checkpoint before attempt: \`${a.checkpoint}\`. Judge: **${a.verdict.status}**. ${a.verdict.reasons.join('; ')}.`,
+        ...(a.verdict.overhead ? [`Overhead: ${describeOverhead(a.verdict.overhead)}.`] : []),
+        a.tournament
+          ? a.tournament.outcome === 'winner'
+            ? `🏆 Tournament winner: ${a.tournament.reason}.`
+            : `Not applied (rank ${a.tournament.rank}): ${a.tournament.reason}.`
+          : a.verdict.status === 'fixed'
+            ? ''
+            : `Rolled back to \`${a.checkpoint}\`.`,
+        '',
+      );
+    }
+  }
+  if (rec.tournament?.length) {
+    lines.push('## Fix tournament', '');
+    for (const t of rec.tournament) {
+      lines.push(
+        `Round ${t.round}: ${t.entrants.join(' vs ')} → ${t.winner ? `**${t.winner}** wins` : 'no winner, all candidates rolled back'}`,
+        '',
+        '| Rank | Entrant | Strategy | Verdict | SLO | Happy-path overhead | Diff | Outcome |',
+        '|---|---|---|---|---|---|---|---|',
+        ...t.ranking.map(
+          (c) =>
+            `| ${c.rank} | ${c.entrant} | ${c.strategy ?? '—'} | ${c.status} | ${c.sloDemonstrated === undefined ? '—' : c.sloDemonstrated ? 'demonstrated' : 'not demonstrated'} | ${c.overhead ? `steps ${c.overhead.after.avgSteps.toFixed(1)}, p50 ${Math.round(c.overhead.after.p50Ms)}ms${c.overhead.after.costPerRunUsd !== undefined ? `, $${c.overhead.after.costPerRunUsd.toFixed(4)}/run` : ''}` : '—'} | ${c.diffSize} | ${c.outcome}: ${c.reason} |`,
+        ),
         '',
       );
     }
   }
   if (winner) {
     lines.push('## Root cause and fix', winner.rationale, '', '```diff', winner.diff.trimEnd(), '```', '');
+    if (winner.verdict.slo) lines.push('## Reliability target', `${describeSlo(winner.verdict.slo)}. Method: ${winner.verdict.slo.method}.`, '');
+    if (winner.verdict.overhead) {
+      const o = winner.verdict.overhead;
+      lines.push(
+        '## Overhead',
+        `Compared with the unpatched code on the no-fault baseline (${o.after.runs} runs): ${describeOverhead(o)}.`,
+        ...(o.underFault ? [`Under ${rec.fault} (informational, not budgeted): p50 ${Math.round(o.underFault.before.p50Ms)}→${Math.round(o.underFault.after.p50Ms)}ms, avg steps ${o.underFault.before.avgSteps.toFixed(1)}→${o.underFault.after.avgSteps.toFixed(1)}.`] : []),
+        o.withinBudget ? '' : `⚠️ Fixed with overhead: ${o.exceeded.join('; ')}.`,
+        '',
+      );
+    }
   }
   if (rec.mutation) {
     const m = rec.mutation;
@@ -114,12 +159,18 @@ export function prBody(args: {
     '',
     '### Fixes',
     ...fixed.map((r) => {
-      const w = r.attempts.find((a) => a.verdict.status === 'fixed')!;
-      const tries = r.attempts.length > 1 ? ` (attempt ${w.n}; ${r.attempts.length - 1} rejected and rolled back first)` : '';
-      return `- **${r.fault}**: ${w.title}${tries}. ${w.verdict.reasons.join(' ')}`;
+      const w = appliedAttempt(r)!;
+      const tries = r.tournament?.length
+        ? ` (tournament: ${w.author} beat ${r.tournament.at(-1)!.ranking.filter((c) => c.outcome === 'loser').map((c) => `${c.entrant}, ${c.reason}`).join('; ') || 'no other entrant'})`
+        : r.attempts.length > 1
+          ? ` (attempt ${w.n}; ${r.attempts.length - 1} rejected and rolled back first)`
+          : '';
+      const overhead = w.verdict.overhead ? ` Overhead: ${describeOverhead(w.verdict.overhead)}${w.verdict.overhead.withinBudget ? '' : ` ⚠️ fixed with overhead (${w.verdict.overhead.exceeded.join('; ')})`}.` : '';
+      return `- **${r.fault}**: ${w.title}${tries}. ${w.verdict.reasons.join('; ')}.${overhead}`;
     }),
     ...args.records.filter((r) => r.status === 'skipped').map((r) => `- **${r.fault}**: no change needed (${r.skipReason})`),
     '',
+    ...sloSection(args.records),
     '### Remaining risk',
     ...(args.residual.length
       ? args.residual.map((f) => `- \`${f.file}:${f.line}\` ${f.why}. Every attack now passes, but the weak link is still in the code.`)
@@ -140,6 +191,16 @@ export function prBody(args: {
     '_A human reviews and merges. Bulwark never pushes to main._',
     '',
   ].join('\n');
+}
+
+function sloSection(records: FaultRecord[]): string[] {
+  const rows = records.flatMap((r) => {
+    const a = appliedAttempt(r) ?? r.attempts.at(-1);
+    return a?.verdict.slo ? [`- **${r.fault}**: ${describeSlo(a.verdict.slo)}.`] : [];
+  });
+  if (!rows.length) return [];
+  const method = records.flatMap((r) => r.attempts).find((a) => a.verdict.slo)!.verdict.slo!.method;
+  return ['### Reliability targets (SLO)', ...rows, `_Method: ${method}. "Demonstrated" means every planned trial passed; nothing stronger is claimed._`, ''];
 }
 
 export function badgeSvg(passRate: number): string {

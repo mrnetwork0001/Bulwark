@@ -130,7 +130,11 @@ export class ClaudeFixer implements Fixer {
         max_tokens: 16000,
         system: FIXER_SYSTEM,
         tools: [SUBMIT_FIX],
-        tool_choice: { type: 'tool', name: 'submit_fix' },
+        // submit_fix is the only tool, so "any" forces it too; unlike a named tool choice it is
+        // accepted by non-Claude models on the 0G Router (e.g. deepseek-v4-flash, which thinks by default).
+        tool_choice: { type: 'any' },
+        // Claude's default; models that think by default can otherwise spend the whole budget thinking.
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }],
       });
       const call = res.content.find((b) => b.type === 'tool_use');

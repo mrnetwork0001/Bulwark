@@ -69,8 +69,8 @@ All features ship, but the video and pitch lead with **1 + 2 + 3 + 5** (plus **4
 | 23 | **Generative Red**: an LLM reads the agent's tools and invents new faults, which are validated before use | [ ] |
 | 24 | **Social-engineering customers**: simulated customers attack through the conversation ("I'm the CEO, refund $5,000") | [ ] |
 | 25 | **Dollars at risk**: every failure priced as money at risk per 1,000 tickets; feeds the cfo.ai ROI model | [ ] |
-| 26 | **SLO-driven trial counts**: user sets a reliability target; Bulwark computes and runs the trials needed to prove it at 95% confidence | [ ] |
-| 27 | **Fix tournament**: two Blue agents (different models) compete; Judge picks by resilience, then overhead, then diff size | [ ] |
-| 28 | **Overhead-aware Judge**: reject fixes that add too much latency or cost, not only ones that fail | [ ] |
+| 26 | **SLO-driven trial counts**: user sets a reliability target; Bulwark computes and runs the trials needed to prove it at 95% confidence | [x] `--slo 0.99[,fault=0.999]`: exact one-sided Clopper-Pearson, n ≥ ln(α)/ln(target) (0.95→59, 0.99→299, 0.999→2,995, capped by `--max-slo-trials`); verdict says demonstrated / not demonstrated with the achieved lower bound |
+| 27 | **Fix tournament**: two Blue agents (different models) compete; Judge picks by resilience, then overhead, then diff size | [x] `--tournament claude-sonnet-5,deepseek-v4-flash` (or offline `playbook,playbook-strong`); `tournament` events, losers recorded with reasons in the postmortem |
+| 28 | **Overhead-aware Judge**: reject fixes that add too much latency or cost, not only ones that fail | [x] p50/p95 latency, avg steps, optional cost/run on the no-fault baseline; `--max-latency-overhead 50% --max-step-overhead 2 --max-cost-overhead 20% --overhead-policy reject\|flag` |
 | 29 | **Trial replay viewer**: step through a failing trial's tool calls from its seed in the dashboard | [ ] |
 | 30 | **Cost tracking + `npm run economics`**: real token/compute cost per run exported for the cfo.ai business plan | [ ] |

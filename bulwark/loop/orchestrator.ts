@@ -7,11 +7,14 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { trace } from 'neatlogs';
-import { createFixer, type FailedAttempt } from '../blue/fixer';
+import { createFixer, type FailedAttempt, type Fixer } from '../blue/fixer';
 import { FAULTS, getFault, type Fault } from '../chaos/faults';
 import { CheckpointStore } from '../checkpoints';
 import { mutationCheck, withSpec, type ChaosSpec } from '../guard';
-import { judge, runAll, type Regression, type VerdictStatus } from '../judge/judge';
+import { judge, runAll, type Regression, type Verdict, type VerdictStatus } from '../judge/judge';
+import type { Overhead, OverheadBudgets } from '../judge/overhead';
+import { planSlo, type SloPlan, type SloResult, type SloSpec } from '../judge/slo';
+import { createEntrant, proposeAll, rankContenders, tournamentName, type Entry, type TournamentResult } from '../judge/tournament';
 import { StrategyMemory } from '../memory';
 import { compileRules } from '../invariants';
 import { analyzeTarget, type Finding } from '../red/analyze';
@@ -33,6 +36,12 @@ export interface LoopOptions {
   deadlineMs: number;
   maxSteps: number;
   stateDir: string;
+  /** Reliability targets; the Judge runs exactly enough after-fix trials to demonstrate each one. */
+  slo?: SloSpec;
+  /** Overhead budgets for fixes (overhead is always measured and reported). */
+  budgets?: OverheadBudgets;
+  /** Fix tournament entrants (models, `playbook`, `playbook-strong`); replaces the single fixer. */
+  tournament?: string[];
 }
 
 export const DEFAULT_LOOP: Omit<LoopOptions, 'targetDir'> = {
@@ -56,8 +65,10 @@ export type LoopEvent =
   | { type: 'fault-start'; fault: string; title: string; hypothesis: string }
   | { type: 'fault-skip'; fault: string; reason: string }
   | { type: 'checkpoint'; action: 'save' | 'restore'; id: string; label: string }
-  | { type: 'attempt'; fault: string; n: number; strategy: string; title: string; rationale: string; author: string; diff: string; added: number; removed: number }
-  | { type: 'verdict'; fault: string; n: number; status: VerdictStatus; reasons: string[]; pValue: number; afterPassed: number; trials: number; regressions: Regression[] }
+  | { type: 'slo-plan'; plans: SloPlan[]; confidence: number; method: string }
+  | { type: 'attempt'; fault: string; n: number; strategy: string; title: string; rationale: string; author: string; diff: string; added: number; removed: number; round?: number }
+  | { type: 'verdict'; fault: string; n: number; status: VerdictStatus; reasons: string[]; pValue: number; afterPassed: number; trials: number; regressions: Regression[]; slo?: SloResult; overhead?: Overhead; author?: string; round?: number }
+  | ({ type: 'tournament' } & TournamentResult)
   | { type: 'mutation'; fault: string; ok: boolean; unfixedPassed: number; fixedPassed: number; trials: number }
   | { type: 'fault-done'; fault: string; status: FaultRecord['status']; attempts: number }
   | { type: 'residual'; findings: Finding[] }
@@ -90,7 +101,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
   const ws = new Workspace(join(dir, 'ws'), o.targetDir);
   const checkpoints = new CheckpointStore(join(dir, 'checkpoints'));
   const memory = new StrategyMemory(join(o.stateDir, 'memory.json'));
-  const fixer = createFixer(o.fixer);
+  // A tournament replaces the single fixer with several entrants; validate them up front.
+  const entrants: Fixer[] | undefined = o.tournament?.map(createEntrant);
+  const fixer: Fixer = entrants ? { name: tournamentName(o.tournament!), propose: async () => null } : createFixer(o.fixer);
   const targetRel = relative(process.cwd(), resolve(o.targetDir));
 
   // Each phase is its own root trace, grouped into one neatlogs session per run,
@@ -103,7 +116,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
     const originalFiles = readFiles(o.targetDir, original.editableFiles);
     const scope: Fault[] = o.faults === 'all' ? FAULTS : o.faults.map(getFault);
     const rules = compileRules(original.rules).compiled.map(({ rule, how }) => ({ rule, how }));
+    const sloPlans = planSlo(o.slo, scope.map((f) => f.id));
     emit({ type: 'run-start', runId, target: original.name, fixer: fixer.name, faults: scope.map((f) => f.id), redTrials: o.redTrials, judgeTrials: o.judgeTrials });
+    if (o.slo && sloPlans.length) emit({ type: 'slo-plan', plans: sloPlans, confidence: o.slo.confidence, method: sloPlans[0].method });
 
     // Red: find weak links, then measure the damage.
     const findings = await phase('1 red: analyze code', {}, async () => analyzeTarget(o.targetDir, original));
@@ -155,39 +170,84 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
 
       rec.before = baseResults[fault.id];
       const failed: FailedAttempt[] = [];
-      for (let n = 1; n <= o.maxAttempts; n++) {
-        const cp = checkpoints.save(`before ${fault.id} attempt ${n}`, baseFiles, { fault: fault.id, attempt: n });
+      const slo = sloPlans.find((p) => p.fault === fault.id);
+      for (let round = 1; round <= o.maxAttempts; round++) {
+        const cp = checkpoints.save(`before ${fault.id} ${entrants ? 'round' : 'attempt'} ${round}`, baseFiles, { fault: fault.id, attempt: round });
         emit({ type: 'checkpoint', action: 'save', id: cp.id, label: cp.label });
 
-        const proposal = await phase(`3 blue: propose fix for ${fault.id} #${n}`, { fault: fault.id, attempt: n }, () =>
-          fixer.propose({ fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [] }),
+        const ctx = { fault, findings: rec.findings, files: baseFiles, before: baseResults[fault.id], failed, rules, preferred: o.memory ? memory.ranked(fault.kind) : [] };
+        const entries: Entry[] = await phase(`3 blue: propose fix for ${fault.id} #${round}`, { fault: fault.id, attempt: round, ...(entrants ? { tournament: true } : {}) }, async () =>
+          entrants ? proposeAll(entrants, ctx) : [{ entrant: fixer.name, proposal: await fixer.propose(ctx) }],
         );
-        if (!proposal) {
-          emit({ type: 'log', message: `Blue has no further strategies for ${fault.id}` });
+        if (!entries.some((e) => e.proposal)) {
+          emit({ type: 'log', message: `Blue has no further strategies for ${fault.id}${entrants ? ` (${entries.map((e) => `${e.entrant}: ${e.error}`).join('; ')})` : ''}` });
           break;
         }
-        attempts++;
-        const diff = diffFiles(baseFiles, proposal.files, `${targetRel}/`);
-        emit({ type: 'attempt', fault: fault.id, n, strategy: proposal.strategy, title: proposal.title, rationale: proposal.rationale, author: proposal.author, diff, ...diffStats(diff) });
 
-        const candidateDir = ws.materialize(`${fault.id}-a${n}`, proposal.files);
-        const v = await phase(`4 judge: verify ${fault.id} #${n}`, { fault: fault.id, attempt: n, strategy: proposal.strategy }, () =>
-          judge({ fault, candidate: () => loadTarget(candidateDir), baseResults, opts: judgeOpts }),
-        );
-        emit({ type: 'verdict', fault: fault.id, n, status: v.status, reasons: v.reasons, pValue: v.pValue, afterPassed: v.after.passed, trials: v.after.trials, regressions: v.regressions });
-        rec.attempts.push({
-          n,
-          strategy: proposal.strategy,
-          title: proposal.title,
-          rationale: proposal.rationale,
-          author: proposal.author,
-          diff,
-          checkpoint: cp.id,
-          verdict: { status: v.status, reasons: v.reasons, pValue: v.pValue, afterPassed: v.after.passed, trials: v.after.trials },
-        });
-        memory.record(fault.kind, proposal.strategy, v.status === 'fixed');
+        // The Judge verifies every candidate one at a time, so latency measurements don't compete for the CPU.
+        const candidates: { entry: Entry; v?: Verdict; diffSize: number; n?: number }[] = [];
+        for (const entry of entries) {
+          const proposal = entry.proposal;
+          if (!proposal) {
+            candidates.push({ entry, diffSize: 0 });
+            continue;
+          }
+          attempts++;
+          const n = rec.attempts.length + 1;
+          const diff = diffFiles(baseFiles, proposal.files, `${targetRel}/`);
+          const stats = diffStats(diff);
+          emit({ type: 'attempt', fault: fault.id, n, strategy: proposal.strategy, title: proposal.title, rationale: proposal.rationale, author: proposal.author, diff, ...stats, ...(entrants ? { round } : {}) });
 
-        if (v.status === 'fixed') {
+          const candidateDir = ws.materialize(`${fault.id}-a${n}`, proposal.files);
+          const v = await phase(`4 judge: verify ${fault.id} #${n}`, { fault: fault.id, attempt: n, strategy: proposal.strategy }, () =>
+            judge({ fault, candidate: () => loadTarget(candidateDir), baseResults, opts: judgeOpts, slo, budgets: o.budgets }),
+          );
+          emit({
+            type: 'verdict', fault: fault.id, n, status: v.status, reasons: v.reasons, pValue: v.pValue, afterPassed: v.after.passed, trials: v.after.trials, regressions: v.regressions,
+            ...(v.slo ? { slo: v.slo } : {}), ...(v.overhead ? { overhead: v.overhead } : {}), ...(entrants ? { author: proposal.author, round } : {}),
+          });
+          rec.attempts.push({
+            n,
+            strategy: proposal.strategy,
+            title: proposal.title,
+            rationale: proposal.rationale,
+            author: proposal.author,
+            diff,
+            checkpoint: cp.id,
+            verdict: { status: v.status, reasons: v.reasons, pValue: v.pValue, afterPassed: v.after.passed, trials: v.after.trials, ...(v.slo ? { slo: v.slo } : {}), ...(v.overhead ? { overhead: v.overhead } : {}) },
+          });
+          memory.record(fault.kind, proposal.strategy, v.status === 'fixed');
+          candidates.push({ entry, v, diffSize: stats.added + stats.removed, n });
+        }
+
+        let chosen = candidates.find((c) => c.v?.status === 'fixed');
+        if (entrants) {
+          const { ranking, winner } = rankContenders(
+            candidates.map((c) => ({
+              entrant: c.entry.entrant,
+              status: c.v?.status ?? 'no-proposal',
+              strategy: c.entry.proposal?.strategy,
+              title: c.entry.proposal?.title,
+              ...(c.v?.slo ? { sloDemonstrated: c.v.slo.demonstrated } : {}),
+              ...(c.v?.overhead ? { overhead: c.v.overhead } : {}),
+              diffSize: c.diffSize,
+              summary: c.v?.reasons[0] ?? c.entry.error,
+            })),
+          );
+          const t: TournamentResult = { fault: fault.id, round, entrants: entries.map((e) => e.entrant), ranking, ...(winner ? { winner } : {}) };
+          (rec.tournament ??= []).push(t);
+          for (const r of ranking) {
+            const c = candidates.find((x) => x.entry.entrant === r.entrant);
+            const a = c?.n !== undefined ? rec.attempts.find((x) => x.n === c.n) : undefined;
+            if (a) a.tournament = { round, rank: r.rank, outcome: r.outcome, reason: r.reason };
+          }
+          emit({ type: 'tournament', ...t });
+          chosen = winner ? candidates.find((c) => c.entry.entrant === winner) : undefined;
+        }
+
+        if (chosen?.v && chosen.entry.proposal) {
+          const proposal = chosen.entry.proposal;
+          const v = chosen.v;
           // Guard: ship a regression test and prove it fails without the fix.
           const spec: ChaosSpec = { fault: fault.id, trials: o.judgeTrials, seed: o.seed + 2_000_003, strategy: proposal.strategy, createdBy: 'bulwark' };
           const fixedFiles = withSpec(proposal.files, spec);
@@ -207,7 +267,9 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
           break;
         }
 
-        failed.push({ strategy: proposal.strategy, author: proposal.author, rationale: proposal.rationale, reasons: v.reasons });
+        for (const c of candidates) {
+          if (c.entry.proposal && c.v) failed.push({ strategy: c.entry.proposal.strategy, author: c.entry.proposal.author, rationale: c.entry.proposal.rationale, reasons: c.v.reasons });
+        }
         baseFiles = checkpoints.restore(cp.id);
         rollbacks++;
         emit({ type: 'checkpoint', action: 'restore', id: cp.id, label: cp.label });
