@@ -35,7 +35,7 @@ export const Turn: React.FC = () => {
         CHAOS ENGINEERING FOR AI AGENTS
       </div>
       <Sequence from={tIts - 6} layout="none">
-        <Browser name="hero" url="bulwark · landing" width={1000} left={460} top={330} from={30} rate={0.75} />
+        <Browser name="hero" url="bulwark · landing" width={1000} left={460} top={330} from={45} rate={0.68} />
       </Sequence>
       <div style={{ position: "absolute", left: 120, top: 470, display: "flex", flexDirection: "column", gap: 18, alignItems: "flex-end", width: 310 }}>
         <Pill at={rel("attacks")} bg="#fff" ink={C.ink} style={{ boxShadow: "0 0 0 1px rgba(0,0,0,0.1), 0 10px 30px rgba(0,0,0,0.08)" }}><Tag kind="red" /> attacks first</Pill>
