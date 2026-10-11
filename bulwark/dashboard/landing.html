@@ -10,6 +10,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/theme.css">
 <style>
+  /* Half the shared .wrap's side margin (about 50px per side at 1440px), matching /app. */
+  :root { --gutter: clamp(12px, 3.5vw, 50px); }
+  .wrap { width: min(calc(100% - 2 * var(--gutter)), 1480px); max-width: none; padding: 0; }
+  @media (max-width: 640px) { :root { --gutter: 12px; } }
   section { padding: 120px 0; }
   .section-head { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: end; margin-bottom: 56px; }
   .section-head h2 { font-size: clamp(36px, 5vw, 64px); margin-top: 14px; }
