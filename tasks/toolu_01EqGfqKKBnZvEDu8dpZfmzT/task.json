@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01EqGfqKKBnZvEDu8dpZfmzT",
+  "agent_id": "ab84b9d63a9911fc6",
+  "subagent_type": "general-purpose",
+  "task_description": "Trace diff view + replay from past runs",
+  "token_usage": {
+    "input_tokens": 196,
+    "cache_creation_tokens": 260688,
+    "cache_read_tokens": 17666620,
+    "output_tokens": 18095,
+    "api_call_count": 98
+  },
+  "started_at": "2026-10-11T18:12:32.63969+02:00",
+  "completed_at": "2026-10-11T18:38:32.715636+02:00"
+}

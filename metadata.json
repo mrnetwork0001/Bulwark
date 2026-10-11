@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4NXBA8AWXXCHS2FDT32C19X",
+  "strategy": "manual-commit",
+  "branch": "worktree-agent-a89f01ae28c7cc50d",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "bulwark/cli.ts",
+    "bulwark/invariants.ts",
+    "targets/refundbot/bulwark.target.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 1589188,
+    "cache_read_tokens": 2518054,
+    "output_tokens": 2878,
+    "api_call_count": 6,
+    "subagent_tokens": {
+      "input_tokens": 628,
+      "cache_creation_tokens": 949187,
+      "cache_read_tokens": 52779064,
+      "output_tokens": 121589,
+      "api_call_count": 314
+    }
+  }
+}
