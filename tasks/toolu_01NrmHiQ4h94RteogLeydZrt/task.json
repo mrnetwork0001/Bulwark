@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01NrmHiQ4h94RteogLeydZrt",
+  "agent_id": "aade12add8a6321ff",
+  "subagent_type": "general-purpose",
+  "task_description": "ResearchBot target on Crustdata",
+  "token_usage": {
+    "input_tokens": 104,
+    "cache_creation_tokens": 271204,
+    "cache_read_tokens": 10050377,
+    "output_tokens": 43760,
+    "api_call_count": 52
+  },
+  "started_at": "2026-10-11T09:02:23.191731+02:00",
+  "completed_at": "2026-10-11T09:16:43.405194+02:00"
+}

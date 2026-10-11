@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_017i54t9toCpGrV3G8FmnAwT",
+  "agent_id": "aaf61e14ffc6e32d9",
+  "subagent_type": "general-purpose",
+  "task_description": "Crustdata market sizing",
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 110955,
+    "cache_read_tokens": 2865601,
+    "output_tokens": 18212,
+    "api_call_count": 35
+  },
+  "started_at": "2026-10-11T09:02:23.191139+02:00",
+  "completed_at": "2026-10-11T09:14:06.648443+02:00"
+}
