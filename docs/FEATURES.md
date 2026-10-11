@@ -17,17 +17,17 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done + evidence capt
 | 7 | Replay real failures from neatlogs traces | B | [ ] |
 | 8 | Auto-written postmortem per experiment | B | [x] postmortem per fault (template-based; LLM narrative later) |
 | 9 | Resilience badge | B | [x] badge.svg per run, served at /badge.svg |
-| 10 | Cascading "game day" mode | B | [ ] |
+| 10 | Cascading "game day" mode | B | [x] `--game-day`: composite `cascade` faults (5 RefundBot, 4 ResearchBot). Single-fault fixes held in 4/5 RefundBot game days; the latency storm broke them (stacked retry budgets, 35/40), fixed by a per-run time budget (playbook) and by Claude in 1 attempt ($0.048). RefundBot 43% → 100%, ResearchBot 34% → 100% ([evidence](evidence/08-game-day/)) |
 | 11 | Strategy memory across runs | B | [x] .bulwark/memory.json; run 2 needs 4 attempts instead of 7 |
 | 12 | Cost guardrails as a fault class | B | [x] stuck-pending fault + step-budget fix |
 | 13 | Trace diff view | B | [ ] |
 | 14 | GitHub Action on every PR | C | [ ] |
 | 15 | ChatOps `/bulwark` PR commands | C | [ ] |
-| 16 | Model-degradation fault | C | [ ] |
+| 16 | Model-degradation fault | C | [x] `--degrade`: seeded degraded simulated brains, `glm-5.3-flash` for LLM brains; fixed by rules in code (RefundBot: money guards + guaranteed reply; ResearchBot: grounded brief), cheap fixes rejected; real cheap model measured too ([evidence](evidence/08-game-day/README.md#16-model-degradation)) |
 | 17 | Live dashboard | C | [x] /app: live trials and the full loop timeline |
 | 18 | Framework-agnostic adapter | C | [x] generic BulwarkTarget (sandbox + `observe()` ledger, per-target endpoints, fault catalog, compiled rules, playbook); second target ResearchBot on the real Crustdata API, 49% → 100% ([evidence](evidence/06-researchbot/), [CRUSTDATA.md](CRUSTDATA.md)) |
 | 19 | Slack/Discord notification | C | [ ] |
-| 20 | Clock-skew / stale-data fault | C | [ ] |
+| 20 | Clock-skew / stale-data fault | C | [x] `--stale`: POS-refunded order served as cached "paid" (new rule "Never refund an order that is already refunded."), and a 2024 company snapshot from a stale cache; plain re-read and grounding rejected, consistent read and freshness check accepted ([evidence](evidence/08-game-day/README.md#20-stale-data)) |
 
 Details for each feature follow.
 

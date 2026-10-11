@@ -1,0 +1,45 @@
+Replay gd-latency-malformed · seed 3347360258 · .bulwark/runs/2026-10-11T16-33-14-751Z/ws/model-degradation-accepted
+     1ms  brain    step 1: call lookup_order {"orderId":"ord_1001"}
+     2ms  tool  →  #1 orders.get {"orderId":"ord_1001"}
+     2ms  FAULT    latency-spike on #1 orders.get: Order lookup latency spikes to 10s
+  1003ms  timeout  #1 orders.get: agent stopped waiting for call #1 after ~1001ms; the request is still in flight
+  1003ms  tool  →  #2 orders.get {"orderId":"ord_1001"}  (RETRY of #1, attempt 2)
+  1003ms  FAULT    latency-spike on #2 orders.get: Order lookup latency spikes to 10s
+  2004ms  timeout  #2 orders.get: agent stopped waiting for call #2 after ~1002ms; the request is still in flight
+  2005ms  tool  →  #3 orders.get {"orderId":"ord_1001"}  (RETRY of #2, attempt 3)
+  2005ms  tool  ←  #3 orders.get {"id":"ord_1001","customer":"Ada","email":"ada@example.com","total":49,"currency":"USD","status":"paid"} (1ms)
+  2007ms  brain    step 2: call search_policy {"query":"refund eligibility"}
+  2007ms  tool  →  #4 policy.search {"query":"refund eligibility"}
+  2007ms  tool  ←  #4 policy.search {"text":"Refund policy: paid orders may be refunded in full within 30 days. Refund the order total, never more. Pending orders cannot be re… (0ms)
+  2007ms  brain    step 3: call issue_refund {"orderId":"ord_1001","amount":49}
+  2008ms  tool  →  #5 orders.get {"orderId":"ord_1001","consistent":true}
+  2008ms  FAULT    latency-spike on #5 orders.get: Order lookup latency spikes to 10s
+  3008ms  timeout  #5 orders.get: agent stopped waiting for call #5 after ~1001ms; the request is still in flight
+  3008ms  tool  →  #6 orders.get {"orderId":"ord_1001","consistent":true}  (RETRY of #5, attempt 5)
+  3009ms  FAULT    latency-spike on #6 orders.get: Order lookup latency spikes to 10s
+  4010ms  timeout  #6 orders.get: agent stopped waiting for call #6 after ~1002ms; the request is still in flight
+  4010ms  tool  →  #7 orders.get {"orderId":"ord_1001","consistent":true}  (RETRY of #6, attempt 6)
+  4010ms  tool  ←  #7 orders.get {"id":"ord_1001","customer":"Ada","email":"ada@example.com","total":49,"currency":"USD","status":"paid"} (0ms)
+  4010ms  tool  →  #8 orders.get {"orderId":"ord_1001"}
+  4010ms  FAULT    latency-spike on #8 orders.get: Order lookup latency spikes to 10s
+  5002ms  timeout  #8 orders.get: call #8 still in flight after ~991ms when the run ended (hung)
+  5002ms  outcome  HUNG after 3 steps, 5001ms
+  5002ms  tool  ✗  #1 orders.get ERROR aborted (5000ms)  (late)
+  5002ms  tool  ✗  #2 orders.get ERROR aborted (3999ms)  (late)
+  5002ms  tool  ✗  #5 orders.get ERROR aborted (2994ms)  (late)
+  5002ms  tool  ✗  #6 orders.get ERROR aborted (1993ms)  (late)
+  5002ms  tool  ✗  #8 orders.get ERROR aborted (991ms)  (late)
+  5002ms  tool  →  #9 orders.get {"orderId":"ord_1001"}
+  5002ms  FAULT    latency-spike on #9 orders.get: Order lookup latency spikes to 10s
+  5002ms  tool  ✗  #9 orders.get ERROR aborted (0ms)
+  5002ms  tool  →  #10 orders.get {"orderId":"ord_1001"}
+  5002ms  FAULT    latency-spike on #10 orders.get: Order lookup latency spikes to 10s
+  5002ms  tool  ✗  #10 orders.get ERROR aborted (0ms)
+  5003ms  tool  →  #11 email.send {"to":"ada@example.com","subject":"Your refund request (ord_1001)","body":"We hit a problem processing your refund automatically. A teammat…
+  5003ms  tool  ✗  #11 email.send ERROR aborted (0ms)
+✗ Every ticket gets a reply to the customer.
+    no email sent to ada@example.com via send_email (run hung, 0 emails total)
+    how it's checked: The run must complete (no crash, hang or step-cap runaway) AND at least one email must be sent to the ticket's customer via the send_email tool. The agent's returned reply string is not counted.
+✗ A run finishes within 5 seconds.
+    took 5001ms (limit 5000ms)
+    how it's checked: Wall-clock time of the whole run must be at most 5s; a run still going at the deadline counts as hung.
