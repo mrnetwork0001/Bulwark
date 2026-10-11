@@ -8,6 +8,15 @@ export interface FaultContext {
   rng: () => number;
   signal: AbortSignal;
   fired: number;
+  /** Optional observer (the replay recorder). Called synchronously each time a fault fires. */
+  onEvent?: (e: FaultEvent) => void;
+}
+
+export interface FaultEvent {
+  fault: string;
+  kind: FaultKind;
+  endpoint: Endpoint;
+  title: string;
 }
 
 export type FaultKind = 'latency' | 'commit-timeout' | 'malformed' | 'rate-limit' | 'injection' | 'loop';
@@ -137,6 +146,7 @@ export function injectFault(transport: Transport, fault: Fault | undefined, ctx:
     if (fault.scope === 'call' && ctx.rng() >= fault.rate) return next();
     ctx.fired++;
     log('chaos: injecting {fault} on {endpoint}', { fault: fault.id, endpoint, level: 'warn' });
+    ctx.onEvent?.({ fault: fault.id, kind: fault.kind, endpoint, title: fault.title });
     return fault.inject(next, ctx);
   };
 }

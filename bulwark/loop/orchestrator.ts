@@ -5,7 +5,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { trace } from 'neatlogs';
 import { createFixer, type FailedAttempt } from '../blue/fixer';
 import { FAULTS, getFault, type Fault } from '../chaos/faults';
@@ -52,7 +52,7 @@ export const DEFAULT_LOOP: Omit<LoopOptions, 'targetDir'> = {
 export type LoopEvent =
   | { type: 'run-start'; runId: string; target: string; fixer: string; faults: string[]; redTrials: number; judgeTrials: number }
   | { type: 'analyze'; findings: Finding[] }
-  | { type: 'scorecard'; phase: 'before' | 'after'; results: ExperimentResult[]; overall: number }
+  | { type: 'scorecard'; phase: 'before' | 'after'; results: ExperimentResult[]; overall: number; ws?: string }
   | { type: 'fault-start'; fault: string; title: string; hypothesis: string }
   | { type: 'fault-skip'; fault: string; reason: string }
   | { type: 'checkpoint'; action: 'save' | 'restore'; id: string; label: string }
@@ -217,7 +217,8 @@ export async function runLoop(input: Partial<LoopOptions> & { targetDir: string 
 
     // Red re-runs its original attack, same seeds, against the final code.
     const after = await phase('6 red: attack scorecard AFTER', { phase: 'after', trials: o.redTrials, seed: o.seed }, () => runAll(baseTarget, redOpts));
-    emit({ type: 'scorecard', phase: 'after', results: Object.values(after), overall: overallPassRate(after) });
+    // ws: the workspace holding the final code, so the dashboard can replay "after" trials against it.
+    emit({ type: 'scorecard', phase: 'after', results: Object.values(after), overall: overallPassRate(after), ...(baseDir !== o.targetDir ? { ws: basename(baseDir) } : {}) });
     const residual = analyzeTarget(baseDir, baseTarget);
     emit({ type: 'residual', findings: residual });
 

@@ -21,6 +21,8 @@ export interface ExperimentResult {
   p95Ms: number;
   /** One failing trial per broken rule, so a human can replay it from its seed. */
   examples: { rule: string; seed: number; detail?: string }[];
+  /** Every trial in index order, so any one can be replayed from its seed (the dashboard's squares). */
+  perTrial: { seed: number; outcome: Outcome; passed: boolean }[];
 }
 
 export interface ExperimentOptions {
@@ -62,6 +64,7 @@ export async function runExperiment(
       const outcomes: Record<Outcome, number> = { completed: 0, crashed: 0, hung: 0, runaway: 0 };
       const violations: Record<string, number> = Object.fromEntries(compiled.map((c) => [c.rule, 0]));
       const examples: ExperimentResult['examples'] = [];
+      const perTrial: ExperimentResult['perTrial'] = [];
       let passed = 0;
 
       const observations: TrialObservation[] = await Promise.all(
@@ -85,6 +88,7 @@ export async function runExperiment(
             if (!examples.some((e) => e.rule === rule)) examples.push({ rule, seed: obs.seed, detail: res.detail });
           }
           if (broken.length === 0) passed++;
+          perTrial[i] = { seed: obs.seed, outcome: obs.outcome, passed: broken.length === 0 };
           opts.onTrial?.({ index: i, obs, broken });
           return obs;
         }),
@@ -102,6 +106,7 @@ export async function runExperiment(
         violations,
         p95Ms: percentile(observations.map((o) => o.durationMs), 95),
         examples,
+        perTrial,
       };
     },
   );
