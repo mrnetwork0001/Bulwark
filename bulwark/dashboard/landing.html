@@ -177,8 +177,8 @@
   .yes { color: var(--pass); font-weight: 500; } .no { color: var(--fg-dim); } .part { color: var(--broken); }
 
   /* ---------- Stack ---------- */
-  .stack { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .stack .card { padding: 28px; display: flex; flex-direction: column; gap: 10px; }
+  .stack { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .stack .card { padding: 24px; display: flex; flex-direction: column; gap: 10px; }
   .stack h3 { font-size: 24px; }
   .stack .role { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-dim); }
   .stack p { font-size: 14.5px; color: var(--fg-muted); }
@@ -314,12 +314,12 @@
   <!-- Numbers -->
   <div class="wrap">
     <div class="numbers reveal">
-      <div><b><span class="from">56%</span> → 100%</b><span>of sandboxed trials keep every business rule, before vs after Bulwark's fixes</span></div>
-      <div><b><span class="from">$553k</span> → $0</b><span>money at risk per 1,000 tickets: over-refunds from the ledger, plus lost and escalated tickets</span></div>
-      <div><b>4,000</b><span>seeded trials in one loop, across 8 attacks, every one replayable from its seed</span></div>
-      <div><b>p &lt; 10⁻⁶</b><span>every accepted fix beats the unfixed code on seeds the fixer never saw</span></div>
+      <div><b><span class="from">56%</span> → 100%</b><span>RefundBot: trials that keep every business rule, before vs after Bulwark's verified fixes</span></div>
+      <div><b><span class="from">49%</span> → 100%</b><span>ResearchBot, a second agent on real Crustdata data: same loop, its own attacks and rules</span></div>
+      <div><b><span class="from">$553k</span> → $0</b><span>RefundBot money at risk per 1,000 tickets: over-refunds from the ledger, plus lost and escalated tickets</span></div>
+      <div><b>11 / 11</b><span>faults injected into Bulwark itself, all recovered; building that found and fixed 5 real bugs</span></div>
     </div>
-    <p class="src">One offline run against RefundBot, the demo agent (seed 42). Reproduce it with <code>npm run fix</code>. Dollar figures use stated assumptions: $20 per lost ticket, $15 per escalation.</p>
+    <p class="src">Offline runs (seed 42): <code>npm run fix</code> and <code>npm run fix -- --target targets/researchbot</code>. Every accepted fix beats the unfixed code on seeds the fixer never saw (p &lt; 10⁻⁶). Dollar figures use stated assumptions: $20 per lost ticket, $15 per escalation.</p>
   </div>
 
   <!-- The bug -->
@@ -379,6 +379,37 @@
       <div class="faults" id="faults"></div>
       <div class="legend" style="margin-top:22px">
         <span><i class="sq pass"></i>kept every rule</span><span><i class="sq broken"></i>finished but broke a rule</span><span><i class="sq crashed"></i>crashed</span><span><i class="sq hung"></i>hung</span><span><i class="sq runaway"></i>runaway loop</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Second agent -->
+  <section id="any-agent" style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div><span class="eyebrow">Not tied to one agent</span><h2>Point it at any agent. It brings its own attacks.</h2></div>
+        <p>A target is a folder: its endpoints, sandbox, ledger and business rules. ResearchBot writes company briefs from the real Crustdata API, recorded once for 13 credits and replayed for free in every trial.</p>
+      </div>
+      <div class="story">
+        <div class="card inverse replay reveal">
+          <span class="eyebrow">ResearchBot · real Crustdata data</span>
+          <h3 style="font-size:30px;margin-top:4px">"Brief me on retool.com and its key decision-makers."</h3>
+          <ol class="steps" style="margin-top:6px">
+            <li class="on"><span class="t">6/20</span><span class="k fault">429</span><span class="d">No retry; rate limits end the run</span></li>
+            <li class="on"><span class="t">11/20</span><span class="k fault">empty</span><span class="d">Empty people search → the agent invents executives</span></li>
+            <li class="on"><span class="t">7/20</span><span class="k timeout">cursor</span><span class="d">A cursor that never advances: ~2,000 calls and 800+ credits in 5 seconds</span></li>
+            <li class="on"><span class="t">8/20</span><span class="k fault">field</span><span class="d">A record missing headcount → the model guesses one</span></li>
+          </ol>
+          <div class="verdict" style="background:rgba(16,185,129,.14);color:#a7f3d0"><span>✓ Resilience after verified fixes</span><b>49% → 100%</b></div>
+        </div>
+        <div class="story-copy reveal">
+          <div>
+            <h2 style="font-size:clamp(30px,3.6vw,46px)">The Judge rejected the fixes that only looked right.</h2>
+            <p>A retry that ignores Crustdata's <code>x-ratelimit-reset</code>. A step budget that can't see a loop inside one tool call. "Just ask again" for an empty result. Each was rolled back to a checkpoint, and the real fix was proven on fresh seeds.</p>
+            <p>Rules include "every brief cites only data the API returned" and "never spend more than 5 API credits per brief", checked against the replayed ledger, not the agent's own claims.</p>
+          </div>
+          <div class="prov"><code>npm run fix -- --target targets/researchbot</code> · <a href="/app?target=researchbot" style="text-decoration:underline">try it in the app</a></div>
+        </div>
       </div>
     </div>
   </section>
@@ -464,8 +495,52 @@
         <div class="card tile w3 reveal">
           <span class="eyebrow">Strategy memory</span>
           <h3>Learns which fixes work.</h3>
-          <p>Bulwark records which strategies the Judge accepted and tries them first next time. The same loop went from 7 attempts and 3 rollbacks to 4 attempts and none.</p>
-          <div class="kv"><div><b>7 → 4</b><span>fix attempts</span></div><div><b>3 → 0</b><span>rollbacks</span></div></div>
+          <p>Bulwark records which strategies the Judge accepted and tries them first next time. The same loop went from 8 attempts and 3 rollbacks to 5 attempts and none.</p>
+          <div class="kv"><div><b>8 → 5</b><span>fix attempts</span></div><div><b>3 → 0</b><span>rollbacks</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Findings -->
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div><span class="eyebrow">What testing one thing at a time misses</span><h2>It found bugs in the fixes, and in itself.</h2></div>
+        <p>Each of these is a real run, with its evidence in the repo.</p>
+      </div>
+      <div class="bento">
+        <div class="card inverse tile w4 reveal">
+          <span class="eyebrow">Game day · several faults at once</span>
+          <h3>Every fix passed alone. Together, they ran out of time.</h3>
+          <p>Each fix bounded its own order lookup to 1s × 3 retries. Stacked before a refund, those bounded reads ran past the 5-second deadline in a latency storm. Bulwark added a run-wide time budget; Claude found a leaner fix in one attempt. On 400 trials the same stacking failed 2.25% of the time, too rare for 40 trials to see.</p>
+          <div class="kv"><div><b>43% → 100%</b><span>RefundBot under 16 attacks</span></div><div><b>4 / 5</b><span>game days the single-fault fixes survived</span></div></div>
+        </div>
+        <div class="card tile reveal">
+          <span class="eyebrow">Self-chaos</span>
+          <h3>Bulwark attacks itself.</h3>
+          <p>Its own Claude calls rate-limited, corrupted checkpoints, a patch that won't load, neatlogs down, crashing trials. The run still reaches 100%.</p>
+          <div class="kv"><div><b>11 / 11</b><span>recovered</span></div><div><b>5</b><span>bugs fixed</span></div></div>
+        </div>
+        <div class="card tile w3 reveal">
+          <span class="eyebrow">Rules in plain English</span>
+          <h3>Claude compiles the rules. Bulwark checks the compiler.</h3>
+          <p>"Never call the same endpoint more than 20 times in one run" becomes a small, safe check, never code. It's self-tested on real trials before it's trusted, then caught 13 runaway pagination loops.</p>
+        </div>
+        <div class="card tile w3 reveal">
+          <span class="eyebrow">Trace diff</span>
+          <h3>See exactly where the fix changed the outcome.</h3>
+          <div class="mini-steps"><div>step 8 · refunds.create now carries idempotencyKey</div><div class="bad">before · step 13: second refund rf_2, $49</div><div>after · the retry returns the original refund rf_1</div></div>
+        </div>
+        <div class="card tile w3 reveal">
+          <span class="eyebrow">Every pull request</span>
+          <h3>A resilience gate in CI.</h3>
+          <p>A GitHub Action attacks every changed agent and fails the PR if it got less resilient than its baseline. Collaborators can comment <code>/bulwark fix</code> to get a verified fix as its own PR.</p>
+        </div>
+        <div class="card tile w3 reveal">
+          <span class="eyebrow">Incident replay</span>
+          <h3>Every past failure becomes a test.</h3>
+          <p>164 failing trials from 18 earlier runs, including ones read back from neatlogs traces, re-run against the current code. All 79 RefundBot incidents are fixed by Bulwark's patch.</p>
         </div>
       </div>
     </div>
@@ -489,6 +564,8 @@
             <tr><td>Regression test proven to catch the bug</td><td class="no">No</td><td class="no">No</td><td class="us yes">Fails without the fix, passes with it</td></tr>
             <tr><td>Prices failures in dollars</td><td class="no">No</td><td class="no">No</td><td class="us yes">Per 1,000 tickets</td></tr>
             <tr><td>Traces the bug to the session that wrote it</td><td class="no">No</td><td class="no">No</td><td class="us yes">Via Entire</td></tr>
+            <tr><td>Tests faults in combination</td><td class="no">No</td><td class="part">Some</td><td class="us yes">Game days</td></tr>
+            <tr><td>Guards every future change</td><td class="no">No</td><td class="no">No</td><td class="us yes">CI gate on every PR</td></tr>
           </tbody>
         </table>
       </div>
@@ -505,8 +582,9 @@
       <div class="stack">
         <div class="card reveal"><span class="role">Observability</span><h3>neatlogs</h3><p>One session per Bulwark run, one trace per phase: the BEFORE and AFTER scorecards, every proposal, every verdict, every proof. Sampled trial traces show exactly where the agent broke.</p></div>
         <div class="card reveal"><span class="role">Provenance</span><h3>Entire</h3><p>Every commit is checkpointed with the AI session behind it. Bulwark traces each weak link to its session and prompt (<code>npm run provenance</code>) and uses Entire Graph to size its blast radius.</p></div>
-        <div class="card reveal"><span class="role">Business</span><h3>cfo.ai</h3><p>Measured cost per run feeds the business plan: pricing, margins and runway, with measured numbers kept apart from assumptions (<code>npm run economics</code>).</p></div>
-        <div class="card reveal"><span class="role">Models</span><h3>0G Compute</h3><p>Claude and other models through the 0G Router power Blue's fixes, Red's invented attacks and the model leaderboard, all on one API.</p></div>
+        <div class="card reveal"><span class="role">Business</span><h3>cfo.ai</h3><p>The business plan is built in cfo.ai through its MCP server: pricing, margins, a 36-month revenue plan and runway, from measured run costs and Crustdata market counts. <a href="https://app.cfo.ai/s/xAu-NTAidKxJcCm7" style="text-decoration:underline">Open the plan</a>.</p></div>
+        <div class="card reveal"><span class="role">Models</span><h3>0G Compute</h3><p>Claude and other models through the 0G Router power Blue's fixes, Red's invented attacks, compiled rules, fix tournaments and the model leaderboard, all on one API.</p></div>
+        <div class="card reveal"><span class="role">Data</span><h3>Crustdata</h3><p>ResearchBot's real company and people data, recorded once and replayed for free, and the market sizing behind the plan: 52,405 companies building AI agents.</p></div>
       </div>
     </div>
   </section>
@@ -536,8 +614,9 @@ window.BULWARK_MENU = {
     { href: '#bug', label: 'The bug', hint: 'A double refund, replayed', icon: 'bug' },
     { href: '#how', label: 'How it works', hint: 'Red, Blue, Judge, Guard', icon: 'loop' },
     { href: '#attacks', label: 'Attacks', hint: 'How agents break', icon: 'bolt' },
+    { href: '#any-agent', label: 'Any agent', hint: 'ResearchBot on real Crustdata data', icon: 'grid' },
     { href: '#proof', label: 'Proof', hint: 'Honest statistics', icon: 'chart' },
-    { href: '#stack', label: 'Built with', hint: 'neatlogs · Entire · cfo.ai · 0G', icon: 'layers' },
+    { href: '#stack', label: 'Built with', hint: 'neatlogs · Entire · cfo.ai · 0G · Crustdata', icon: 'layers' },
   ],
   cta: { href: '/app', label: 'Launch app' },
 };
