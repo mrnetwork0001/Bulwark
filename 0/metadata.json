@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4MGWSJ370BEA46V31K455FG",
+  "session_id": "8cdad8b4-3584-46b2-b505-0bcea4d9fb5b",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-11T03:42:52.789611Z",
+  "branch": "worktree-agent-a38f3789961a16d13",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "bulwark/blue/fixer.ts",
+    "bulwark/cli.ts",
+    "bulwark/fix.ts",
+    "bulwark/harness.ts",
+    "bulwark/loop/orchestrator.ts",
+    "bulwark/report/reports.ts",
+    "bulwark/scorecard.ts",
+    "bulwark/target.ts",
+    "targets/refundbot/brains.ts",
+    "targets/refundbot/bulwark.target.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "01bf6e1c542e",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 306,
+    "cache_creation_tokens": 746186,
+    "cache_read_tokens": 35642451,
+    "output_tokens": 244626,
+    "api_call_count": 153
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-11T03:42:52.69634Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 510,
+    "human_modified": 37,
+    "human_removed": 0,
+    "total_committed": 510,
+    "total_lines_changed": 547,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

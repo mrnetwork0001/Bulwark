@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4MGWSJ370BEA46V31K455FG",
+  "strategy": "manual-commit",
+  "branch": "worktree-agent-a38f3789961a16d13",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "bulwark/blue/fixer.ts",
+    "bulwark/cli.ts",
+    "bulwark/fix.ts",
+    "bulwark/harness.ts",
+    "bulwark/loop/orchestrator.ts",
+    "bulwark/report/reports.ts",
+    "bulwark/scorecard.ts",
+    "bulwark/target.ts",
+    "targets/refundbot/brains.ts",
+    "targets/refundbot/bulwark.target.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 306,
+    "cache_creation_tokens": 746186,
+    "cache_read_tokens": 35642451,
+    "output_tokens": 244626,
+    "api_call_count": 153
+  }
+}
