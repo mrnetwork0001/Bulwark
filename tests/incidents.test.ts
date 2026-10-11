@@ -98,13 +98,13 @@ const phaseTrace: NeatlogsTrace = {
     { span_id: 'exp', parent_span_id: 'root', node_name: 'experiment: timeout-after-commit', status: 'SUCCESS' },
     // Known failing from the run (seed 11), clean spans.
     { span_id: 't11', parent_span_id: 'exp', node_name: 'bulwark.trial', status: 'SUCCESS', span_metadata: { fault: 'timeout-after-commit', seed: 11 } },
-    // Not in the run's examples, but a tool call under it errored: still an incident.
-    { span_id: 't21', parent_span_id: 'exp', node_name: 'bulwark.trial', status: 'SUCCESS', data: { attributes: { fault: 'timeout-after-commit', seed: '21' } } },
-    { span_id: 'tool', parent_span_id: 't21', node_type: 'tool_call', node_name: 'issue_refund', status: 'ERROR', data: { error_message: 'aborted' } },
-    // A passing trial: not an incident.
-    { span_id: 't30', parent_span_id: 'exp', node_name: 'bulwark.trial', status: 'SUCCESS', span_metadata: { fault: 'timeout-after-commit', seed: 30 } },
-    // A no-fault trial with a neatlogs detection: a baseline incident.
-    { span_id: 't40', parent_span_id: 'root', node_name: 'bulwark.trial', status: 'SUCCESS', span_metadata: { fault: 'none', seed: 40 }, detections: [{ type: 'loop' }] },
+    // Not in the run's examples, but it crashed: still an incident.
+    { span_id: 't21', parent_span_id: 'exp', node_name: 'bulwark.trial', status: 'SUCCESS', data: { attributes: { fault: 'timeout-after-commit', seed: '21' }, output_value: 'Seed: 21\nOutcome: crashed' } },
+    // Completed, with an errored tool span and a neatlogs detection (an injected error it handled): not an incident.
+    { span_id: 't30', parent_span_id: 'exp', node_name: 'bulwark.trial', status: 'SUCCESS', span_metadata: { fault: 'timeout-after-commit', seed: 30 }, data: { output_value: 'Seed: 30\nOutcome: completed' } },
+    { span_id: 'tool', parent_span_id: 't30', node_type: 'tool_call', node_name: 'issue_refund', status: 'ERROR', data: { error_message: 'aborted' }, detections: [{ name: 'Execution Failed' }] },
+    // A no-fault trial that hung: a baseline incident.
+    { span_id: 't40', parent_span_id: 'root', node_name: 'bulwark.trial', status: 'SUCCESS', span_metadata: { fault: 'none', seed: 40, outcome: 'hung' } },
     // Junk attributes are ignored.
     { span_id: 'tx', parent_span_id: 'root', node_name: 'bulwark.trial', status: 'ERROR', span_metadata: { fault: '../x', seed: 5 } },
     { span_id: 'ty', parent_span_id: 'root', node_name: 'bulwark.trial', status: 'ERROR', span_metadata: { fault: 'rate-limit', seed: -1 } },
@@ -117,10 +117,12 @@ test('trace parser: failing bulwark.trial spans become (fault, seed) incidents',
     found.map((f) => [f.fault, f.seed, f.why]),
     [
       ['timeout-after-commit', 11, 'recorded as failing by its run'],
-      ['timeout-after-commit', 21, 'a span in the trial errored'],
-      ['baseline', 40, 'neatlogs flagged a detection'],
+      ['timeout-after-commit', 21, 'the trial crashed'],
+      ['baseline', 40, 'the trial hung'],
     ],
   );
+  // The same trials in a Judge verify trace ran patched code: not incidents of the original code.
+  assert.deepEqual(incidentsFromTrace({ ...phaseTrace, name: '4 judge: verify timeout-after-commit #1' }, { target: 'refundbot', failing: ['timeout-after-commit:11'] }), []);
 });
 
 test('trace read-back with a mocked fetch: one trace read, one pending, one dead-lettered', async () => {

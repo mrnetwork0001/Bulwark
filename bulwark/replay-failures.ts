@@ -72,7 +72,9 @@ async function main() {
     }
     const readable = reads.filter((r) => r.status === 'read');
     log(`  source 2, neatlogs traces: ${reads.length} trace ids recorded by these runs, ${readable.length} readable · ${Object.entries(byStatus).map(([k, n]) => `${n} ${k}`).join(' · ')}`);
-    log(`    → ${readable.reduce((n, r) => n + r.trialSpans, 0)} bulwark.trial spans, ${readable.reduce((n, r) => n + r.incidents, 0)} failing trials, ${pool.size - before} incidents not already known from the runs`);
+    const patched = readable.filter((r) => r.originalCode === false);
+    for (const r of readable) log(`    ${r.traceId}  "${r.phase ?? ''}"  ${r.trialSpans} trial spans → ${r.originalCode === false ? 'ran patched code, not used' : `${r.incidents} failing`}`);
+    log(`    → ${readable.reduce((n, r) => n + r.trialSpans, 0)} bulwark.trial spans (${patched.length} trace${patched.length === 1 ? '' : 's'} from patched-code phases skipped), ${readable.reduce((n, r) => n + r.incidents, 0)} failing trials, ${pool.size - before} incidents not already known from the runs`);
   }
 
   const incidents = [...pool.values()].sort((a, b) => a.target.localeCompare(b.target) || a.fault.localeCompare(b.fault) || a.seed - b.seed);
