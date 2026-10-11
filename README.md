@@ -14,6 +14,7 @@ npm run fix -- --no-memory          # ignore past runs (shows the rejected fixes
 npm run fix -- --apply              # commit verified fixes to a bulwark/fix-* branch (worktree; main untouched)
 npm run fix -- --pr                 # …and open a PR with the report (needs a GitHub remote + gh)
 npm run chaos                       # attack only: all faults, 20 trials each
+npm run provenance -- targets/refundbot/tools.ts:87   # which AI session/prompt wrote this line (Entire)
 npm test
 ```
 
@@ -54,4 +55,4 @@ targets/refundbot/  the deliberately fragile demo agent
 docs/               plan, features, demo script, submission checklist
 ```
 
-See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan and [docs/FEATURES.md](docs/FEATURES.md) for the roadmap.
+See [docs/ENTIRE.md](docs/ENTIRE.md) for how Bulwark uses Entire (checkpoints while building, bug provenance in reports). See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan and [docs/FEATURES.md](docs/FEATURES.md) for the roadmap.

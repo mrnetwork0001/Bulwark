@@ -19,6 +19,7 @@ function print(p: Provenance, label?: string) {
   if (p.checkpointId) console.log(`  checkpoint ${p.checkpointId}`);
   if (p.sessionId) console.log(`  session    ${p.sessionId} (${[p.agent, p.model].filter(Boolean).join(', ')})`);
   if (p.prompt) console.log(`  prompt     "${promptHeadline(p.prompt, 120)}"`);
+  if (p.task) console.log(`  task       ${p.task}`);
   if (p.writtenAt) console.log(`  written    ${p.writtenAt}`);
   if (p.note) console.log(`  note       ${p.note}`);
   console.log(`  → ${describeProvenance(p)}`);

@@ -40,6 +40,8 @@ export interface Provenance {
   agent?: string;
   model?: string;
   prompt?: string;
+  /** When a subagent wrote the line: its task description, from the checkpoint's tasks/<id>/task.json. */
+  task?: string;
   /** For transcript matches: when the session wrote the line. */
   writtenAt?: string;
   /** Why the answer is degraded (no checkpoint, Entire missing, uncommitted line...). */
@@ -132,6 +134,9 @@ export interface WhyLine {
   agent?: string;
   model?: string;
   prompt?: string;
+  content?: string;
+  /** Entire linked the line by session, not because the file is in the checkpoint's files_touched. */
+  sessionFallback?: boolean;
 }
 
 /** Parses `entire why <file>:<line> --json` (Entire CLI 0.11). */
@@ -154,7 +159,9 @@ export function parseEntireWhy(json: string): WhyLine | undefined {
     sessionId: l.session_id ?? c.session_id,
     agent: l.agent ?? c.agent,
     model: l.model ?? c.model,
-    prompt: l.prompt ?? c.prompt,
+    prompt: l.prompt || c.prompt || undefined,
+    content: l.content,
+    sessionFallback: l.session_fallback === true || undefined,
   };
 }
 
@@ -264,6 +271,27 @@ class Repo {
     return { ...meta, ref, prompt: this.show(ref, '0/prompt.txt')?.trim() || undefined };
   }
 
+  /**
+   * Checkpoints made while subagents ran store each one's transcript under
+   * tasks/<tool-use-id>/. Returns the task whose subagent wrote this line.
+   */
+  taskFor(checkpointId: string, file: string, content: string): string | undefined {
+    const ref = checkpointRef(checkpointId);
+    const ls = this.git(['ls-tree', '-r', '--name-only', ref, '--', 'tasks/']);
+    if (!ls.ok) return undefined;
+    const paths = ls.stdout.split('\n').filter(Boolean);
+    for (const transcript of paths.filter((p) => /^tasks\/[^/]+\/agent-[^/]+\.jsonl$/.test(p))) {
+      if (!findTranscriptWrites(this.show(ref, transcript) ?? '', file, content).length) continue;
+      try {
+        const task = JSON.parse(this.show(ref, transcript.replace(/[^/]+$/, 'task.json')) ?? '{}');
+        return [task.task_description, task.subagent_type && `${task.subagent_type} subagent`].filter(Boolean).join(', ') || 'a subagent';
+      } catch {
+        return 'a subagent';
+      }
+    }
+    return undefined;
+  }
+
   checkpoints(): CheckpointData[] {
     if (this.checkpointsCache) return this.checkpointsCache;
     const r = this.git(['for-each-ref', '--format=%(refname)', 'refs/entire/checkpoints/']);
@@ -365,9 +393,27 @@ export function traceLine(file: string, line: number, opts: ProvenanceOptions = 
   };
 
   // 1. Entire's own attribution, linked to a checkpoint.
+  // A checkpoint with no prompt was made while subagents worked: name the one that wrote the line.
+  const task = (id: string, prompt: string | undefined, content: string | undefined) =>
+    !prompt && content ? repo.taskFor(id, rel, content) : undefined;
   if (why.line?.checkpointId && why.line.commit) {
     const w = why.line;
-    return { ...base, source: 'entire', match: 'checkpoint', commit: w.commit, author: w.author, date: w.date, subject: subjectOf(w.commit!), checkpointId: w.checkpointId, sessionId: w.sessionId, agent: w.agent, model: w.model, prompt: w.prompt };
+    return {
+      ...base,
+      source: 'entire',
+      match: 'checkpoint',
+      commit: w.commit,
+      author: w.author,
+      date: w.date,
+      subject: subjectOf(w.commit!),
+      checkpointId: w.checkpointId,
+      sessionId: w.sessionId,
+      agent: w.agent,
+      model: w.model,
+      prompt: w.prompt,
+      task: task(w.checkpointId!, w.prompt, w.content),
+      note: w.sessionFallback ? 'Entire linked this line by session, not by the checkpoint\'s files_touched' : undefined,
+    };
   }
 
   const b = repo.git(['blame', '--porcelain', '-L', `${line},${line}`, '--', rel]);
@@ -381,7 +427,7 @@ export function traceLine(file: string, line: number, opts: ProvenanceOptions = 
   const trailer = msg.ok ? parseCheckpointTrailer(msg.stdout) : undefined;
   if (trailer) {
     const cp = repo.checkpoint(trailer);
-    if (cp) return { ...gitInfo, source: 'entire', match: 'checkpoint', checkpointId: trailer, sessionId: cp.sessionId, agent: cp.agent, model: cp.model, prompt: cp.prompt };
+    if (cp) return { ...gitInfo, source: 'entire', match: 'checkpoint', checkpointId: trailer, sessionId: cp.sessionId, agent: cp.agent, model: cp.model, prompt: cp.prompt, task: task(trailer, cp.prompt, blame.content) };
     return { ...gitInfo, source: 'entire', match: 'checkpoint', checkpointId: trailer, note: `checkpoint ref ${checkpointRef(trailer)} is not in this clone (fetch refs/entire/* to see the session)` };
   }
 
@@ -416,7 +462,8 @@ export function describeProvenance(p: Provenance): string {
   }
   const who = p.agent ?? 'an AI agent';
   const session = p.sessionId ? ` session \`${p.sessionId.slice(0, 8)}\`` : '';
-  const prompt = promptHeadline(p.prompt, 70) ? `, prompt "${promptHeadline(p.prompt, 70)}"` : '';
+  const prompt =
+    (promptHeadline(p.prompt, 70) ? `, prompt "${promptHeadline(p.prompt, 70)}"` : '') + (p.task ? `, via subagent task "${p.task}"` : '');
   const via =
     p.match === 'transcript'
       ? `Entire checkpoint \`${p.checkpointId}\`, matched in the imported transcript; the commit predates Entire trailers`

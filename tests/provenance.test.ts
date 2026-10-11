@@ -166,6 +166,30 @@ test('without the Entire CLI, the commit trailer and checkpoint ref give the sam
   assert.equal(p.commit, SHA);
 });
 
+test('a checkpoint with no prompt names the subagent task whose transcript wrote the line', () => {
+  const id = '01M4MH8FJRZJJ7TFJQB0Y6S14V';
+  const ref = checkpointRef(id);
+  const why = JSON.stringify({
+    line: { commit_sha: SHA, author: 'mrnetwork0001', author_time: '2026-10-11T03:49:14Z', checkpoint_id: id, session_id: 'sess-1', agent: 'Claude Code', session_fallback: true, content: LINE },
+    checkpoints: { [id]: { checkpoint_id: id, session_id: 'sess-1' } },
+  });
+  const run = fakeRunner({
+    'git rev-parse --show-toplevel': '/repo\n',
+    'entire why targets/refundbot/tools.ts:87 --json': why,
+    [`git log -1 --format=%s ${SHA}`]: 'Bug provenance\n',
+    [`git ls-tree -r --name-only ${ref} -- tasks/`]: 'tasks/t1/agent-a1.jsonl\ntasks/t1/task.json\ntasks/t2/agent-a2.jsonl\ntasks/t2/task.json\n',
+    [`git show ${ref}:tasks/t1/agent-a1.jsonl`]: write('t', '/w/other.ts', LINE),
+    [`git show ${ref}:tasks/t2/agent-a2.jsonl`]: write('t', '/w/targets/refundbot/tools.ts', LINE),
+    [`git show ${ref}:tasks/t2/task.json`]: JSON.stringify({ task_description: 'Entire bug provenance', subagent_type: 'general-purpose' }),
+  });
+  const p = traceLine('targets/refundbot/tools.ts', 87, opts(run));
+  assert.equal(p.checkpointId, id);
+  assert.equal(p.prompt, undefined);
+  assert.equal(p.task, 'Entire bug provenance, general-purpose subagent');
+  assert.match(p.note!, /by session/);
+  assert.match(describeProvenance(p), /via subagent task "Entire bug provenance/);
+});
+
 test('a trailer whose checkpoint ref is not fetched still names the checkpoint, and says why the session is missing', () => {
   const run = fakeRunner({ ...GIT_BASE, 'entire *': { missing: true }, [`git log -1 --format=%B ${SHA}`]: `S\n\nEntire-Checkpoint: ${CP}\n` });
   const p = traceLine('targets/refundbot/tools.ts', 87, opts(run));
