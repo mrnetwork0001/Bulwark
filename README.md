@@ -85,3 +85,8 @@ docs/               plan, features, demo script, submission checklist
 ```
 
 See [docs/ENTIRE.md](docs/ENTIRE.md) for how Bulwark uses Entire (checkpoints while building, bug provenance in reports). See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan and [docs/FEATURES.md](docs/FEATURES.md) for the roadmap.
+
+## Business plan (cfo.ai)
+
+The business plan is built in **cfo.ai**, using measured Bulwark run costs and Crustdata market data, with assumptions labelled: [docs/business/cfo-ai-plan.md](docs/business/cfo-ai-plan.md), and the read-only cfo.ai workspace at https://app.cfo.ai/s/xAu-NTAidKxJcCm7.
+Year 1–3 ARR $77k → $232k → $774k; cash-flow positive from 2028-11 on an assumed $250k pre-seed; it never runs out of cash.
