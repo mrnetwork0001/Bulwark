@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4MHQK4Q8YB523MVBPYNCA60",
+  "strategy": "manual-commit",
+  "branch": "worktree-agent-a0358f3dc1075d00c",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "bulwark/chaos/faults.ts",
+    "bulwark/cli.ts",
+    "bulwark/fix.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 8288,
+    "cache_read_tokens": 2237775,
+    "output_tokens": 1982,
+    "api_call_count": 5,
+    "subagent_tokens": {
+      "input_tokens": 510,
+      "cache_creation_tokens": 840259,
+      "cache_read_tokens": 30482184,
+      "output_tokens": 108058,
+      "api_call_count": 255
+    }
+  }
+}

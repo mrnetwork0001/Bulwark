@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01NhtstJFMQ7jsZkx63nyDrs",
+  "agent_id": "a287d129c28c36c7d",
+  "subagent_type": "general-purpose",
+  "task_description": "Entire bug provenance",
+  "token_usage": {
+    "input_tokens": 148,
+    "cache_creation_tokens": 164196,
+    "cache_read_tokens": 8271084,
+    "output_tokens": 26482,
+    "api_call_count": 74
+  },
+  "started_at": "2026-10-11T05:37:48.0896+02:00",
+  "completed_at": "2026-10-11T05:52:54.756232+02:00"
+}
