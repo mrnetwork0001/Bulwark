@@ -1,6 +1,7 @@
 // Local site: npm run dashboard → http://localhost:5317 (landing page), /app (dashboard)
 // Streams chaos experiments to the browser as trials finish (Server-Sent Events).
 
+import './env';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createServer, type ServerResponse } from 'node:http';

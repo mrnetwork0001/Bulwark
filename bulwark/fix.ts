@@ -3,6 +3,7 @@
 //
 // The full loop: attack, fix, verify, prove. Writes artifacts to .bulwark/runs/<id>/.
 
+import './env';
 import { parseArgs } from 'node:util';
 import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent } from './loop/orchestrator';
 import { initTracing, shutdownTracing } from './tracing';

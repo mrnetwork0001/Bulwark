@@ -3,6 +3,7 @@
 // Attacks the target agent with each fault, N trials apiece, and writes a
 // scorecard to runs/<timestamp>/.
 
+import './env';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
