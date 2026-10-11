@@ -162,10 +162,12 @@ export function prBody(args: {
 }): string {
   const fixed = args.records.filter((r) => r.status === 'fixed');
   const risk1k = (r?: ExperimentResult) => (r?.dollarsAtRisk ? money(r.dollarsAtRisk.per1kTickets) : '—');
+  // Targets without a risk model get no dollars-at-risk column at all.
+  const priced = Object.values(args.before).some((r) => r.dollarsAtRisk);
   const rows = Object.keys(args.before).map((id) => {
     const b = args.before[id];
     const a = args.after[id];
-    return `| ${id} | ${b.passed}/${b.trials} | ${a.passed}/${a.trials} | ${pct(a.ci95[0])}–${pct(a.ci95[1])} | ${risk1k(b)} → ${risk1k(a)} |`;
+    return `| ${id} | ${b.passed}/${b.trials} | ${a.passed}/${a.trials} | ${pct(a.ci95[0])}–${pct(a.ci95[1])} |${priced ? ` ${risk1k(b)} → ${risk1k(a)} |` : ''}`;
   });
   const risk = riskSummary(args.before, args.after);
   return [
@@ -173,8 +175,8 @@ export function prBody(args: {
     '',
     `Bulwark attacked \`${args.target}\` with ${Object.keys(args.before).length - 1} faults, fixed ${fixed.length}, and verified each fix on fresh seeds with an independent Judge.`,
     '',
-    '| Fault | Before | After | After 95% CI | $ at risk / 1k tickets |',
-    '|---|---|---|---|---|',
+    `| Fault | Before | After | After 95% CI |${priced ? ' $ at risk / 1k tickets |' : ''}`,
+    `|---|---|---|---|${priced ? '---|' : ''}`,
     ...rows,
     '',
     ...(risk ? [risk, ''] : []),
