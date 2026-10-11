@@ -9,5 +9,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["bulwark", "targets", "tests"]
+  "include": ["bulwark", "targets", "tests"],
+  "exclude": ["video"]
 }

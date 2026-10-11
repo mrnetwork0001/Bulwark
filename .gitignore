@@ -10,3 +10,9 @@ coverage/
 runs/
 .bulwark/
 .claude/worktrees/
+# demo film (video/): build outputs, caches and captured footage stay local
+video/node_modules/
+video/out/
+video/.cache/
+video/public/footage/
+video/public/stills/

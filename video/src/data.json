@@ -1,0 +1,267 @@
+{
+ "trial": {
+  "target": "refundbot",
+  "fault": "timeout-after-commit",
+  "seed": 1286473109,
+  "order": {
+   "id": "ord_1001",
+   "customer": "Ada",
+   "email": "ada@example.com",
+   "total": 49,
+   "currency": "USD",
+   "status": "paid"
+  },
+  "ticket": {
+   "id": "tkt_1",
+   "orderId": "ord_1001",
+   "customerEmail": "ada@example.com",
+   "message": "My order arrived broken. I would like a refund please."
+  },
+  "refunds": [
+   {
+    "id": "rf_1",
+    "orderId": "ord_1001",
+    "amount": 49
+   },
+   {
+    "id": "rf_2",
+    "orderId": "ord_1001",
+    "amount": 49
+   }
+  ],
+  "broken": [
+   {
+    "rule": "Never refund an order more than once.",
+    "detail": "ord_1001 refunded 2 times"
+   },
+   {
+    "rule": "Never refund more than the order total.",
+    "detail": "ord_1001: refunded $98 of $49"
+   }
+  ],
+  "events": [
+   {
+    "t": 1,
+    "type": "brain",
+    "name": "lookup_order",
+    "input": {
+     "orderId": "ord_1001"
+    },
+    "kind": "tool"
+   },
+   {
+    "t": 2,
+    "type": "call",
+    "endpoint": "orders.get",
+    "input": {
+     "orderId": "ord_1001"
+    }
+   },
+   {
+    "t": 5,
+    "type": "result",
+    "endpoint": "orders.get"
+   },
+   {
+    "t": 5,
+    "type": "brain",
+    "name": "search_policy",
+    "input": {
+     "query": "refund eligibility"
+    },
+    "kind": "tool"
+   },
+   {
+    "t": 5,
+    "type": "call",
+    "endpoint": "policy.search",
+    "input": {
+     "query": "refund eligibility"
+    }
+   },
+   {
+    "t": 5,
+    "type": "result",
+    "endpoint": "policy.search"
+   },
+   {
+    "t": 5,
+    "type": "brain",
+    "name": "issue_refund",
+    "input": {
+     "orderId": "ord_1001",
+     "amount": 49
+    },
+    "kind": "tool"
+   },
+   {
+    "t": 5,
+    "type": "call",
+    "endpoint": "refunds.create",
+    "input": {
+     "orderId": "ord_1001",
+     "amount": 49
+    }
+   },
+   {
+    "t": 5,
+    "type": "fault",
+    "endpoint": "refunds.create",
+    "detail": "Refund commits, then the response times out"
+   },
+   {
+    "t": 5,
+    "type": "effect",
+    "effect": "refund",
+    "data": {
+     "id": "rf_1",
+     "orderId": "ord_1001",
+     "amount": 49
+    }
+   },
+   {
+    "t": 1007,
+    "type": "timeout",
+    "endpoint": "refunds.create",
+    "afterMs": 1002,
+    "detail": "agent stopped waiting for call #3 after ~1002ms; the request is still in flight"
+   },
+   {
+    "t": 1007,
+    "type": "call",
+    "endpoint": "refunds.create",
+    "input": {
+     "orderId": "ord_1001",
+     "amount": 49
+    },
+    "retryOf": 3
+   },
+   {
+    "t": 1008,
+    "type": "effect",
+    "effect": "refund",
+    "data": {
+     "id": "rf_2",
+     "orderId": "ord_1001",
+     "amount": 49
+    }
+   },
+   {
+    "t": 1008,
+    "type": "result",
+    "endpoint": "refunds.create"
+   },
+   {
+    "t": 1009,
+    "type": "brain",
+    "name": "send_email",
+    "input": {
+     "to": "ada@example.com",
+     "subject": "Your refund request (ord_1001)",
+     "body": "Your refund for order ord_1001 has been issued."
+    },
+    "kind": "tool"
+   },
+   {
+    "t": 1009,
+    "type": "call",
+    "endpoint": "email.send",
+    "input": {
+     "to": "ada@example.com",
+     "subject": "Your refund request (ord_1001)",
+     "body": "Your refund for order ord_1001 has been issued."
+    }
+   },
+   {
+    "t": 1009,
+    "type": "effect",
+    "effect": "email",
+    "data": {
+     "to": "ada@example.com",
+     "subject": "Your refund request (ord_1001)",
+     "body": "Your refund for order ord_1001 has been issued."
+    }
+   },
+   {
+    "t": 1009,
+    "type": "result",
+    "endpoint": "email.send"
+   },
+   {
+    "t": 1009,
+    "type": "brain",
+    "kind": "final"
+   },
+   {
+    "t": 1010,
+    "type": "outcome"
+   },
+   {
+    "t": 1011,
+    "type": "error",
+    "endpoint": "refunds.create"
+   }
+  ]
+ },
+ "provenance": [
+  "source     entire (transcript)",
+  "commit     cf0ceac RefundBot target, chaos fault catalog, plain-English invariants, and honest scorecard",
+  "author     mrnetwork0001, 2026-10-10T09:20:18.000Z",
+  "checkpoint 01M4JHF2GWEP2029BVPZ8A9WQ1",
+  "session    8cdad8b4-3584-46b2-b505-0bcea4d9fb5b (Claude Code, claude-opus-5-5)",
+  "prompt     \"start building something for this app\"",
+  "written    2026-10-10T09:17:08.031Z",
+  "note       commit cf0ceac predates Entire's commit hooks (no Entire-Checkpoint trailer); matched by line text in the session transcript Entire imported (Write at 2026-10-10T09:17:08.031Z)"
+ ],
+ "entireStatus": [
+  "● Enabled · branch worktree-agent-a490faa6739860360",
+  "  Agents · Claude Code",
+  "  Automatic checkpoint pushing: disabled (push_sessions=false)",
+  "  Checkpoints read from: origin"
+ ],
+ "checkpoints": 74,
+ "selfChaos": {
+  "injected": 11,
+  "recovered": 11,
+  "seams": [
+   "trial",
+   "neatlogs",
+   "blue-llm",
+   "workspace",
+   "checkpoint",
+   "blue-proposal"
+  ],
+  "bugsFixed": 5
+ },
+ "numbers": {
+  "refundbot": [
+   56,
+   100
+  ],
+  "researchbot": [
+   49,
+   100
+  ],
+  "gameDay": [
+   43,
+   100
+  ],
+  "atRisk": [
+   553438,
+   0
+  ],
+  "attempts": 8,
+  "rejected": 3,
+  "judgeTrials": 40,
+  "sloTrials": 59,
+  "tests": 175,
+  "arr": [
+   77442,
+   232325,
+   774416
+  ],
+  "cashPositive": "2028-11",
+  "agentBuilders": 52405,
+  "planUrl": "https://app.cfo.ai/s/xAu-NTAidKxJcCm7"
+ }
+}

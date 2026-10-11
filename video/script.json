@@ -1,0 +1,89 @@
+{
+  "title": "Bulwark: break it first",
+  "model": "eleven_multilingual_v2",
+  "voices": {
+    "narrator": {
+      "name": "Lily",
+      "id": "pFZP5JQG7iQjIQuC4Bku",
+      "settings": { "stability": 0.55, "similarity_boost": 0.8, "style": 0.2, "use_speaker_boost": true }
+    }
+  },
+  "scenes": [
+    {
+      "id": "open",
+      "seconds": 16,
+      "lines": [
+        { "voice": "narrator", "text": "A customer asks for a refund on a forty-nine dollar order. The payment goes through, but the reply is slow." },
+        { "voice": "narrator", "text": "After one second, the agent gives up and tries again. Ninety-eight dollars, refunded on a forty-nine dollar order." }
+      ]
+    },
+    {
+      "id": "problem",
+      "seconds": 13,
+      "lines": [
+        { "voice": "narrator", "text": "No crash. No failing test. Under real-world failures, this agent keeps its rules only fifty-six percent of the time." },
+        { "voice": "narrator", "text": "And every other approach waits for it to break, then heals it." }
+      ]
+    },
+    {
+      "id": "turn",
+      "seconds": 13,
+      "lines": [
+        { "voice": "narrator", "text": "Bulwark breaks it first." },
+        { "voice": "narrator", "text": "It's chaos engineering for AI agents. It attacks your agent before your users do, writes the fix, and only accepts it when an independent Judge proves it." }
+      ]
+    },
+    {
+      "id": "attack",
+      "seconds": 11,
+      "lines": [
+        { "voice": "narrator", "text": "Red reads the code, finds the weak links, and attacks them in a sandbox. Timeouts. Rate limits. Prompt injection. A customer who claims to be the CEO." }
+      ]
+    },
+    {
+      "id": "fix",
+      "seconds": 11,
+      "lines": [
+        { "voice": "narrator", "text": "Blue writes a fix. The Judge re-runs every attack, on seeds Blue never saw. The first fix still pays twice. Rejected. Rolled back to a checkpoint." }
+      ]
+    },
+    {
+      "id": "prove",
+      "seconds": 13,
+      "lines": [
+        { "voice": "narrator", "text": "The next adds an idempotency key, but three tickets get no reply. Rejected again. The third passes fifty-nine out of fifty-nine, enough to prove a ninety-five percent target." },
+        { "voice": "narrator", "text": "Same seed, before and after. The second refund is gone." }
+      ]
+    },
+    {
+      "id": "result",
+      "seconds": 13,
+      "lines": [
+        { "voice": "narrator", "text": "Fifty-six percent, to one hundred. Five hundred fifty-three thousand dollars at risk per thousand tickets, down to zero. And a pull request, with tests proven to catch the bug." }
+      ]
+    },
+    {
+      "id": "tools",
+      "seconds": 16,
+      "lines": [
+        { "voice": "narrator", "text": "Every run is a neatlogs session, one trace per phase, and Blue reads failing traces back before it writes a fix." },
+        { "voice": "narrator", "text": "Entire names the AI session that wrote the bug. And the business plan is built in cfo.ai." }
+      ]
+    },
+    {
+      "id": "different",
+      "seconds": 14,
+      "lines": [
+        { "voice": "narrator", "text": "It isn't tied to one agent. ResearchBot, on real Crustdata data: forty-nine to one hundred. Several faults at once: forty-three to one hundred." },
+        { "voice": "narrator", "text": "Bulwark even attacks itself. Eleven faults, eleven recovered." }
+      ]
+    },
+    {
+      "id": "close",
+      "seconds": 9,
+      "lines": [
+        { "voice": "narrator", "text": "Bulwark. Break it first. Agents you can trust to run without you watching." }
+      ]
+    }
+  ]
+}
