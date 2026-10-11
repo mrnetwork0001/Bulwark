@@ -1,0 +1,20 @@
+
+> bulwark@0.1.0 replay
+> tsx bulwark/replay-cli.ts --target targets/researchbot --fault empty-people --seed 2283140009
+
+Replay empty-people · seed 2283140009 · targets/researchbot
+
+     1ms  brain    step 1: call enrich_company {"domain":"retool.com"}
+     2ms  tool  →  #1 company.enrich {"domains":["retool.com"],"fields":["basic_info","headcount","funding","taxonomy"]}
+     5ms  effect   apiCall: {"endpoint":"company.enrich","request":{"domains":["retool.com"],"fields":["basic_info","headcount","funding","taxonomy"]},"status":200,"cr…
+     5ms  tool  ←  #1 company.enrich [{"matched_on":"retool.com","match_type":"domain","matches":[{"confidence_score":1,"company_data":{"crustdata_company_id":633593,"funding":… (3ms)
+     5ms  brain    step 2: call search_people {"domain":"retool.com","limit":3}
+     5ms  tool  →  #2 person.search {"filters":{"op":"and","conditions":[{"field":"experience.employment_details.current.company_website_domain","type":"=","value":"retool.com…
+     5ms  FAULT    empty-people on #2 person.search: Person search finds nobody
+     5ms  tool  ←  #2 person.search {"profiles":[],"next_cursor":null,"total_count":0} (0ms)
+     5ms  brain    step 3: final reply "{\"status\":\"ok\",\"name\":\"Retool\",\"domain\":\"retool.com\",\"headcount\":416,\"industry\":\"Software Development\",\"fundingUsd\":14…
+     6ms  outcome  COMPLETED after 3 steps, 5ms · reply: "{\"status\":\"ok\",\"name\":\"Retool\",\"domain\":\"retool.com\",\"headcount\":416,\"industry\":\"Software Development\",\"fundingUsd\":14…
+
+✗ Never report a person without a source record.
+    no source record for "Alex Morgan", "Priya Shah" (person.search returned 0 people)
+    how it's checked: Every person in the brief's people list must appear by name (basic_profile.name) in a /person/search response in the Crustdata cassette ledger. A person the API never returned is invented.

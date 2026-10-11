@@ -23,6 +23,9 @@ npm run red:generate                # generative Red: the LLM invents new faults
 npm run chaos -- --generated        # …attack with them too (also: npm run fix -- --generated)
 npm run economics                   # unit economics from recent runs → docs/business/unit-economics.{md,csv}
 npm run leaderboard                 # rank 0G models as RefundBot's brain (real LLM spend; keep --trials small)
+npm run chaos -- --target targets/researchbot                          # attack the second target (real Crustdata data, replayed)
+npm run fix -- --target targets/researchbot --fixer playbook --no-memory   # ResearchBot 49% → 100%
+npm run record:crustdata -- --record                                   # re-record the Crustdata cassettes (real credits; see docs/CRUSTDATA.md)
 npm test
 ```
 
@@ -61,11 +64,18 @@ Social-engineering faults rewrite the customer's ticket instead of a tool respon
 
 Every trial is checked against business rules written in plain English (`targets/refundbot/bulwark.target.ts`), using the sandbox ledger as ground truth. Pass rates come with 95% Wilson confidence intervals, and every failure is replayable from its seed.
 
+## A second target: ResearchBot (real Crustdata data)
+
+Bulwark is not tied to RefundBot. A target is a directory under `targets/` with a `bulwark.target.ts` that declares its endpoints, sandbox, ledger (`observe()`), business rules (with its own compiled checks where needed) and editable files. Each target has its own fault catalog and its own playbook, and `--target` (or `?target=` on the dashboard API) picks which one to attack.
+
+**ResearchBot** answers "Brief me on retool.com and its key decision-makers" with a JSON brief built from the real [Crustdata](https://crustdata.com) API (`/company/enrich`, `/person/search`). Real responses for four companies were recorded once (13.17 credits) and are replayed by a cassette sandbox, so every trial is free and deterministic. Its rules: every brief cites only data the API returned, no person without a source record, a brief or an explicit "not found", at most 5 seconds, at most 8 steps, at most 5 API credits. Its faults are 429 with `x-ratelimit-reset`, 5xx, a 10s latency spike, truncated JSON, a record missing a field, an empty people search, and a cursor that never advances. Blue's playbook fixes them with a retry that honours the reset header, a timeout, body validation, schema validation, a brief grounded in tool results, and a cursor cap. Offline: **49% → 100%**. The Judge rejects a retry that ignores the reset header, a step budget that never sees the in-tool pagination loop, and the "ask again" fix for an empty result. Details: [docs/CRUSTDATA.md](docs/CRUSTDATA.md), evidence: [docs/evidence/06-researchbot](docs/evidence/06-researchbot/).
+
 ## Layout
 
 ```
 bulwark/            chaos agent: faults, harness, rule compiler, scorecard, CLI
 targets/refundbot/  the deliberately fragile demo agent
+targets/researchbot/ second target: a research agent on recorded Crustdata responses
 docs/               plan, features, demo script, submission checklist
 ```
 
