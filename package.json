@@ -11,6 +11,8 @@
     "dashboard": "tsx bulwark/server.ts",
     "fix": "tsx bulwark/fix.ts",
     "replay": "tsx bulwark/replay-cli.ts",
+    "ci:scorecard": "tsx bulwark/ci/scorecard-cli.ts",
+    "chatops": "tsx bulwark/chatops-cli.ts",
     "readback": "tsx bulwark/readback.ts",
     "provenance": "tsx bulwark/provenance/cli.ts",
     "red:generate": "tsx bulwark/generate.ts",

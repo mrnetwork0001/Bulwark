@@ -1,0 +1,42 @@
+{
+  "target": "researchbot",
+  "trials": 20,
+  "seed": 42,
+  "brain": "simulated",
+  "overall": 0.4875,
+  "faults": {
+    "baseline": {
+      "passed": 20,
+      "trials": 20
+    },
+    "crustdata-429": {
+      "passed": 6,
+      "trials": 20
+    },
+    "crustdata-5xx": {
+      "passed": 8,
+      "trials": 20
+    },
+    "crustdata-latency": {
+      "passed": 9,
+      "trials": 20
+    },
+    "truncated-json": {
+      "passed": 9,
+      "trials": 20
+    },
+    "missing-field": {
+      "passed": 8,
+      "trials": 20
+    },
+    "empty-people": {
+      "passed": 11,
+      "trials": 20
+    },
+    "pagination-loop": {
+      "passed": 7,
+      "trials": 20
+    }
+  },
+  "updatedAt": "2026-10-11T16:16:27.872Z"
+}
