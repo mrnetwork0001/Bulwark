@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { createServer, type ServerResponse } from 'node:http';
 import { target } from '../targets/refundbot/bulwark.target';
 import { FAULTS, getFault, type Fault } from './chaos/faults';
+import { parseSlo } from './judge/slo';
+import { parseTournament } from './judge/tournament';
 import { runLoop } from './loop/orchestrator';
 import { replayFromParams } from './replay';
 import { runExperiment } from './scorecard';
@@ -74,9 +76,14 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
   }
   loopRunning = true;
   try {
+    // Optional: a reliability target (e.g. slo=0.95) and a fix tournament (e.g. tournament=playbook,playbook-strong).
+    const slo = params.get('slo') ? parseSlo(params.get('slo')!) : undefined;
+    const tournament = params.get('tournament') ? parseTournament(params.get('tournament')!) : undefined;
     await runLoop(
       {
         targetDir: 'targets/refundbot',
+        ...(slo ? { slo } : {}),
+        ...(tournament ? { tournament } : {}),
         memory: params.get('memory') === '1',
         redTrials: Math.min(100, Math.max(5, Number(params.get('trials') ?? 20))),
         seed: Number(params.get('seed') ?? 42),

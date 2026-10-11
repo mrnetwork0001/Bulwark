@@ -56,6 +56,8 @@
   .field input { width: 66px; height: 30px; border: 0; border-radius: var(--pill); background: var(--surface-muted); color: var(--fg); text-align: center; font: 500 13px var(--font-mono); -moz-appearance: textfield; }
   .field input::-webkit-outer-spin-button, .field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .field input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+  .field select { height: 30px; border: 0; border-radius: var(--pill); background: var(--surface-muted); color: var(--fg); font: 500 13px var(--font-sans); padding: 0 12px; cursor: pointer; max-width: 100%; }
+  .field select:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
   .toggle { position: relative; cursor: pointer; font-weight: 400; color: var(--fg-muted); user-select: none; }
   .toggle input { position: absolute; opacity: 0; pointer-events: none; }
   .toggle .switch { position: relative; width: 30px; height: 18px; border-radius: var(--pill); background: var(--pending); transition: background .2s var(--ease-out); flex: none; }
@@ -310,6 +312,8 @@
       <div class="group">
         <label class="pill field">Trials / fault <input id="trials" type="number" min="5" max="100" value="20" inputmode="numeric"></label>
         <label class="pill field">Seed <input id="seed" type="number" value="42" inputmode="numeric"></label>
+        <label class="pill field" title="Reliability target: the Judge runs exactly enough trials to demonstrate it at 95% confidence">SLO <select id="slo"><option value="">Off</option><option value="0.95">95%</option><option value="0.99">99%</option></select></label>
+        <label class="pill field" title="Competing fixers: the Judge picks the winner on proof, then overhead, then diff size">Fixers <select id="tournament"><option value="">Single</option><option value="playbook,playbook-strong">Tournament (offline)</option><option value="claude-sonnet-5,deepseek-v4-flash" data-llm>Claude vs DeepSeek (0G)</option></select></label>
         <label class="pill toggle" title="Use past runs to try the best-known fix first"><input id="memory" type="checkbox"><span class="switch" aria-hidden="true"></span>Remember past fixes</label>
       </div>
       <div class="group actions">
@@ -445,6 +449,8 @@ function resetCards() { $('grid').replaceChildren(...meta.faults.map(card)); }
 
 async function load() {
   meta = await (await fetch('/api/meta')).json();
+  // Model tournaments need an LLM key; offer them only when the server has one.
+  if (String(meta.fixer).startsWith('playbook')) document.querySelectorAll('#tournament option[data-llm]').forEach((o) => { o.disabled = true; o.textContent += ' · needs LLM key'; });
   $('target').textContent = meta.target;
   const llm = !/^playbook/i.test(meta.fixer);
   const via = /0G/i.test(meta.fixer) ? '0G' : /anthropic/i.test(meta.fixer) ? 'Anthropic' : '0G';
@@ -783,7 +789,9 @@ function runLoopUI() {
   loopStats();
   setBusy(true);
   $('loop').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const es = new EventSource(`/api/loop?trials=${trials}&seed=${seed}&memory=${memory}`);
+  const slo = $('slo').value, tournament = $('tournament').value;
+  const es = new EventSource(`/api/loop?trials=${trials}&seed=${seed}&memory=${memory}` +
+    (slo ? `&slo=${encodeURIComponent(slo)}` : '') + (tournament ? `&tournament=${encodeURIComponent(tournament)}` : ''));
   es.addEventListener('loop', (m) => { const e = JSON.parse(m.data); handlers[e.type]?.(e); if (e.type === 'run-done') { es.close(); setBusy(false); } });
   es.addEventListener('loop-error', (m) => { tl(`<span class="bad">Error: ${esc(JSON.parse(m.data).message)}</span>`); es.close(); setBusy(false); });
   es.addEventListener('error', () => { es.close(); setBusy(false); });
