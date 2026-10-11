@@ -249,6 +249,8 @@
     .controlbar .actions { width: 100%; }
     .controlbar .actions .cta { flex: 1; justify-content: space-between; }
   }
+  /* Very small phones: the logo already links home, so the extra back arrow goes. */
+  @media (max-width: 380px) { .topbar a.home { display: none; } }
   @media (max-width: 640px) {
     .topbar .wrap { height: 64px; gap: 8px; }
     .brand { font-size: 16px; gap: 8px; }
@@ -257,6 +259,8 @@
     .segment span { padding: 5px 9px; }
     .nlstat { width: 34px; padding: 0; justify-content: center; }
     .nlstat .t { display: none; }
+    /* Phones keep the target switch (an action) and drop the fixer indicator (status only). */
+    #fx { display: none; }
     .hero { padding-top: 36px; }
     .xs-hide { display: none; }
     ul.rp-broken { max-height: 22vh; }
