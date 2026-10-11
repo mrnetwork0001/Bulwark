@@ -12,6 +12,7 @@ The motif is Bulwark's own logo, the crenellated wall, built from bricks. Every 
   - The cfo.ai plan's ARR of $77k → $232k → $774k and cash-flow positive from 2028-11 (README, `docs/business/cfo-ai-plan.md`).
   - The 52,405 companies building AI agents (Crustdata, `docs/business/market-sizing.md`).
   - The 175 tests (`npm test`, run by `scripts/data.mjs`).
+  - In scene 2 the figure counts down from 100% to 56%: RefundBot passes 20/20 trials when nothing breaks (README, "What happens today"), and keeps every rule in 56% of trials under the eight faults. Every other counter starts from its real "before" value (49% → 100%, 43% → 100%, $553,438 → $0) or stays hidden until it starts counting.
 - **The live run** (scenes 4 to 7) was recorded from the real dashboard (`/app`) on a local server (`PORT=5410`, Chrome at 1600×900, device scale 2). The settings were target refundbot, seed 42, 20 trials per fault, SLO 95%, and Remember past fixes off. The fixer was the **playbook** (no LLM key on that server), so the run is deterministic. On camera, timeout-after-commit takes three attempts:
   1. Exponential backoff is rejected: 29/59 trials still refund twice.
   2. The idempotency key alone is rejected: 3/59 tickets get no reply.
