@@ -4,6 +4,8 @@
 
 Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) with **neatlogs**, **Entire** and **cfo.ai**, plus 0G Compute and Crustdata.
 
+**Live site: [usebulwark.vercel.app](https://usebulwark.vercel.app)**. The hosted [/app](https://usebulwark.vercel.app/app) replays real runs recorded on the local server (same events, trial replays and verdicts, with the waits shortened). To run the loop live on your machine, see [Quickstart](#quickstart).
+
 ![Bulwark landing page](docs/screenshots/landing-hero-desktop.png)
 
 > Every other approach here waits for something to break, then heals it. Bulwark breaks it first, fixes it, and proves the fix on fresh seeds: a statistical result, not one lucky re-run.

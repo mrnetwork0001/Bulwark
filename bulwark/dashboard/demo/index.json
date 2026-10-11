@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-10-11T23:39:49.069Z",
+  "targets": {
+    "refundbot": {
+      "runId": "2026-10-11T23-39-54-112Z",
+      "artifacts": [
+        "PR.md",
+        "badge.svg",
+        "fix.patch",
+        "postmortem-latency-spike.md",
+        "postmortem-malformed-response.md",
+        "postmortem-prompt-injection.md",
+        "postmortem-rate-limit.md",
+        "postmortem-social-authority.md",
+        "postmortem-social-third-party.md",
+        "postmortem-stuck-pending.md",
+        "postmortem-timeout-after-commit.md",
+        "scorecard-after.md",
+        "scorecard-before.md",
+        "summary.json"
+      ],
+      "replays": 185,
+      "diffs": 102,
+      "loopSeconds": 117
+    },
+    "researchbot": {
+      "runId": "2026-10-11T23-15-42-880Z",
+      "artifacts": [
+        "PR.md",
+        "badge.svg",
+        "fix.patch",
+        "postmortem-crustdata-429.md",
+        "postmortem-crustdata-5xx.md",
+        "postmortem-crustdata-latency.md",
+        "postmortem-empty-people.md",
+        "postmortem-missing-field.md",
+        "postmortem-pagination-loop.md",
+        "postmortem-truncated-json.md",
+        "scorecard-after.md",
+        "scorecard-before.md",
+        "summary.json"
+      ],
+      "replays": 166,
+      "diffs": 123,
+      "loopSeconds": 527
+    }
+  }
+}

@@ -1,0 +1,170 @@
+diff --git a/targets/refundbot/agent.ts b/targets/refundbot/agent.ts
+index 38d8d16..c3a16ed 100644
+--- a/targets/refundbot/agent.ts
++++ b/targets/refundbot/agent.ts
+@@ -3,7 +3,7 @@
+ 
+ import { trace } from 'neatlogs';
+ import type { Transport } from './payments';
+-import { createTools, type ToolName } from './tools';
++import { createTools, type ToolName, type Tools } from './tools';
+ 
+ export interface Ticket {
+   id: string;
+@@ -44,6 +44,19 @@ export const SYSTEM_PROMPT =
+   'look up the order, check the refund policy, issue the refund if eligible, then email the customer ' +
+   'with the outcome. When done, reply with a one-line summary.';
+ 
++const MAX_STEPS = 8;
++
++// When the agent can't finish safely, tell the customer a human will follow up
++// instead of failing silently.
++async function escalate(tools: Tools, ticket: Ticket): Promise<RunResult['reply']> {
++  await tools.send_email({
++    to: ticket.customerEmail,
++    subject: `Your refund request (${ticket.orderId})`,
++    body: 'We hit a problem processing your refund automatically. A teammate will follow up within 24 hours.',
++  });
++  return `Escalated ${ticket.id} to a human.`;
++}
++
+ export async function runRefundBot(
+   ticket: Ticket,
+   deps: { transport: Transport; brain: Brain },
+@@ -51,12 +64,20 @@ export async function runRefundBot(
+   return trace(
+     { name: 'refundbot.run', kind: 'AGENT', attributes: { ticketId: ticket.id, brain: deps.brain.name } },
+     async () => {
+-      const tools = createTools(deps.transport);
++      const tools = createTools(deps.transport, ticket);
+       const history: Step[] = [];
+       while (true) {
++        // bulwark:step-budget: a stuck tool can't burn unbounded steps and tokens
++        if (history.length >= MAX_STEPS) return { reply: await escalate(tools, ticket), steps: history };
+         const decision = await deps.brain.decide({ ticket, history });
+         if (decision.type === 'final') return { reply: decision.reply, steps: history };
+-        const output = await tools[decision.name](decision.input);
++        let output: unknown;
++        try {
++          output = await tools[decision.name](decision.input);
++        } catch {
++          // bulwark:graceful: a failed tool escalates to a human instead of crashing the run
++          return { reply: await escalate(tools, ticket), steps: history };
++        }
+         history.push({ tool: decision.name, input: decision.input, output });
+       }
+     },
+diff --git a/targets/refundbot/chaos-tests/latency-spike.json b/targets/refundbot/chaos-tests/latency-spike.json
+index e69de29..9eee6c2 100644
+--- /dev/null
++++ b/targets/refundbot/chaos-tests/latency-spike.json
+@@ -0,0 +1,7 @@
++{
++  "fault": "latency-spike",
++  "trials": 40,
++  "seed": 2000045,
++  "strategy": "harden-lookup",
++  "createdBy": "bulwark"
++}
+diff --git a/targets/refundbot/chaos-tests/prompt-injection.json b/targets/refundbot/chaos-tests/prompt-injection.json
+index e69de29..d942781 100644
+--- /dev/null
++++ b/targets/refundbot/chaos-tests/prompt-injection.json
+@@ -0,0 +1,7 @@
++{
++  "fault": "prompt-injection",
++  "trials": 40,
++  "seed": 2000045,
++  "strategy": "refund-guard",
++  "createdBy": "bulwark"
++}
+diff --git a/targets/refundbot/chaos-tests/social-third-party.json b/targets/refundbot/chaos-tests/social-third-party.json
+index e69de29..fba32a9 100644
+--- /dev/null
++++ b/targets/refundbot/chaos-tests/social-third-party.json
+@@ -0,0 +1,7 @@
++{
++  "fault": "social-third-party",
++  "trials": 40,
++  "seed": 2000045,
++  "strategy": "refund-guard+ownership-check",
++  "createdBy": "bulwark"
++}
+diff --git a/targets/refundbot/chaos-tests/stuck-pending.json b/targets/refundbot/chaos-tests/stuck-pending.json
+index e69de29..f8fa7ff 100644
+--- /dev/null
++++ b/targets/refundbot/chaos-tests/stuck-pending.json
+@@ -0,0 +1,7 @@
++{
++  "fault": "stuck-pending",
++  "trials": 40,
++  "seed": 2000045,
++  "strategy": "step-budget",
++  "createdBy": "bulwark"
++}
+diff --git a/targets/refundbot/chaos-tests/timeout-after-commit.json b/targets/refundbot/chaos-tests/timeout-after-commit.json
+index e69de29..6382036 100644
+--- /dev/null
++++ b/targets/refundbot/chaos-tests/timeout-after-commit.json
+@@ -0,0 +1,7 @@
++{
++  "fault": "timeout-after-commit",
++  "trials": 40,
++  "seed": 2000045,
++  "strategy": "idempotency-key+escalate",
++  "createdBy": "bulwark"
++}
+diff --git a/targets/refundbot/tools.ts b/targets/refundbot/tools.ts
+index c8354bc..4909923 100644
+--- a/targets/refundbot/tools.ts
++++ b/targets/refundbot/tools.ts
+@@ -71,20 +71,45 @@ async function withRetry<T>(fn: () => Promise<T>, attempts: number): Promise<T>
+   throw lastErr;
+ }
+ 
++const LOOKUP_TIMEOUT_MS = 1000;
++const LOOKUP_ATTEMPTS = 3;
++
++function parseOrder(raw: string): Order {
++  const order = JSON.parse(raw) as Order;
++  if (typeof order?.id !== 'string' || typeof order.total !== 'number' || typeof order.status !== 'string') {
++    throw new Error('invalid order payload');
++  }
++  return order;
++}
++
+ export type Tools = Record<ToolName, (input: Record<string, unknown>) => Promise<unknown>>;
+ 
+-export function createTools(transport: Transport): Tools {
++export function createTools(transport: Transport, ticket?: { customerEmail: string }): Tools {
+   return {
+     lookup_order: span({ kind: 'TOOL', name: 'lookup_order', toolName: 'lookup_order' }, async (input) => {
+-      const raw = await transport('orders.get', { orderId: input.orderId });
+-      return JSON.parse(raw) as Order;
++      // bulwark:lookup-hardened: bounded wait, validated body, retried on transient failure
++      return withRetry(
++        async () => parseOrder(await withTimeout(transport('orders.get', { orderId: input.orderId }), LOOKUP_TIMEOUT_MS)),
++        LOOKUP_ATTEMPTS,
++      );
+     }),
+ 
+     issue_refund: span({ kind: 'TOOL', name: 'issue_refund', toolName: 'issue_refund' }, async (input) => {
++      // bulwark:refund-guard: never move more money than the order is worth, whatever the model asks for
++      const order = await withRetry(
++        async () => JSON.parse(await withTimeout(transport('orders.get', { orderId: input.orderId }), 1000)) as Order,
++        3,
++      );
++      const amount = Math.min(Number(input.amount), order.total);
++      // bulwark:ownership: only refund orders that belong to the ticket's customer, whoever they claim to be
++      if (ticket && order.email !== ticket.customerEmail) {
++        return { refused: true, reason: `order ${order.id} does not belong to ${ticket.customerEmail}; refunds go only to the order's owner` };
++      }
+       const raw = await withRetry(
+         () =>
+           withTimeout(
+-            transport('refunds.create', { orderId: input.orderId, amount: input.amount }),
++            // bulwark:idempotency: a replayed refund returns the original instead of paying twice
++            transport('refunds.create', { orderId: input.orderId, idempotencyKey: `refund:${input.orderId}`, amount }),
+             REFUND_TIMEOUT_MS,
+           ),
+         REFUND_ATTEMPTS,

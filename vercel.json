@@ -1,10 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "echo 'static landing page, nothing to install'",
-  "buildCommand": "rm -rf .vercel-site && mkdir .vercel-site && cp bulwark/dashboard/landing.html .vercel-site/index.html && cp bulwark/dashboard/theme.css bulwark/dashboard/menu.js .vercel-site/",
+  "installCommand": "echo 'static site, nothing to install'",
+  "buildCommand": "node scripts/build-hosted.mjs",
   "outputDirectory": ".vercel-site",
-  "redirects": [
-    { "source": "/app", "destination": "https://github.com/mrnetwork0001/Bulwark#quickstart", "permanent": false }
-  ]
+  "cleanUrls": true
 }
