@@ -1,0 +1,7 @@
+{
+  "tool_use_id": "toolu_01EqGfqKKBnZvEDu8dpZfmzT",
+  "agent_id": "ab84b9d63a9911fc6",
+  "subagent_type": "general-purpose",
+  "task_description": "Trace diff view + replay from past runs",
+  "started_at": "2026-10-11T18:12:32.63969+02:00"
+}
