@@ -1,0 +1,1 @@
+create env file and add vars needed for this build while iget those
