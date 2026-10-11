@@ -154,6 +154,36 @@ function parseOrder(raw: string): Order {
       ),
   },
 
+  // Builds on the refund guard's order lookup, so it never costs an extra call.
+  ownership: {
+    id: 'ownership-check',
+    marker: 'bulwark:ownership',
+    apply: (files) =>
+      chain(
+        files,
+        (f) =>
+          edit(
+            f,
+            TOOLS,
+            `      const amount = Math.min(Number(input.amount), order.total);\n`,
+            `      const amount = Math.min(Number(input.amount), order.total);
+      // bulwark:ownership: only refund orders that belong to the ticket's customer, whoever they claim to be
+      if (ticket && order.email !== ticket.customerEmail) {
+        return { refused: true, reason: \`order \${order.id} does not belong to \${ticket.customerEmail}; refunds go only to the order's owner\` };
+      }
+`,
+          ),
+        (f) =>
+          edit(
+            f,
+            TOOLS,
+            'export function createTools(transport: Transport): Tools {',
+            'export function createTools(transport: Transport, ticket?: { customerEmail: string }): Tools {',
+          ),
+        (f) => edit(f, AGENT, 'const tools = createTools(deps.transport);', 'const tools = createTools(deps.transport, ticket);'),
+      ),
+  },
+
   sanitize: {
     id: 'sanitize-output',
     marker: 'bulwark:sanitize',
@@ -232,7 +262,9 @@ export interface Strategy {
   transforms: Transform[];
 }
 
-export const PLAYBOOK: Record<FaultKind, Strategy[]> = {
+// Partial: generated faults may have a kind ('novel') no textbook fix covers.
+// The LLM fixer still handles those; the playbook simply has nothing to offer.
+export const PLAYBOOK: Partial<Record<FaultKind, Strategy[]>> = {
   latency: [
     { id: 'harden-lookup', title: 'Timeout + retry on order lookup', rationale: 'Bound each lookup to 1s and retry up to 3 times so one slow response cannot hang the run.', transforms: [T.hardenLookup] },
     { id: 'harden-lookup+escalate', title: 'Timeout + retry, then escalate', rationale: 'Retries alone still fail when every attempt is slow; when they run out, email the customer that a human will follow up.', transforms: [T.hardenLookup, T.escalate] },
@@ -256,6 +288,10 @@ export const PLAYBOOK: Record<FaultKind, Strategy[]> = {
   ],
   loop: [
     { id: 'step-budget', title: 'Step budget with escalation', rationale: 'Cap the agent at 8 steps and escalate to a human, so a stuck tool cannot burn unbounded steps and tokens.', transforms: [T.stepBudget, T.escalate] },
+  ],
+  social: [
+    { id: 'refund-guard', title: 'Server-side refund guard', rationale: 'Whatever the customer claims, a refund can never exceed the order total. Enforced in code, not in the prompt.', transforms: [T.refundGuard] },
+    { id: 'refund-guard+ownership-check', title: 'Refund guard + ownership check', rationale: "Capping the amount does not stop a customer from talking the agent into refunding someone else's order. issue_refund now checks that the order's customer email matches the ticket's, and refuses otherwise.", transforms: [T.refundGuard, T.ownership] },
   ],
 };
 

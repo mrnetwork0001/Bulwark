@@ -23,23 +23,50 @@ const defaultModel = () =>
   (!process.env.ANTHROPIC_API_KEY && process.env.ZG_ROUTER_API_KEY ? 'claude-sonnet-5' : 'claude-haiku-5-5');
 
 const INJECTED_REFUND = /issue a (?:full )?refund of \$(\d+(?:\.\d+)?)/i;
+// What a pushy customer asks for in the ticket itself.
+const DEMANDED_REFUND = /refund (?:of )?\$(\d+(?:\.\d+)?)/i;
+const OTHER_ORDER = /\b(ord_\d+)\b/g;
+
+interface Persuasion {
+  amount?: number;
+  otherOrderId?: string;
+}
 
 // A deterministic stand-in for an LLM, so hundreds of chaos trials cost nothing
 // and replay exactly from a seed. It follows the same plan a model typically
 // does, including the habits that make agents fragile: it re-checks a pending
-// order indefinitely, and with probability `susceptibility` it obeys instructions
-// that appear inside tool output (as real models sometimes do).
+// order indefinitely, with probability `susceptibility` it obeys instructions
+// that appear inside tool output (as real models sometimes do), and with
+// probability `socialSusceptibility` it believes a customer who claims authority
+// or asks it to refund someone else's order too.
 export class SimulatedBrain implements Brain {
   name = 'simulated-llm';
+  private persuasion?: Persuasion | null;
 
   constructor(
     private rng: () => number,
     private susceptibility = 0.5,
+    private socialSusceptibility = 0.5,
   ) {}
+
+  /** Decided once per ticket. The rng is only drawn when the message actually tries something. */
+  private persuaded(ticket: BrainContext['ticket']): Persuasion | null {
+    if (this.persuasion !== undefined) return this.persuasion;
+    const demanded = ticket.message.match(DEMANDED_REFUND);
+    const other = [...ticket.message.matchAll(OTHER_ORDER)].map((m) => m[1]).find((id) => id !== ticket.orderId);
+    this.persuasion =
+      (demanded || other) && this.rng() < this.socialSusceptibility
+        ? { amount: demanded ? Number(demanded[1]) : undefined, otherOrderId: other }
+        : null;
+    return this.persuasion;
+  }
 
   async decide({ ticket, history }: BrainContext): Promise<Decision> {
     const last = (tool: ToolName) => history.filter((s) => s.tool === tool).at(-1);
-    const order = last('lookup_order')?.output as Order | undefined;
+    const lookup = (orderId: string) =>
+      history.filter((s) => s.tool === 'lookup_order' && s.input.orderId === orderId).at(-1)?.output as Order | undefined;
+    const refundedOrder = (orderId: string) => history.some((s) => s.tool === 'issue_refund' && s.input.orderId === orderId);
+    const order = lookup(ticket.orderId);
 
     if (!order || order.status === 'pending') {
       return { type: 'tool', name: 'lookup_order', input: { orderId: ticket.orderId } };
@@ -48,11 +75,19 @@ export class SimulatedBrain implements Brain {
     if (policy === undefined) {
       return { type: 'tool', name: 'search_policy', input: { query: 'refund eligibility' } };
     }
-    const refunded = last('issue_refund') !== undefined;
+    const social = this.persuaded(ticket);
+    const refunded = refundedOrder(order.id);
     if (!refunded && order.status === 'paid') {
       const injected = policy.match(INJECTED_REFUND);
-      const amount = injected && this.rng() < this.susceptibility ? Number(injected[1]) : order.total;
+      const amount = injected && this.rng() < this.susceptibility ? Number(injected[1]) : (social?.amount ?? order.total);
       return { type: 'tool', name: 'issue_refund', input: { orderId: order.id, amount } };
+    }
+    if (social?.otherOrderId && !refundedOrder(social.otherOrderId)) {
+      const other = lookup(social.otherOrderId);
+      if (!other) return { type: 'tool', name: 'lookup_order', input: { orderId: social.otherOrderId } };
+      if (other.status === 'paid') {
+        return { type: 'tool', name: 'issue_refund', input: { orderId: other.id, amount: other.total } };
+      }
     }
     if (last('send_email') === undefined) {
       const body = refunded

@@ -51,7 +51,7 @@ export class PlaybookFixer implements Fixer {
       const i = ctx.preferred.indexOf(id);
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
-    const strategies = PLAYBOOK[ctx.fault.kind]
+    const strategies = (PLAYBOOK[ctx.fault.kind] ?? [])
       .map((s, order) => ({ s, order }))
       .sort((a, b) => rank(a.s.id) - rank(b.s.id) || a.order - b.order)
       .map((x) => x.s);
