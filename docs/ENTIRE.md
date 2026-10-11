@@ -72,3 +72,15 @@ npm run fix -- --fixer playbook --fault timeout-after-commit --max-attempts 1   
 BULWARK_ENTIRE_GRAPH=0 npm run fix -- --fixer playbook --fault timeout-after-commit --max-attempts 1   # same run, graph switched off
 grep -A1 "Blast radius (Entire Graph)" .bulwark/runs/*/postmortem-timeout-after-commit.md | tail -3
 ```
+
+## Publishing checkpoints safely
+
+Entire redacts secrets in transcript text, but images pasted into a session (screenshots) are stored as base64 and can show things like API keys. Before pushing checkpoints, run the sanitizer: it replaces every image with a placeholder, scrubs any `.env` secret values, and recomputes `content_hash.txt`. Checkpoint ids stay the same, so commit trailers still resolve.
+
+```bash
+python3 scripts/sanitize-entire-checkpoints.py            # rewrite local refs/entire/*, then self-check
+python3 scripts/sanitize-entire-checkpoints.py --check    # must print "0 unsafe" before you push
+git push --force origin 'refs/entire/*:refs/entire/*'
+```
+
+Automatic checkpoint pushing is off (`push_sessions: false` in `.entire/settings.json`), so checkpoints only leave this machine through that command.
