@@ -18,6 +18,8 @@ npm run fix -- --max-latency-overhead 50% --max-step-overhead 2   # reject fixes
 npm run fix -- --tournament claude-sonnet-5,deepseek-v4-flash      # fix tournament; offline: --tournament playbook,playbook-strong
 npm run chaos                       # attack only: all faults, 20 trials each
 npm run replay -- --fault timeout-after-commit --seed 1286473109   # step through one trial (or click any square on /app)
+npm run diff -- --fault timeout-after-commit --seed 1286473109 --run <runId>   # same seed before vs after the run's accepted fix, divergence marked ("Compare with fix" on /app)
+npm run replay-failures -- --last 5 [--into-specs]   # regression sweep: re-run every recorded failing (fault, seed) + failing neatlogs trial spans against current code
 npm run provenance -- targets/refundbot/tools.ts:87   # which AI session/prompt wrote this line (Entire)
 npm run red:generate                # generative Red: the LLM invents new faults (DSL specs), Bulwark keeps the ones that break a rule
 npm run chaos -- --generated        # …attack with them too (also: npm run fix -- --generated)

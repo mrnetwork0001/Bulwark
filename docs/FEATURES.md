@@ -14,13 +14,13 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` done + evidence capt
 | 4 | Self-chaos (Bulwark attacks itself) | A | [ ] not started |
 | 5 | Fix proof by "un-fixing" (mutation check) | A | [x] Guard: regression test must fail without the fix and pass with it |
 | 6 | Statistically honest scorecard | A | [x] Wilson CIs, Fisher significance test, "inconclusive" verdict, replay seeds |
-| 7 | Replay real failures from neatlogs traces | B | [ ] |
+| 7 | Replay real failures from neatlogs traces | B | [x] `npm run replay-failures`: distinct failing (fault, seed) from past runs' summaries, plus failing `bulwark.trial` spans read back from neatlogs (fault from the experiment span, seed/outcome from the trial output, original-code phases only), re-run against current code; `--into-specs` writes exact-seed chaos specs. Real sweep over 18 runs: 161 incidents from runs + 3 more from 4 readable neatlogs traces, 164/164 still fail on the original code, 79/79 RefundBot incidents fixed by the accepted fixes, every incident spec proven to guard its fix ([evidence](evidence/09-incident-replay/)) |
 | 8 | Auto-written postmortem per experiment | B | [x] postmortem per fault (template-based; LLM narrative later) |
 | 9 | Resilience badge | B | [x] badge.svg per run, served at /badge.svg |
 | 10 | Cascading "game day" mode | B | [ ] |
 | 11 | Strategy memory across runs | B | [x] .bulwark/memory.json; run 2 needs 4 attempts instead of 7 |
 | 12 | Cost guardrails as a fault class | B | [x] stuck-pending fault + step-budget fix |
-| 13 | Trace diff view | B | [ ] |
+| 13 | Trace diff view | B | [x] "Compare with fix" in the /app replay modal for faults with an accepted fix in the current loop run: aligned before/after columns (weighted LCS over event type + endpoint, timings ignored), divergence row highlighted, one-line explanation; stacks at 390px. `/api/diff`, `npm run diff` ([evidence](evidence/10-trace-diff/), [screenshots](screenshots/diff-desktop.png)) |
 | 14 | GitHub Action on every PR | C | [ ] |
 | 15 | ChatOps `/bulwark` PR commands | C | [ ] |
 | 16 | Model-degradation fault | C | [ ] |

@@ -1,0 +1,36 @@
+Trace diff timeout-after-commit · seed 1286473109 · run 2026-10-11T07-48-30-648Z
+  before: completed, 2 rules broken    after: completed, every rule held
+  16 same · 4 changed · 1 only before · 0 only after
+
+      BEFORE  targets/refundbot                                                                      │ AFTER  .bulwark/runs/2026-10-11T07-48-30-648Z/ws/timeout-after-commit-accepted
+      ───────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────
+   1   brain   lookup_order {"orderId":"ord_1001"}                                                    │ brain   lookup_order {"orderId":"ord_1001"}
+   2   → orders.get {"orderId":"ord_1001"}                                                            │ → orders.get {"orderId":"ord_1001"}
+   3   ← orders.get {"id":"ord_1001","customer":"Ada","email":"ada@example.com","total":49,"currency… │ ← orders.get {"id":"ord_1001","customer":"Ada","email":"ada@example.com","total":49,"currency…
+   4   brain   search_policy {"query":"refund eligibility"}                                           │ brain   search_policy {"query":"refund eligibility"}
+   5   → policy.search {"query":"refund eligibility"}                                                 │ → policy.search {"query":"refund eligibility"}
+   6   ← policy.search {"text":"Refund policy: paid orders may be refunded in full within 30 days. R… │ ← policy.search {"text":"Refund policy: paid orders may be refunded in full within 30 days. R…
+   7   brain   issue_refund {"orderId":"ord_1001","amount":49}                                        │ brain   issue_refund {"orderId":"ord_1001","amount":49}
+▶  8 ~ → refunds.create {"orderId":"ord_1001","amount":49}                                            │ → refunds.create {"orderId":"ord_1001","idempotencyKey":"refund:ord_1001","amount":49}
+                                                                                                          ↳ input.idempotencyKey: (absent) → "refund:ord_1001"
+   9   FAULT timeout-after-commit on refunds.create                                                   │ FAULT timeout-after-commit on refunds.create
+  10 ~ effect  refund of $49 on ord_1001 (rf_1)                                                       │ effect  refund of $49 on ord_1001 (rf_1)
+                                                                                                          ↳ data.idempotencyKey: (absent) → "refund:ord_1001"
+  11   timeout refunds.create                                                                         │ timeout refunds.create
+  12 ~ → refunds.create {"orderId":"ord_1001","amount":49} RETRY                                      │ → refunds.create {"orderId":"ord_1001","idempotencyKey":"refund:ord_1001","amount":49} RETRY
+                                                                                                          ↳ input.idempotencyKey: (absent) → "refund:ord_1001"
+• 13 - effect  refund of $49 on ord_1001 (rf_2)                                                       │ 
+  14 ~ ← refunds.create {"id":"rf_2","orderId":"ord_1001","amount":49}                                │ ← refunds.create {"id":"rf_1","orderId":"ord_1001","idempotencyKey":"refund:ord_1001","amount…
+                                                                                                          ↳ output.id: "rf_2" → "rf_1"
+                                                                                                          ↳ output.idempotencyKey: (absent) → "refund:ord_1001"
+  15   brain   send_email {"to":"ada@example.com","subject":"Your refund request (ord_1001)","body":… │ brain   send_email {"to":"ada@example.com","subject":"Your refund request (ord_1001)","body":…
+  16   → email.send {"to":"ada@example.com","subject":"Your refund request (ord_1001)","body":"Your … │ → email.send {"to":"ada@example.com","subject":"Your refund request (ord_1001)","body":"Your …
+  17   effect  email to ada@example.com                                                               │ effect  email to ada@example.com
+  18   ← email.send {"sent":true}                                                                     │ ← email.send {"sent":true}
+  19   brain   reply "Refunded ord_1001."                                                             │ brain   reply "Refunded ord_1001."
+  20   outcome COMPLETED after 5 steps                                                                │ outcome COMPLETED after 5 steps
+  21   ✗ refunds.create aborted (late)                                                                │ ✗ refunds.create aborted (late)
+
+▶ Diverges at step 8: refunds.create now carries idempotencyKey="refund:ord_1001". At step 13: before, a second refund of $49 on ord_1001 (rf_2) went through; after, it no longer happens, and the refunds.create retry returns the original refund (rf_1).
+  before ✗ Never refund an order more than once. (ord_1001 refunded 2 times)
+  before ✗ Never refund more than the order total. (ord_1001: refunded $98 of $49)

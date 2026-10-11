@@ -1,0 +1,17 @@
+{
+  "fault": "malformed-response",
+  "trials": 8,
+  "seed": 109690438,
+  "seeds": [
+    109690438,
+    126468057,
+    193578533,
+    227133771,
+    692356093,
+    4187539352,
+    4204316971,
+    4221094590
+  ],
+  "strategy": "incident-replay",
+  "createdBy": "bulwark"
+}

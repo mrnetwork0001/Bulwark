@@ -1,0 +1,18 @@
+{
+  "fault": "timeout-after-commit",
+  "trials": 9,
+  "seed": 383800011,
+  "seeds": [
+    383800011,
+    1185807395,
+    1202585014,
+    1236140252,
+    1286473109,
+    1370361204,
+    3735349356,
+    3802459832,
+    3919903165
+  ],
+  "strategy": "incident-replay",
+  "createdBy": "bulwark"
+}
