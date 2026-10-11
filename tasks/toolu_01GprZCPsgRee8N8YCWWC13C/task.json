@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01GprZCPsgRee8N8YCWWC13C",
+  "agent_id": "a9630a7a506ee24dc",
+  "subagent_type": "general-purpose",
+  "task_description": "Trial replay viewer",
+  "token_usage": {
+    "input_tokens": 102,
+    "cache_creation_tokens": 157922,
+    "cache_read_tokens": 5904496,
+    "output_tokens": 8585,
+    "api_call_count": 51
+  },
+  "started_at": "2026-10-11T05:37:48.058154+02:00",
+  "completed_at": "2026-10-11T05:51:14.476985+02:00"
+}
