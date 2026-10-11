@@ -141,6 +141,9 @@ async function main() {
       );
     } else if (url.pathname === '/api/artifact') {
       serveArtifact(res, url.searchParams);
+    } else if (url.pathname === '/theme.css') {
+      res.writeHead(200, { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'no-cache' });
+      res.end(readFileSync(new URL('./dashboard/theme.css', import.meta.url)));
     } else if (url.pathname === '/badge.svg') {
       if (!existsSync('.bulwark/badge.svg')) return res.writeHead(404).end('no badge yet');
       res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'no-cache' });
