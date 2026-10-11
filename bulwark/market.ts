@@ -64,7 +64,7 @@ export function headcountFilter(b: Band): Filter[] {
 export const AGENT_TERMS = ['AI Agents', 'Agentic AI', 'LLM', 'Large Language Models', 'Conversational AI'];
 /** Crustdata category tag for AI companies (value from the Crustdata docs' own example). */
 export const AI_CATEGORY = 'Artificial Intelligence (AI)';
-/** Job-title terms for companies hiring to ship agents. */
+/** Job-title phrases (exact phrase match: all-words matching "AI Agent" also hits e.g. "Insurance Agent, AI tools"). */
 export const ROLE_TERMS: Record<string, string[]> = {
   ai_agent: ['AI Agent', 'Agentic'],
   llm_engineer: ['LLM Engineer', 'LLM'],
@@ -74,7 +74,8 @@ export const ROLE_TERMS: Record<string, string[]> = {
 export const JOB_WINDOW_DAYS = 90;
 const DISTINCT_CAP = 1000;
 
-const anyOf = (field: string, terms: string[]): Group => ({ op: 'or', conditions: terms.map((t) => ({ field, type: '(.)', value: t })) });
+/** `(.)` = fuzzy all-words match, `[.]` = exact phrase. */
+const anyOf = (field: string, terms: string[], type: '(.)' | '[.]' = '(.)'): Group => ({ op: 'or', conditions: terms.map((t) => ({ field, type, value: t })) });
 
 export const agentBuilderFilter = (): Group => anyOf('taxonomy.professional_network_specialities', AGENT_TERMS);
 /** TAM: AI-category companies OR agent builders, so SAM ⊆ TAM by construction. */
@@ -137,9 +138,9 @@ export function buildQueries(now = new Date()): QuerySpec[] {
       id: `hiring_${role}:${JOB_WINDOW_DAYS}d`,
       segment: `hiring_${role}`,
       endpoint: '/job/search',
-      description: `Job listings added since ${since} with title matching any of ${terms.map((t) => `"${t}"`).join(', ')}`,
+      description: `Job listings added since ${since} with title containing any exact phrase ${terms.map((t) => `"${t}"`).join(', ')}`,
       body: {
-        filters: { op: 'and', conditions: [anyOf('job_details.title', terms), { field: 'metadata.date_added', type: '=>', value: since }] },
+        filters: { op: 'and', conditions: [anyOf('job_details.title', terms, '[.]'), { field: 'metadata.date_added', type: '=>', value: since }] },
         limit: 0,
         aggregations: [{ type: 'count' }, { type: 'group_by', field: 'company.basic_info.company_id', agg: 'count', size: DISTINCT_CAP }],
       },

@@ -1,0 +1,1237 @@
+{
+  "source": "crustdata-api",
+  "baseUrl": "https://api.crustdata.com",
+  "apiVersion": "2025-11-01",
+  "ranAt": "2026-10-11T07:12:54.519Z",
+  "creditsBefore": 5195.65,
+  "creditsAfter": 5191.3,
+  "creditsUsed": 4.35,
+  "results": [
+    {
+      "id": "ai_market:all",
+      "segment": "ai_market",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities (any headcount)",
+      "body": {
+        "filters": {
+          "op": "or",
+          "conditions": [
+            {
+              "field": "taxonomy.categories",
+              "type": "in",
+              "value": [
+                "Artificial Intelligence (AI)"
+              ]
+            },
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.13,
+      "ranAt": "2026-10-11T07:12:47.813Z",
+      "totalCount": 188258
+    },
+    {
+      "id": "ai_market:1-10",
+      "segment": "ai_market",
+      "band": "1-10",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities, headcount 1-10",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.categories",
+                  "type": "in",
+                  "value": [
+                    "Artificial Intelligence (AI)"
+                  ]
+                },
+                {
+                  "op": "or",
+                  "conditions": [
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "AI Agents"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Agentic AI"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "LLM"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Large Language Models"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Conversational AI"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 0
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 11
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:48.078Z",
+      "totalCount": 120714
+    },
+    {
+      "id": "ai_market:11-50",
+      "segment": "ai_market",
+      "band": "11-50",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities, headcount 11-50",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.categories",
+                  "type": "in",
+                  "value": [
+                    "Artificial Intelligence (AI)"
+                  ]
+                },
+                {
+                  "op": "or",
+                  "conditions": [
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "AI Agents"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Agentic AI"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "LLM"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Large Language Models"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Conversational AI"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 10
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 51
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:48.368Z",
+      "totalCount": 36633
+    },
+    {
+      "id": "ai_market:51-200",
+      "segment": "ai_market",
+      "band": "51-200",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities, headcount 51-200",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.categories",
+                  "type": "in",
+                  "value": [
+                    "Artificial Intelligence (AI)"
+                  ]
+                },
+                {
+                  "op": "or",
+                  "conditions": [
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "AI Agents"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Agentic AI"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "LLM"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Large Language Models"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Conversational AI"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 50
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 201
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:48.649Z",
+      "totalCount": 10648
+    },
+    {
+      "id": "ai_market:201-1000",
+      "segment": "ai_market",
+      "band": "201-1000",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities, headcount 201-1000",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.categories",
+                  "type": "in",
+                  "value": [
+                    "Artificial Intelligence (AI)"
+                  ]
+                },
+                {
+                  "op": "or",
+                  "conditions": [
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "AI Agents"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Agentic AI"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "LLM"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Large Language Models"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Conversational AI"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 200
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 1001
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:48.920Z",
+      "totalCount": 3565
+    },
+    {
+      "id": "ai_market:1001-5000",
+      "segment": "ai_market",
+      "band": "1001-5000",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities, headcount 1001-5000",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.categories",
+                  "type": "in",
+                  "value": [
+                    "Artificial Intelligence (AI)"
+                  ]
+                },
+                {
+                  "op": "or",
+                  "conditions": [
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "AI Agents"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Agentic AI"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "LLM"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Large Language Models"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Conversational AI"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 1000
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 5001
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:49.182Z",
+      "totalCount": 854
+    },
+    {
+      "id": "ai_market:5001+",
+      "segment": "ai_market",
+      "band": "5001+",
+      "endpoint": "/company/search",
+      "description": "AI companies: category \"Artificial Intelligence (AI)\" OR agent/LLM specialities, headcount 5001+",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.categories",
+                  "type": "in",
+                  "value": [
+                    "Artificial Intelligence (AI)"
+                  ]
+                },
+                {
+                  "op": "or",
+                  "conditions": [
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "AI Agents"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Agentic AI"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "LLM"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Large Language Models"
+                    },
+                    {
+                      "field": "taxonomy.professional_network_specialities",
+                      "type": "(.)",
+                      "value": "Conversational AI"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 5000
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:49.441Z",
+      "totalCount": 369
+    },
+    {
+      "id": "agent_builders:all",
+      "segment": "agent_builders",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\" (any headcount)",
+      "body": {
+        "filters": {
+          "op": "or",
+          "conditions": [
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "AI Agents"
+            },
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "Agentic AI"
+            },
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "LLM"
+            },
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "Large Language Models"
+            },
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "Conversational AI"
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.13,
+      "ranAt": "2026-10-11T07:12:49.717Z",
+      "totalCount": 52405
+    },
+    {
+      "id": "agent_builders:1-10",
+      "segment": "agent_builders",
+      "band": "1-10",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\", headcount 1-10",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 0
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 11
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:49.978Z",
+      "totalCount": 33389
+    },
+    {
+      "id": "agent_builders:11-50",
+      "segment": "agent_builders",
+      "band": "11-50",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\", headcount 11-50",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 10
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 51
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:50.261Z",
+      "totalCount": 6132
+    },
+    {
+      "id": "agent_builders:51-200",
+      "segment": "agent_builders",
+      "band": "51-200",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\", headcount 51-200",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 50
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 201
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:50.523Z",
+      "totalCount": 2124
+    },
+    {
+      "id": "agent_builders:201-1000",
+      "segment": "agent_builders",
+      "band": "201-1000",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\", headcount 201-1000",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 200
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 1001
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:50.790Z",
+      "totalCount": 763
+    },
+    {
+      "id": "agent_builders:1001-5000",
+      "segment": "agent_builders",
+      "band": "1001-5000",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\", headcount 1001-5000",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 1000
+            },
+            {
+              "field": "headcount.total",
+              "type": "<",
+              "value": 5001
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:51.093Z",
+      "totalCount": 178
+    },
+    {
+      "id": "agent_builders:5001+",
+      "segment": "agent_builders",
+      "band": "5001+",
+      "endpoint": "/company/search",
+      "description": "Agent builders: specialities match any of \"AI Agents\", \"Agentic AI\", \"LLM\", \"Large Language Models\", \"Conversational AI\", headcount 5001+",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "AI Agents"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Agentic AI"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "LLM"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Large Language Models"
+                },
+                {
+                  "field": "taxonomy.professional_network_specialities",
+                  "type": "(.)",
+                  "value": "Conversational AI"
+                }
+              ]
+            },
+            {
+              "field": "headcount.total",
+              "type": ">",
+              "value": 5000
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.33,
+      "ranAt": "2026-10-11T07:12:51.355Z",
+      "totalCount": 48
+    },
+    {
+      "id": "support_ai:all",
+      "segment": "support_ai",
+      "endpoint": "/company/search",
+      "description": "AI customer-support companies: specialities \"AI Customer Support\" or \"AI Customer Service\"",
+      "body": {
+        "filters": {
+          "op": "or",
+          "conditions": [
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "AI Customer Support"
+            },
+            {
+              "field": "taxonomy.professional_network_specialities",
+              "type": "(.)",
+              "value": "AI Customer Service"
+            }
+          ]
+        },
+        "limit": 1,
+        "fields": [
+          "crustdata_company_id"
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0.13,
+      "ranAt": "2026-10-11T07:12:51.631Z",
+      "totalCount": 10613
+    },
+    {
+      "id": "hiring_ai_agent:90d",
+      "segment": "hiring_ai_agent",
+      "endpoint": "/job/search",
+      "description": "Job listings added since 2026-07-13 with title containing any exact phrase \"AI Agent\", \"Agentic\"",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Agent"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "Agentic"
+                }
+              ]
+            },
+            {
+              "field": "metadata.date_added",
+              "type": "=>",
+              "value": "2026-07-13"
+            }
+          ]
+        },
+        "limit": 0,
+        "aggregations": [
+          {
+            "type": "count"
+          },
+          {
+            "type": "group_by",
+            "field": "company.basic_info.company_id",
+            "agg": "count",
+            "size": 1000
+          }
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0,
+      "ranAt": "2026-10-11T07:12:51.899Z",
+      "totalCount": 13379,
+      "distinctCompanies": 1000,
+      "distinctCapped": true
+    },
+    {
+      "id": "hiring_llm_engineer:90d",
+      "segment": "hiring_llm_engineer",
+      "endpoint": "/job/search",
+      "description": "Job listings added since 2026-07-13 with title containing any exact phrase \"LLM Engineer\", \"LLM\"",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "LLM Engineer"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "LLM"
+                }
+              ]
+            },
+            {
+              "field": "metadata.date_added",
+              "type": "=>",
+              "value": "2026-07-13"
+            }
+          ]
+        },
+        "limit": 0,
+        "aggregations": [
+          {
+            "type": "count"
+          },
+          {
+            "type": "group_by",
+            "field": "company.basic_info.company_id",
+            "agg": "count",
+            "size": 1000
+          }
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0,
+      "ranAt": "2026-10-11T07:12:52.949Z",
+      "totalCount": 4994,
+      "distinctCompanies": 1000,
+      "distinctCapped": true
+    },
+    {
+      "id": "hiring_agent_reliability:90d",
+      "segment": "hiring_agent_reliability",
+      "endpoint": "/job/search",
+      "description": "Job listings added since 2026-07-13 with title containing any exact phrase \"Agent Reliability\", \"AI Reliability\"",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "Agent Reliability"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Reliability"
+                }
+              ]
+            },
+            {
+              "field": "metadata.date_added",
+              "type": "=>",
+              "value": "2026-07-13"
+            }
+          ]
+        },
+        "limit": 0,
+        "aggregations": [
+          {
+            "type": "count"
+          },
+          {
+            "type": "group_by",
+            "field": "company.basic_info.company_id",
+            "agg": "count",
+            "size": 1000
+          }
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0,
+      "ranAt": "2026-10-11T07:12:53.327Z",
+      "totalCount": 52,
+      "distinctCompanies": 17,
+      "distinctCapped": false
+    },
+    {
+      "id": "hiring_ai_support:90d",
+      "segment": "hiring_ai_support",
+      "endpoint": "/job/search",
+      "description": "Job listings added since 2026-07-13 with title containing any exact phrase \"AI Support\", \"AI Customer Support\"",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Support"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Customer Support"
+                }
+              ]
+            },
+            {
+              "field": "metadata.date_added",
+              "type": "=>",
+              "value": "2026-07-13"
+            }
+          ]
+        },
+        "limit": 0,
+        "aggregations": [
+          {
+            "type": "count"
+          },
+          {
+            "type": "group_by",
+            "field": "company.basic_info.company_id",
+            "agg": "count",
+            "size": 1000
+          }
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0,
+      "ranAt": "2026-10-11T07:12:53.588Z",
+      "totalCount": 161,
+      "distinctCompanies": 78,
+      "distinctCapped": false
+    },
+    {
+      "id": "hiring_any:90d",
+      "segment": "hiring_any",
+      "endpoint": "/job/search",
+      "description": "Job listings added since 2026-07-13 with title containing any exact phrase \"AI Agent\", \"Agentic\", \"LLM Engineer\", \"LLM\", \"Agent Reliability\", \"AI Reliability\", \"AI Support\", \"AI Customer Support\"",
+      "body": {
+        "filters": {
+          "op": "and",
+          "conditions": [
+            {
+              "op": "or",
+              "conditions": [
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Agent"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "Agentic"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "LLM Engineer"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "LLM"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "Agent Reliability"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Reliability"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Support"
+                },
+                {
+                  "field": "job_details.title",
+                  "type": "[.]",
+                  "value": "AI Customer Support"
+                }
+              ]
+            },
+            {
+              "field": "metadata.date_added",
+              "type": "=>",
+              "value": "2026-07-13"
+            }
+          ]
+        },
+        "limit": 0,
+        "aggregations": [
+          {
+            "type": "count"
+          },
+          {
+            "type": "group_by",
+            "field": "company.basic_info.company_id",
+            "agg": "count",
+            "size": 1000
+          }
+        ]
+      },
+      "status": 200,
+      "creditsUsed": 0,
+      "ranAt": "2026-10-11T07:12:53.842Z",
+      "totalCount": 18043,
+      "distinctCompanies": 1000,
+      "distinctCapped": true
+    }
+  ]
+}

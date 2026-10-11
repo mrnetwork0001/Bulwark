@@ -52,6 +52,8 @@ test('buildQueries: company counts use limit 1, job counts use limit 0 + aggrega
     assert.equal(j.maxCredits, 0);
     const f = j.body.filters as Group;
     assert.deepEqual(f.conditions[1], { field: 'metadata.date_added', type: '=>', value: '2026-07-13' });
+    // titles match exact phrases, not all-words ("Insurance Agent, AI" must not count as "AI Agent")
+    for (const c of (f.conditions[0] as Group).conditions) assert.equal((c as { type: string }).type, '[.]');
   }
   const total = q.reduce((s, x) => s + x.maxCredits, 0);
   assert.ok(total < 10, `max ${total} credits`);
