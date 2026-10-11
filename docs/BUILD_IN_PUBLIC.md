@@ -6,7 +6,7 @@ Log each post's URL below; they are submission evidence.
 ## Planned posts
 | # | When (IST) | Post | Asset | URL |
 |---|---|---|---|---|
-| 1 | Sun (teaser, idea hidden) | "Day 1 of #neatHack is in the books. 🛠️ We're building an agent that does the one thing most AI agents never get tested for. Every run is traced in @neatlogs: one session per run, every decision visible. Entire is checkpointing every commit, so you can see exactly how each line got written. cfo.ai is keeping the business side honest with real numbers. First result: 61% → 100% on something that really matters when money moves. Reveal soon. 👀" | Cropped neatlogs Sessions screenshot | |
+| 1 | Sun (teaser, idea hidden) | "Day 1 of #neatHack is in the books. 🛠️ We're building an agent that does the one thing most AI agents never get tested for. Every run is traced in @neatlogs: one session per run, every decision visible. Entire is checkpointing every commit, so you can see exactly how each line got written. cfo.ai is keeping the business side honest with real numbers. First result: 61% → 100% on something that really matters when money moves. Reveal soon. 👀" | Cropped neatlogs Sessions screenshot | https://x.com/encrypt_wizard/status/2109130758770102283 |
 | 2 | Sat evening | RefundBot's first neatlogs trace + "now let's break it" | Trace screenshot | |
 | 3 | Sat night | **Caught it: a harmless retry refunded a customer twice.** | Short clip / trace | |
 | 4 | Sun morning | `entire-graph` finding the unguarded tool calls | Graph output | |

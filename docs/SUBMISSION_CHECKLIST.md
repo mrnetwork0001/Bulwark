@@ -11,7 +11,7 @@
 | Used Entire | `entire-graph` output + checkpoints in the repo history | | [ ] |
 | Used cfo.ai | Business plan: pricing, costs, revenue, runway | [cfo-ai-plan.md](business/cfo-ai-plan.md), https://app.cfo.ai/s/xAu-NTAidKxJcCm7 | [x] |
 | Agent recovers from failures | A run where a fix failed verification → checkpoint rollback → retry succeeded | | [ ] |
-| Built in public | Links to #neatHack posts (see [BUILD_IN_PUBLIC.md](BUILD_IN_PUBLIC.md)) | | [ ] |
+| Built in public | Links to #neatHack posts (see [BUILD_IN_PUBLIC.md](BUILD_IN_PUBLIC.md)) | [Day 1 teaser](https://x.com/encrypt_wizard/status/2109130758770102283) | [~] |
 | Code written during hackathon | Public repo, commits dated Oct 10–12 | | [ ] |
 
 ## Before submitting
