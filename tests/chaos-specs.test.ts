@@ -21,7 +21,7 @@ for (const file of specs) {
   test(`chaos regression: ${file}`, async () => {
     const spec = JSON.parse(readFileSync(join(SPEC_DIR, file), 'utf8')) as ChaosSpec;
     const target = await loadTarget(TARGET_DIR);
-    const r = await runExperiment(target, getFault(spec.fault), { trials: spec.trials, seed: spec.seed, brain: 'simulated', deadlineMs: 5000, maxSteps: 50 });
+    const r = await runExperiment(target, getFault(spec.fault), { trials: spec.seeds?.length ?? spec.trials, seed: spec.seed, seeds: spec.seeds, brain: 'simulated', deadlineMs: 5000, maxSteps: 50 });
     assert.equal(r.passed, r.trials, JSON.stringify(r.violations));
   });
 }

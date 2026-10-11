@@ -40,6 +40,8 @@ export interface ExperimentOptions {
   traceSample?: number;
   /** Groups this experiment's trace into a neatlogs session (one per CLI/dashboard run). */
   sessionId?: string;
+  /** Exact trial seeds (e.g. recorded incidents); trial i uses seeds[i] instead of one derived from `seed`. */
+  seeds?: number[];
   /** Called as each trial finishes, for live views. */
   onTrial?: (t: { index: number; obs: TrialObservation; broken: BrokenRule[] }) => void;
 }
@@ -77,7 +79,7 @@ export async function runExperiment(
           const obs = await runTrial({
             target,
             fault,
-            seed: hashSeed(opts.seed, faultId, i),
+            seed: opts.seeds?.[i] ?? hashSeed(opts.seed, faultId, i),
             brain: opts.brain,
             model: opts.model,
             deadlineMs: opts.deadlineMs,

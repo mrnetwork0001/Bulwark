@@ -13,6 +13,8 @@ export interface ChaosSpec {
   seed: number;
   strategy: string;
   createdBy: 'bulwark';
+  /** Exact trial seeds (incident replays from `npm run replay-failures -- --into-specs`); overrides seed-derived trials. */
+  seeds?: number[];
 }
 
 export const specPath = (fault: string) => `chaos-tests/${fault}.json`;
@@ -33,7 +35,7 @@ export async function mutationCheck(
   fixed: BulwarkTarget,
   base: ExperimentOptions,
 ): Promise<MutationCheck> {
-  const opts = { ...base, trials: spec.trials, seed: spec.seed, onTrial: undefined };
+  const opts = { ...base, trials: spec.seeds?.length ?? spec.trials, seed: spec.seed, seeds: spec.seeds, onTrial: undefined };
   const fault = getFault(spec.fault, unfixed);
   const [u, f] = await Promise.all([runExperiment(unfixed, fault, opts), runExperiment(fixed, fault, opts)]);
   return { ok: u.passed < u.trials && f.passed === f.trials, unfixed: u, fixed: f };
