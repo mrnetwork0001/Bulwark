@@ -10,6 +10,7 @@ import { faultsFor, getFault, type Fault } from './chaos/faults';
 import { parseSlo } from './judge/slo';
 import { parseTournament } from './judge/tournament';
 import { runLoop } from './loop/orchestrator';
+import { notifyRunDone } from './notify';
 import { replayFromParams } from './replay';
 import { runExperiment } from './scorecard';
 import { defaultModel, llmLabel, llmProvider } from './llm';
@@ -94,7 +95,7 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
     // Optional: a reliability target (e.g. slo=0.95) and a fix tournament (e.g. tournament=playbook,playbook-strong).
     const slo = params.get('slo') ? parseSlo(params.get('slo')!) : undefined;
     const tournament = params.get('tournament') ? parseTournament(params.get('tournament')!) : undefined;
-    await runLoop(
+    const summary = await runLoop(
       {
         targetDir: relative(process.cwd(), resolveTargetDir(params.get('target'))),
         // neatlogs read-back wait per fault: short by default so the live demo stays snappy (wait=0 to skip).
@@ -107,6 +108,7 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
       },
       (e) => send(res, 'loop', e.type === 'run-done' ? { ...e, summary: { ...e.summary, finalFiles: undefined } } : e),
     );
+    void notifyRunDone(summary); // Slack/Discord, only when a webhook URL is set
   } catch (err) {
     send(res, 'loop-error', { message: err instanceof Error ? err.message : String(err) });
   } finally {
