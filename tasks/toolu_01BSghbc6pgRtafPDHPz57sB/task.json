@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01BSghbc6pgRtafPDHPz57sB",
+  "agent_id": "ac0eedf14ccafb13e",
+  "subagent_type": "general-purpose",
+  "task_description": "Wire neatlogs readback + Entire Graph",
+  "token_usage": {
+    "input_tokens": 236,
+    "cache_creation_tokens": 248497,
+    "cache_read_tokens": 19132271,
+    "output_tokens": 23330,
+    "api_call_count": 118
+  },
+  "started_at": "2026-10-11T06:09:48.666416+02:00",
+  "completed_at": "2026-10-11T06:40:20.878109+02:00"
+}
