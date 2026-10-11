@@ -1,5 +1,8 @@
 // npm run fix -- [--fault <id>|all] [--fixer auto|playbook|claude] [--red-trials 20]
 //                [--judge-trials 40] [--seed 42] [--max-attempts 4] [--no-memory] [--apply] [--pr] [--generated]
+//                [--slo 0.99[,<fault>=0.999]] [--slo-confidence 0.95] [--max-slo-trials 1000]
+//                [--max-latency-overhead 50%] [--max-step-overhead 2] [--max-cost-overhead 20%] [--overhead-policy reject|flag]
+//                [--tournament claude-sonnet-5,deepseek-v4-flash | playbook,playbook-strong]
 //
 // The full loop: attack, fix, verify, prove. Writes artifacts to .bulwark/runs/<id>/.
 
@@ -7,6 +10,10 @@ import './env';
 import { parseArgs } from 'node:util';
 import { registerFaults } from './chaos/faults';
 import { loadGeneratedFaults } from './red/generate';
+import { fixedWithOverhead } from './judge/judge';
+import { describeOverhead, parsePercent, type OverheadBudgets } from './judge/overhead';
+import { DEFAULT_MAX_SLO_TRIALS, DEFAULT_SLO_CONFIDENCE, describePlan, fmtRate, parseSlo } from './judge/slo';
+import { parseTournament } from './judge/tournament';
 import { applyAsBranch, DEFAULT_LOOP, openPullRequest, runLoop, type LoopEvent } from './loop/orchestrator';
 import { summarizeProvenance } from './provenance/entire';
 import { initTracing, shutdownTracing } from './tracing';
@@ -21,6 +28,8 @@ const c = {
 };
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
+let allPassAfter = true;
+
 function print(e: LoopEvent) {
   switch (e.type) {
     case 'run-start':
@@ -31,6 +40,7 @@ function print(e: LoopEvent) {
       for (const line of summarizeProvenance(e.provenance ?? [])) console.log(c.dim(`  provenance: ${line}`));
       return console.log();
     case 'scorecard': {
+      if (e.phase === 'after') allPassAfter = e.results.every((r) => r.passed === r.trials);
       const label = e.phase === 'before' ? c.red('RED') + ' scorecard (before)' : c.bold('Scorecard after fixes');
       console.log(`${label}: overall ${pct(e.overall)} of trials kept every rule`);
       for (const r of e.results) console.log(`  ${r.fault.padEnd(22)} ${(r.passed === r.trials ? c.green : c.red)(`${r.passed}/${r.trials}`)}`);
@@ -42,11 +52,23 @@ function print(e: LoopEvent) {
       return console.log(c.dim(`  skipped: ${e.reason}`));
     case 'checkpoint':
       return console.log(c.dim(`  ${e.action === 'save' ? '⎘ checkpoint' : '↺ rolled back to'} ${e.id}`));
+    case 'slo-plan':
+      console.log(c.bold(`SLO plan`) + c.dim(` (${fmtRate(e.confidence)} confidence, ${e.method})`));
+      for (const p of e.plans) console.log(`  ${describePlan(p)}`);
+      return console.log();
     case 'attempt':
-      return console.log(`  ${c.blue('BLUE')} attempt ${e.n}: ${e.title} ${c.dim(`(${e.strategy}, ${e.author}, +${e.added}/-${e.removed})`)}`);
+      return console.log(`  ${c.blue('BLUE')} ${e.round ? `round ${e.round} candidate` : 'attempt'} ${e.n}: ${e.title} ${c.dim(`(${e.strategy}, ${e.author}, +${e.added}/-${e.removed})`)}`);
     case 'verdict': {
-      const tag = e.status === 'fixed' ? c.green('FIXED') : e.status === 'inconclusive' ? c.yellow('INCONCLUSIVE') : c.red('REJECTED');
-      return console.log(`  ${c.yellow('JUDGE')} ${tag} ${e.reasons.join('; ')}`);
+      const tag =
+        e.status === 'fixed' ? (fixedWithOverhead(e) ? c.yellow('FIXED WITH OVERHEAD') : c.green('FIXED')) : e.status === 'inconclusive' ? c.yellow('INCONCLUSIVE') : c.red('REJECTED');
+      console.log(`  ${c.yellow('JUDGE')} ${tag} ${e.reasons.join('; ')}`);
+      if (e.overhead) console.log(c.dim(`        overhead: ${describeOverhead(e.overhead)}`));
+      return;
+    }
+    case 'tournament': {
+      console.log(`  ${c.bold('TOURNAMENT')} round ${e.round}: ${e.winner ? c.green(`${e.winner} wins`) : c.red('no winner')}`);
+      for (const r of e.ranking) console.log(`    ${r.rank}. ${r.entrant.padEnd(18)} ${(r.strategy ?? '—').padEnd(26)} ${r.outcome === 'winner' ? c.green(r.outcome) : c.dim(r.outcome)}: ${r.reason}`);
+      return;
     }
     case 'mutation':
       return console.log(`  ${c.dim('GUARD')} regression test without fix ${e.unfixedPassed}/${e.trials}, with fix ${e.fixedPassed}/${e.trials} ${e.ok ? c.green('✓ proven') : c.red('✗ not proven')}`);
@@ -54,7 +76,7 @@ function print(e: LoopEvent) {
       return console.log();
     case 'residual':
       if (e.findings.length === 0) return console.log(c.green('No weak links remain in the final code.\n'));
-      console.log(c.yellow(`Remaining risk (${e.findings.length}):`) + ' every attack passes, but the analyzer still sees:');
+      console.log(c.yellow(`Remaining risk (${e.findings.length}):`) + (allPassAfter ? ' every attack passes, but the analyzer still sees:' : ' the analyzer still sees:'));
       for (const f of e.findings) console.log(`  ${f.file}:${f.line}  ${f.why}`);
       return console.log();
     case 'log':
@@ -81,10 +103,29 @@ async function main() {
       pr: { type: 'boolean', default: false },
       target: { type: 'string', default: 'targets/refundbot' },
       generated: { type: 'boolean', default: false },
+      slo: { type: 'string' },
+      'slo-confidence': { type: 'string', default: String(DEFAULT_SLO_CONFIDENCE) },
+      'max-slo-trials': { type: 'string', default: String(DEFAULT_MAX_SLO_TRIALS) },
+      'max-latency-overhead': { type: 'string' },
+      'max-step-overhead': { type: 'string' },
+      'max-cost-overhead': { type: 'string' },
+      'overhead-policy': { type: 'string', default: 'reject' },
+      tournament: { type: 'string' },
     },
   });
   // Generative Red's accepted faults join the catalog, so Red, Blue, Judge and Guard all see them.
   if (values.generated) registerFaults(loadGeneratedFaults());
+  const slo = values.slo ? parseSlo(values.slo, Number(values['slo-confidence']), Number(values['max-slo-trials'])) : undefined;
+  const policy = values['overhead-policy'] as 'reject' | 'flag';
+  if (!['reject', 'flag'].includes(policy)) throw new Error('--overhead-policy must be reject or flag');
+  const budgets: OverheadBudgets = {
+    policy,
+    ...(values['max-latency-overhead'] ? { maxLatencyOverhead: parsePercent(values['max-latency-overhead']) } : {}),
+    ...(values['max-step-overhead'] ? { maxStepOverhead: Number(values['max-step-overhead']) } : {}),
+    ...(values['max-cost-overhead'] ? { maxCostOverhead: parsePercent(values['max-cost-overhead']) } : {}),
+  };
+  if (budgets.maxStepOverhead !== undefined && !(budgets.maxStepOverhead >= 0)) throw new Error('--max-step-overhead must be a number of steps, e.g. 2');
+  const tournament = values.tournament ? parseTournament(values.tournament) : undefined;
   const fixer = values.fixer as 'auto' | 'playbook' | 'claude';
   if (!['auto', 'playbook', 'claude'].includes(fixer)) throw new Error('--fixer must be auto, playbook or claude');
 
@@ -99,6 +140,9 @@ async function main() {
       seed: Number(values.seed),
       maxAttempts: Number(values['max-attempts']),
       memory: !values['no-memory'],
+      slo,
+      budgets,
+      tournament,
     },
     print,
   );
