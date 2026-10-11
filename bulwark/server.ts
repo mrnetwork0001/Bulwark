@@ -82,6 +82,8 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
     await runLoop(
       {
         targetDir: 'targets/refundbot',
+        // neatlogs read-back wait per fault: short by default so the live demo stays snappy (wait=0 to skip).
+        readbackWaitMs: Math.min(60_000, Math.max(0, Number(params.get('wait') ?? process.env.BULWARK_NEATLOGS_WAIT_MS ?? 5000))),
         ...(slo ? { slo } : {}),
         ...(tournament ? { tournament } : {}),
         memory: params.get('memory') === '1',

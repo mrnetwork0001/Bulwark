@@ -740,6 +740,15 @@ const handlers = {
       (e.winner ? `<b>${esc(e.winner)}</b> wins` : '<span class="warn">no winner</span>') +
       `<div class="tablewrap"><table class="tourney"><thead><tr><th>#</th><th>Entrant</th><th>Verdict</th><th>SLO</th><th>p95</th><th>Diff</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`);
   },
+  observe: (e) => {
+    const id = e.traceId ? ` <code>${esc(String(e.traceId).slice(0, 10))}…</code>` : '';
+    const msg = e.status === 'read'
+      ? `<span class="mini ok">read</span> neatlogs trace${id}: ${Number(e.spans)} spans, ${Number(e.detections)} detections, given to Blue`
+      : e.status === 'pending'
+        ? `<span class="mini warn">pending</span> neatlogs trace${id} not finalized in time (${esc(e.reason ?? '')}); Blue used local evidence`
+        : `<span class="mini">unavailable</span> ${esc(e.reason ?? 'no neatlogs trace')}; Blue used local evidence`;
+    tl(`<span class="tag" style="background:#6b7280">OBSERVE</span>${msg}`);
+  },
   mutation: (e) => tl(`<span class="tag guard">GUARD</span>regression test: without the fix ${Number(e.unfixedPassed)}/${Number(e.trials)}, with it ${Number(e.fixedPassed)}/${Number(e.trials)} ${e.ok ? '<span class="mini ok">proven to guard the fix</span>' : '<span class="mini bad">not proven</span>'}`),
   'fault-done': (e) => {
     if (e.status === 'fixed') cardStatus(e.fault, `<span class="st ok">✓ fixed · ${Number(e.attempts)} attempt${e.attempts > 1 ? 's' : ''}</span>`);
