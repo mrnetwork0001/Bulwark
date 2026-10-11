@@ -62,7 +62,7 @@ test('a removed side effect is only-before, a changed input is changed, and dive
   assert.deepEqual(d.rows.flatMap((r) => (r.b === undefined ? [] : [r.b])), before.map((e) => e.i));
   assert.deepEqual(d.rows.flatMap((r) => (r.a === undefined ? [] : [r.a])), after.map((e) => e.i));
   assert.match(d.explanation, /^Diverges at step 2: refunds\.create now carries idempotencyKey="k"\./);
-  assert.match(d.explanation, /At step 5, before, a second refund of \$49 on o1 \(rf_2\) went through; after, it no longer happens, and the refunds\.create retry returns/);
+  assert.match(d.explanation, /At step 5: before, a second refund of \$49 on o1 \(rf_2\) went through; after, it no longer happens, and the refunds\.create retry returns the original refund \(rf_1\)\./);
 });
 
 test('alignment prefers exact matches and pairs a result with an error as a change', () => {

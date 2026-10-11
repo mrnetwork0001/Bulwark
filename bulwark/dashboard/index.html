@@ -237,6 +237,49 @@
   .rtype.timeout { background: var(--broken); } .rtype.effect { background: var(--guard); } .rtype.outcome { background: var(--fg); }
   .rp-hint { font-size: 12px; color: var(--fg-dim); }
 
+  /* ---- Trace diff (Compare with fix) ---- */
+  .rp-tabs { flex: none; align-self: flex-start; }
+  .rp-tabs[hidden] { display: none; }
+  .rp-tabs span { cursor: pointer; user-select: none; }
+  .rp-tabs span:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+  .modal-box [hidden] { display: none !important; }
+  .df { display: flex; flex-direction: column; gap: 12px; min-height: 0; flex: 1; }
+  .df-why { flex: none; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.55; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--broken-soft); }
+  .df-why b { font-weight: 600; }
+  .df-why.same { background: var(--surface-muted); }
+  .df-legend { flex: none; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--fg-muted); }
+  .df-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .df-legend .l-chg { background: var(--broken-soft); box-shadow: inset 0 0 0 1px var(--broken); }
+  .df-legend .l-gone { background: var(--crash-soft); box-shadow: inset 0 0 0 1px var(--crash); }
+  .df-legend .l-new { background: var(--pass-soft); box-shadow: inset 0 0 0 1px var(--pass); }
+  .df-scroll { position: relative; flex: 1; min-height: 140px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); padding: 6px; }
+  .df-head, .df-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .df-head { position: sticky; top: -6px; z-index: 1; margin: -6px -6px 4px; padding: 10px 12px 8px; background: var(--bg-2); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--fg-muted); }
+  .df-head b { display: block; color: var(--fg); font-weight: 600; font-size: 12.5px; }
+  .df-head span { min-width: 0; overflow-wrap: anywhere; }
+  .df-row { padding: 6px; border-radius: var(--radius-sm); font-size: 12.5px; }
+  .df-row + .df-row { margin-top: 2px; }
+  .df-row .n { font: 11px var(--font-mono); color: var(--fg-dim); padding-top: 4px; text-align: right; }
+  .df-cell { min-width: 0; padding: 6px 8px; border-radius: 10px; overflow-wrap: anywhere; }
+  .df-cell .side { display: none; font: 500 10px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--fg-dim); margin-bottom: 2px; }
+  .df-cell .t { margin-left: 6px; }
+  .df-cell code { font: 11.5px/1.5 var(--font-mono); color: var(--fg-muted); display: block; margin-top: 3px; white-space: pre-wrap; word-break: break-all; }
+  .df-cell.empty { border: 1px dashed var(--line-strong); color: var(--fg-dim); font-size: 12px; display: flex; align-items: center; }
+  .df-row.changed .df-cell:not(.empty) { background: var(--broken-soft); }
+  .df-row.only-before .df-cell.b { background: var(--crash-soft); }
+  .df-row.only-before .df-cell.b .t { text-decoration: line-through; text-decoration-color: var(--crash); }
+  .df-row.only-after .df-cell.a { background: var(--pass-soft); }
+  .df-row.div { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--broken), var(--shadow-sm); }
+  .df-row.pivot { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line-bold); }
+  .df-row .df-cell.b { grid-column: 2; }
+  .df-row .df-cell.a { grid-column: 3; }
+  .df-flag { grid-column: 2 / -1; font: 500 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--broken); }
+  .df-row.pivot .df-flag { color: var(--fg-muted); }
+  ul.df-chg { list-style: none; margin-top: 4px; font: 11px/1.5 var(--font-mono); }
+  ul.df-chg li { overflow-wrap: anywhere; }
+  ul.df-chg .from { color: var(--crash); text-decoration: line-through; }
+  ul.df-chg .to { color: var(--pass); }
+
   /* ---- Responsive ---- */
   @media (max-width: 1080px) {
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -283,6 +326,13 @@
     .rp-step { grid-template-columns: minmax(0, 1fr); }
     .rp-step pre { grid-column: 1; }
     .modal .rp-hint { display: none; }
+    .df-head { display: none; }
+    .df-row { grid-template-columns: 26px minmax(0, 1fr); }
+    .df-row .df-cell.b, .df-row .df-cell.a { grid-column: 2; }
+    .df-row.same .df-cell.a { display: none; }
+    .df-cell .side { display: block; }
+    .df-cell.empty { display: none; }
+    .df-flag { grid-column: 2; }
   }
   @media (max-width: 400px) { .segment .via { display: none; } }
 </style>
@@ -398,7 +448,11 @@
       <div><span class="eyebrow">Trial replay</span><h3 id="rpTitle">Trial replay</h3></div>
       <button class="rp-close" id="rpClose" aria-label="Close replay"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
     </div>
+    <div class="segment rp-tabs" id="rpTabs" role="tablist" hidden>
+      <span role="tab" tabindex="0" data-view="replay" class="on" aria-selected="true">Replay</span><span role="tab" tabindex="0" data-view="diff" aria-selected="false">Compare with fix</span>
+    </div>
     <div class="rp-meta" id="rpMeta"></div>
+    <div class="df" id="rpDiff" hidden></div>
     <ul class="rp-broken" id="rpBroken"></ul>
     <div class="rp-nav">
       <button class="pill sm" id="rpPrev">← Prev</button>
@@ -406,7 +460,7 @@
       <button class="pill sm" id="rpNext">Next →</button>
     </div>
     <ol class="rp-steps" id="rpSteps"></ol>
-    <div class="rp-hint">← → to step · Esc to close · timings are wall-clock; the events replay identically from the seed</div>
+    <div class="rp-hint" id="rpHint">← → to step · Esc to close · timings are wall-clock; the events replay identically from the seed</div>
   </div>
 </div>
 
@@ -589,6 +643,8 @@ function runChaos() {
 
 /* ---------- Attack → Fix → Prove ---------- */
 let attempts = 0, rollbacks = 0, runId = '';
+// Faults with an accepted fix in the current loop run: their replays get a "Compare with fix" tab.
+const loopFixes = new Set();
 const L = { before: null, after: null, riskBefore: null, riskAfter: null };
 
 function step(name) {
@@ -762,6 +818,7 @@ const handlers = {
   },
   mutation: (e) => tl(`<span class="tag guard">GUARD</span>regression test: without the fix ${Number(e.unfixedPassed)}/${Number(e.trials)}, with it ${Number(e.fixedPassed)}/${Number(e.trials)} ${e.ok ? '<span class="mini ok">proven to guard the fix</span>' : '<span class="mini bad">not proven</span>'}`),
   'fault-done': (e) => {
+    if (e.status === 'fixed') loopFixes.add(e.fault);
     if (e.status === 'fixed') cardStatus(e.fault, `<span class="st ok">✓ fixed · ${Number(e.attempts)} attempt${e.attempts > 1 ? 's' : ''}</span>`);
     else if (e.status === 'unfixed') cardStatus(e.fault, '<span class="st bad">✗ not fixed</span>');
     if (e.status !== 'skipped') step('fix');
@@ -799,6 +856,7 @@ function runLoopUI() {
   const trials = Number($('trials').value) || 20, seed = Number($('seed').value) || 42, memory = $('memory').checked ? 1 : 0;
   resetCards();
   attempts = 0; rollbacks = 0;
+  loopFixes.clear(); runId = '';
   Object.assign(L, { before: null, after: null, riskBefore: null, riskAfter: null });
   $('loop').style.display = 'block';
   $('results').style.display = 'none';
@@ -890,6 +948,10 @@ async function openReplay(d) {
   const req = ++rp.req;
   if ($('replay').hidden) rp.opener = document.activeElement;
   rp.steps = [];
+  rp.d = d; rp.diff = null; rp.diffReq = 0;
+  $('rpTabs').hidden = !(runId && loopFixes.has(d.fault));
+  $('rpDiff').innerHTML = '';
+  setView('replay');
   const q = new URLSearchParams({ fault: d.fault, seed: d.seed, target: meta.target });
   if (d.run && d.ws) { q.set('run', d.run); q.set('ws', d.ws); }
   $('rpTitle').innerHTML = `Seed ${esc(d.seed)} <code>${esc(d.fault)}</code>`;
@@ -928,6 +990,96 @@ async function openReplay(d) {
   rpGo(0);
 }
 
+/* ---------- Trace diff: this seed before vs after the accepted fix ---------- */
+const DF_KIND = { brain: 'brain', call: 'tool', result: 'tool', error: 'tool', timeout: 'timeout', fault: 'fault', effect: 'effect', outcome: 'outcome' };
+const clipJson = (v, n = 150) => { const s = JSON.stringify(v) ?? 'undefined'; return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+
+function dfWhat(e) {
+  switch (e.type) {
+    case 'brain': return e.decision.type === 'tool' ? [`decides to call <b>${esc(e.decision.name)}</b>`, e.decision.input] : ['final reply', e.decision.reply];
+    case 'call': return [`→ <b>${esc(e.endpoint)}</b>${e.retryOf ? ' <span class="warn">retry</span>' : ''}`, e.input];
+    case 'result': return [`← <b>${esc(e.endpoint)}</b>${e.late ? ' <span class="dim">late</span>' : ''}`, e.output];
+    case 'error': return [`✗ <b>${esc(e.endpoint)}</b> <span class="bad">error</span>${e.late ? ' <span class="dim">late</span>' : ''}`, e.error];
+    case 'timeout': return [`agent stops waiting on <b>${esc(e.endpoint)}</b>`];
+    case 'fault': return [`<b>${esc(e.fault)}</b> on ${esc(e.endpoint)}`];
+    case 'effect':
+      return [e.effect === 'refund' ? `money moved: <b>$${esc(e.data?.amount)}</b> refund on ${esc(e.data?.orderId)} (${esc(e.data?.id)})`
+        : e.effect === 'email' ? `email to ${esc(e.data?.to)}` : esc(e.effect), e.effect === 'refund' || e.effect === 'email' ? undefined : e.data];
+    case 'outcome': return [`run <span class="rp-out ${esc(e.outcome)}">${esc(OUTCOME_LABEL[e.outcome] ?? e.outcome)}</span> after ${Number(e.steps)} steps`];
+    default: return [esc(e.type)];
+  }
+}
+
+function dfCell(e, side, label, changes) {
+  if (!e) return `<div class="df-cell ${side} empty">${side === 'a' ? 'no longer happens' : 'not in the original run'}</div>`;
+  const kind = DF_KIND[e.type] ?? 'tool';
+  const [what, payload] = dfWhat(e);
+  const chg = changes?.length ? `<ul class="df-chg">${changes.map((c) =>
+    `<li>${esc(c.path)}: ${'before' in c ? `<span class="from">${esc(clipJson(c.before, 60))}</span>` : '<span class="dim">absent</span>'} → ${'after' in c ? `<span class="to">${esc(clipJson(c.after, 80))}</span>` : '<span class="dim">absent</span>'}</li>`).join('')}</ul>` : '';
+  return `<div class="df-cell ${side}"><span class="side">${label}</span><span class="rtype ${kind}">${kind === 'effect' ? 'side effect' : kind}</span><span class="t">${what}</span>` +
+    (payload !== undefined ? `<code>${esc(clipJson(payload))}</code>` : '') + chg + '</div>';
+}
+
+function renderDiff(r) {
+  const d = r.diff, B = r.before.timeline, A = r.after.timeline;
+  const verdict = (x) => `<span class="rp-out ${esc(x.observation.outcome)}">${esc(OUTCOME_LABEL[x.observation.outcome] ?? x.observation.outcome)}</span>` +
+    (x.broken.length ? ` · <span class="bad">${x.broken.length} rule${x.broken.length > 1 ? 's' : ''} broken</span>` : ' · <span class="ok">every rule held</span>');
+  const rows = d.rows.map((row, k) => {
+    const flag = k === d.divergence ? '<div class="df-flag">▶ diverges here</div>' : k === d.pivot ? '<div class="df-flag">• key difference</div>' : '';
+    const cls = `${row.kind}${k === d.divergence ? ' div' : k === d.pivot ? ' pivot' : ''}`;
+    const b = row.b !== undefined ? B[row.b] : null, a = row.a !== undefined ? A[row.a] : null;
+    return `<div class="df-row ${cls}" data-k="${k}"><span class="n">${k + 1}</span>${flag}` +
+      dfCell(b, 'b', row.kind === 'same' ? 'before = after' : 'before') + dfCell(a, 'a', 'after', row.kind === 'changed' ? row.changes : null) + '</div>';
+  }).join('');
+  $('rpDiff').innerHTML =
+    `<p class="df-why ${d.divergence === -1 ? 'same' : ''}">${esc(d.explanation)}</p>` +
+    `<div class="rp-meta"><span class="badge"><span>before: ${verdict(r.before)}</span></span><span class="badge"><span>after: ${verdict(r.after)}</span></span>` +
+    `<span class="badge">${Number(d.counts.same)} same · ${Number(d.counts.changed)} changed · ${Number(d.counts['only-before'])} removed · ${Number(d.counts['only-after'])} added</span></div>` +
+    `<div class="df-legend"><span><i class="l-chg"></i>changed</span><span><i class="l-gone"></i>only before the fix</span><span><i class="l-new"></i>only after the fix</span></div>` +
+    `<div class="df-scroll" id="dfScroll"><div class="df-head"><span></span><span><b>Before</b>${esc(r.before.source)}</span><span><b>After</b>${esc(r.after.source)}</span></div>${rows}</div>`;
+  const div = $('rpDiff').querySelector('.df-row.div');
+  if (div) $('dfScroll').scrollTop = Math.max(0, div.offsetTop - 80);
+}
+
+async function loadDiff() {
+  if (rp.diff || rp.diffReq) return;
+  const req = rp.diffReq = rp.req;
+  const d = rp.d;
+  $('rpDiff').innerHTML = '<p class="df-why same">Replaying this seed against the original code and against the accepted fix…</p>';
+  const q = new URLSearchParams({ fault: d.fault, seed: d.seed, target: meta.target, run: runId, ws: `${d.fault}-accepted` });
+  try {
+    const res = await fetch('/api/diff?' + q);
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.error || res.statusText);
+    if (req !== rp.req) return;
+    rp.diff = r;
+    renderDiff(r);
+  } catch (err) {
+    if (req !== rp.req) return;
+    rp.diffReq = 0;
+    $('rpDiff').innerHTML = `<p class="df-why"><span class="bad">Diff failed:</span> ${esc(err.message)}</p>`;
+  }
+}
+
+function setView(view) {
+  rp.view = view;
+  const diff = view === 'diff';
+  $('rpTabs').querySelectorAll('[data-view]').forEach((t) => { const on = t.dataset.view === view; t.classList.toggle('on', on); t.setAttribute('aria-selected', String(on)); });
+  for (const id of ['rpMeta', 'rpBroken', 'rpSteps', 'rpHint']) $(id).hidden = diff;
+  document.querySelector('#replay .rp-nav').hidden = diff;
+  $('rpDiff').hidden = !diff;
+  if (diff) loadDiff();
+}
+
+function pickView(ev) {
+  const t = ev.target.closest?.('[data-view]');
+  if (!t || (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ')) return;
+  ev.preventDefault();
+  setView(t.dataset.view);
+}
+$('rpTabs').addEventListener('click', pickView);
+$('rpTabs').addEventListener('keydown', pickView);
+
 function closeReplay() {
   if ($('replay').hidden) return;
   rp.req++;
@@ -954,6 +1106,7 @@ $('replay').addEventListener('click', (ev) => { if (ev.target === $('replay')) c
 document.addEventListener('keydown', (ev) => {
   if ($('replay').hidden) return;
   if (ev.key === 'Escape') closeReplay();
+  else if (rp.view === 'diff') return;
   else if (ev.key === 'ArrowLeft') { ev.preventDefault(); rpGo(rp.cur - 1); }
   else if (ev.key === 'ArrowRight') { ev.preventDefault(); rpGo(rp.cur + 1); }
 });
@@ -968,6 +1121,7 @@ function pickTarget(ev) {
   TARGET = s.dataset.target;
   history.replaceState(null, '', `?target=${encodeURIComponent(TARGET)}`);
   $('loop').style.display = 'none';
+  loopFixes.clear(); runId = '';
   load();
 }
 $('tg').addEventListener('click', pickTarget);

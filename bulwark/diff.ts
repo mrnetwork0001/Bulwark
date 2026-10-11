@@ -239,13 +239,17 @@ export function explainDiff(diff: Pick<TimelineDiff, 'rows' | 'divergence' | 'pi
   if (divergence === -1) return `No divergence: all ${rows.length} events are the same before and after the fix.`;
   let text = `Diverges at step ${divergence + 1}: ${rowPhrase(rows[divergence], before, after)}.`;
   if (pivot !== -1 && pivot !== divergence) {
-    text += ` At step ${pivot + 1}, ${rowPhrase(rows[pivot], before, after)}`;
+    text += ` At step ${pivot + 1}: ${rowPhrase(rows[pivot], before, after)}`;
     // The reply that replaced a removed event, e.g. the retry now returning the original refund.
     const next = rows.slice(pivot + 1, pivot + 4).find((r) => r.kind === 'changed' && after[r.a!].type === 'result');
     const res = next ? after[next.a!] : undefined;
     if (rows[pivot].kind === 'only-before' && res?.type === 'result') {
       const retry = after.some((x) => x.type === 'call' && x.call === res.call && x.retryOf);
-      text += `, and ${retry ? `the ${res.endpoint} retry` : res.endpoint} returns ${clip(res.output, 90)}`;
+      // Name what it returns when it is an earlier side effect (e.g. the original refund), not raw JSON.
+      const id = (res.output as Record<string, unknown> | null)?.id;
+      const orig = id !== undefined ? after.find((x) => x.type === 'effect' && (x.data as Record<string, unknown> | null)?.id === id) : undefined;
+      const what = orig?.type === 'effect' ? `the original ${orig.effect} (${String(id)})` : clip(res.output, 90);
+      text += `, and ${retry ? `the ${res.endpoint} retry` : res.endpoint} returns ${what}`;
     }
     text += '.';
   }
