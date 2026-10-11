@@ -38,7 +38,7 @@ npm test
 
 Offline result on RefundBot: **resilience 56% → 100%** in 8 attempts (3 rejected and rolled back). With memory, the next run takes 5 attempts and 0 rollbacks.
 
-Set `NEATLOGS_API_KEY` in `.env` to export every experiment, trial, tool call and injected fault to neatlogs. For Claude, set either `ZG_ROUTER_API_KEY` (0G Compute Router, which serves Claude over the Anthropic Messages API) or `ANTHROPIC_API_KEY`. Without keys, everything still runs locally with the playbook fixer and simulated LLM.
+Set `NEATLOGS_API_KEY` in `.env` to export every experiment, trial, tool call and injected fault to neatlogs. Before Blue proposes a fix, it reads a failing trial's trace back from neatlogs, waiting at most `--neatlogs-wait` seconds (default 20); `npm run readback` shows those traces. See [docs/NEATLOGS.md](docs/NEATLOGS.md) for both directions and the measured finalization times. Red and Blue also query Entire Graph for blast radius and fix sites (see [docs/ENTIRE.md](docs/ENTIRE.md); switch it off with `BULWARK_ENTIRE_GRAPH=0`). For Claude, set either `ZG_ROUTER_API_KEY` (0G Compute Router, which serves Claude over the Anthropic Messages API) or `ANTHROPIC_API_KEY`. Without keys, everything still runs locally with the playbook fixer and simulated LLM.
 
 ## What happens today
 

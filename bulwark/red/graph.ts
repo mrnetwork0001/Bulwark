@@ -79,7 +79,12 @@ export class EntireGraph {
       const hits = ((JSON.parse(res.stdout).results ?? []) as SearchHit[]).filter((h) => !prefix || h.file_path?.startsWith(prefix)).slice(0, topK);
       if (!hits.length) return null;
       return hits
-        .map((h, i) => `${i + 1}. ${h.file_path}:${h.start_line}-${h.end_line}${h.symbol_name ? ` ${h.symbol_name}` : ''} (score ${Number(h.score ?? 0).toFixed(1)})\n${(h.snippet ?? '').trimEnd()}`)
+        .map((h, i) => {
+          // Blue has the full files; the snippet only has to show where. Long hits are clipped.
+          const lines = (h.snippet ?? '').trimEnd().split('\n');
+          const body = lines.length > 20 ? [...lines.slice(0, 20), `  … (${lines.length - 20} more lines)`].join('\n') : lines.join('\n');
+          return `${i + 1}. ${h.file_path}:${h.start_line}-${h.end_line}${h.symbol_name ? ` ${h.symbol_name}` : ''} (score ${Number(h.score ?? 0).toFixed(1)})\n${body}`;
+        })
         .join('\n\n');
     } catch {
       return null;
