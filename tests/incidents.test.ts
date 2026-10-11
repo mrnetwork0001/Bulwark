@@ -194,3 +194,33 @@ test('sweep re-runs real incidents: double refunds still fail on the current cod
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// The shape neatlogs actually returns for a finalized Bulwark phase trace (checked against trace
+// 27c7249e… on Oct 11): span_metadata is null, so fault and seed come from the experiment parent and
+// the trial's output text.
+const realShape: NeatlogsTrace = {
+  _id: 'dddddddddddddddddddddddddddddddd',
+  spans: [
+    { span_id: 'root', node_name: '2 red: attack scorecard BEFORE', node_type: 'workflow', status: 'SUCCESS', span_metadata: undefined },
+    { span_id: 'e1', parent_span_id: 'root', node_name: 'experiment: latency-spike', status: 'SUCCESS' },
+    { span_id: 'e2', parent_span_id: 'root', node_name: 'experiment: timeout-after-commit', status: 'SUCCESS' },
+    { span_id: 'e0', parent_span_id: 'root', node_name: 'experiment: baseline', status: 'SUCCESS' },
+    { span_id: 'a', parent_span_id: 'e1', node_name: 'bulwark.trial', node_type: 'chain', status: 'SUCCESS', data: { output_value: 'Seed: 2657296630\nOutcome: hung\nDurationMs: 5002\nSteps: 1', error_message: '' } },
+    { span_id: 'b', parent_span_id: 'e2', node_name: 'bulwark.trial', node_type: 'chain', status: 'SUCCESS', data: { output_value: 'Seed: 3886347927\nOutcome: completed\nSteps: 5', error_message: '' } },
+    { span_id: 'c', parent_span_id: 'e2', node_name: 'bulwark.trial', node_type: 'chain', status: 'SUCCESS', data: { output_value: 'Seed: 3869570308\nOutcome: completed\nSteps: 5', error_message: '' } },
+    { span_id: 'c1', parent_span_id: 'c', node_name: 'issue_refund', node_type: 'tool_call', status: 'SUCCESS', data: { error_message: '' } },
+    { span_id: 'z', parent_span_id: 'e0', node_name: 'bulwark.trial', node_type: 'chain', status: 'SUCCESS', data: { output_value: 'Seed: 1606880409\nOutcome: completed' } },
+  ],
+};
+
+test('trace parser, real neatlogs shape: fault from the experiment span, seed and outcome from the output text', async () => {
+  const { trialInfo, focusTrial } = await import('../bulwark/observe/neatlogs');
+  assert.deepEqual(trialInfo(realShape.spans![4], realShape.spans!), { fault: 'latency-spike', seed: 2657296630, outcome: 'hung' });
+  const found = incidentsFromTrace(realShape, { target: 'refundbot', failing: ['timeout-after-commit:3869570308'] });
+  assert.deepEqual(found.map((f) => [f.fault, f.seed, f.why]), [
+    ['latency-spike', 2657296630, 'the trial hung'],
+    ['timeout-after-commit', 3869570308, 'recorded as failing by its run'],
+  ]);
+  // focusTrial narrows this shape too (it used to fall back to the whole trace).
+  assert.deepEqual(focusTrial(realShape, { fault: 'timeout-after-commit', seed: 3869570308 }).map((s) => s.span_id), ['c', 'c1']);
+});

@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import type { ChaosSpec } from './guard';
 import { hashFiles } from './loop/orchestrator';
 import type { Fetcher, NeatlogsSpan, NeatlogsTrace, ReadResult } from './observe/neatlogs';
-import { readTrace } from './observe/neatlogs';
+import { readTrace, trialInfo } from './observe/neatlogs';
 import { replayTrial, resolveReplayDir } from './replay';
 import type { ExperimentResult } from './scorecard';
 import { loadTarget, resolveTargetDir, type BulwarkTarget } from './target';
@@ -112,18 +112,14 @@ export function traceRefs(summaries: RunSummary[]): TraceRef[] {
   return [...refs.values()];
 }
 
-const spanMeta = (s: NeatlogsSpan): Record<string, unknown> => {
-  const m = { ...(s.span_metadata ?? {}), ...(s.data ?? {}) } as Record<string, unknown>;
-  // Attributes may come back nested, depending on the neatlogs API version.
-  for (const k of ['attributes', 'span_attributes']) if (m[k] && typeof m[k] === 'object') Object.assign(m, m[k] as object);
-  return m;
-};
-const isError = (s: NeatlogsSpan) => /error|fail/i.test(String(s.status ?? '')) || !!spanMeta(s).error_message;
+const isError = (s: NeatlogsSpan) => /error|fail/i.test(String(s.status ?? '')) || !!(s.data?.error_message || s.span_metadata?.error_message);
 
 /**
- * Trial incidents in one neatlogs trace. Each `bulwark.trial` span carries the trial's fault and seed.
- * A traced trial is only an incident when it failed: the span or one of its descendants errored or has
- * neatlogs detections, or the run that recorded the trace listed that fault and seed as failing.
+ * Trial incidents in one neatlogs trace. Each `bulwark.trial` span identifies its trial: fault and seed
+ * from its attributes or, as finalized traces return them, from its output text and parent experiment span
+ * (see trialInfo). A traced trial is only an incident when it failed: the run that recorded the trace
+ * listed that fault and seed as failing, the trial did not complete (crashed, hung, runaway), or the
+ * span or one of its descendants errored or has neatlogs detections.
  */
 export function incidentsFromTrace(trace: NeatlogsTrace, ref: Pick<TraceRef, 'target' | 'failing'>): { fault: string; seed: number; why: string }[] {
   const spans = trace.spans ?? [];
@@ -142,20 +138,22 @@ export function incidentsFromTrace(trace: NeatlogsTrace, ref: Pick<TraceRef, 'ta
   const found = new Map<string, { fault: string; seed: number; why: string }>();
   for (const s of spans) {
     if (s.node_name !== 'bulwark.trial') continue;
-    const m = spanMeta(s);
-    const seed = Number(m.seed);
-    const rawFault = typeof m.fault === 'string' ? m.fault : '';
+    const info = trialInfo(s, spans);
+    const seed = info.seed ?? NaN;
+    const rawFault = info.fault ?? '';
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff || !rawFault) continue;
     const fault = rawFault === 'none' ? 'baseline' : rawFault;
     if (!SAFE.test(fault)) continue;
     const tree = [s, ...descendants(s)];
     const why = ref.failing.includes(`${fault}:${seed}`)
       ? 'recorded as failing by its run'
-      : tree.some(isError)
-        ? 'a span in the trial errored'
-        : tree.some((x) => x.detections?.length)
-          ? 'neatlogs flagged a detection'
-          : '';
+      : info.outcome && info.outcome !== 'completed'
+        ? `the trial ${info.outcome}`
+        : tree.some(isError)
+          ? 'a span in the trial errored'
+          : tree.some((x) => x.detections?.length)
+            ? 'neatlogs flagged a detection'
+            : '';
     if (why) found.set(`${fault}:${seed}`, { fault, seed, why });
   }
   return [...found.values()];
