@@ -28,6 +28,10 @@ export interface FixContext {
   rules: { rule: string; how: string }[];
   /** Strategy ids in the order memory suggests trying them (best first). */
   preferred: string[];
+  /** What neatlogs recorded for a failing trial (bulwark/observe), when the trace was read back in time. */
+  neatlogsEvidence?: string;
+  /** Fix-site candidates from Entire Graph search over the original target (bulwark/red/graph). */
+  graphHints?: string;
 }
 
 export interface Proposal {
@@ -94,6 +98,34 @@ const SUBMIT_FIX = {
   },
 };
 
+/** The prompt ClaudeFixer sends: fault, rules, evidence (local + neatlogs), static and graph hints, rejected attempts, files. */
+export function buildFixPrompt(ctx: FixContext): string {
+  return [
+    `## Fault: ${ctx.fault.id}`,
+    `${ctx.fault.title}. Hypothesis: ${ctx.fault.hypothesis}`,
+    `## Business rules and exactly how the Judge checks them`,
+    ...ctx.rules.map((r) => `- "${r.rule}": ${r.how}`),
+    `Trials run against a sandbox. Side effects (refunds, emails) are read from the sandbox ledger, not from what the agent says it did.`,
+    `## Evidence (${ctx.before.passed}/${ctx.before.trials} trials passed)`,
+    ...Object.entries(ctx.before.violations)
+      .filter(([, n]) => n > 0)
+      .map(([rule, n]) => `- ${n}× broke "${rule}"`),
+    ...ctx.before.examples.map((e) => `- example: ${e.rule} → ${e.detail ?? ''}`),
+    `Outcomes: ${JSON.stringify(ctx.before.outcomes)}`,
+    `## Static analysis findings`,
+    ...ctx.findings.map((f) => `- ${f.file}:${f.line} ${f.why}`),
+    ...(ctx.neatlogsEvidence ? ['## What neatlogs recorded for a failing trial', ctx.neatlogsEvidence] : []),
+    ...(ctx.graphHints
+      ? ['## Where Entire Graph says to look', 'Ranked by Entire Graph search for the fault hypothesis (paths are from the repo root; edit the matching file you are given).', ctx.graphHints]
+      : []),
+    ...(ctx.failed.length
+      ? ['## Previous attempts the Judge rejected', ...ctx.failed.map((f) => `- ${f.strategy}: ${f.rationale}\n  rejected because: ${f.reasons.join('; ')}`)]
+      : []),
+    `## Files you may edit`,
+    ...Object.entries(ctx.files).map(([path, src]) => `### ${path}\n\`\`\`ts\n${src}\n\`\`\``),
+  ].join('\n');
+}
+
 export class ClaudeFixer implements Fixer {
   name: string;
   private client: Anthropic;
@@ -105,26 +137,7 @@ export class ClaudeFixer implements Fixer {
 
   async propose(ctx: FixContext): Promise<Proposal | null> {
     return trace({ name: 'blue.llm-propose', kind: 'AGENT', attributes: { fault: ctx.fault.id, model: this.model } }, async () => {
-      const prompt = [
-        `## Fault: ${ctx.fault.id}`,
-        `${ctx.fault.title}. Hypothesis: ${ctx.fault.hypothesis}`,
-        `## Business rules and exactly how the Judge checks them`,
-        ...ctx.rules.map((r) => `- "${r.rule}": ${r.how}`),
-        `Trials run against a sandbox. Side effects (refunds, emails) are read from the sandbox ledger, not from what the agent says it did.`,
-        `## Evidence (${ctx.before.passed}/${ctx.before.trials} trials passed)`,
-        ...Object.entries(ctx.before.violations)
-          .filter(([, n]) => n > 0)
-          .map(([rule, n]) => `- ${n}× broke "${rule}"`),
-        ...ctx.before.examples.map((e) => `- example: ${e.rule} → ${e.detail ?? ''}`),
-        `Outcomes: ${JSON.stringify(ctx.before.outcomes)}`,
-        `## Static analysis findings`,
-        ...ctx.findings.map((f) => `- ${f.file}:${f.line} ${f.why}`),
-        ...(ctx.failed.length
-          ? ['## Previous attempts the Judge rejected', ...ctx.failed.map((f) => `- ${f.strategy}: ${f.rationale}\n  rejected because: ${f.reasons.join('; ')}`)]
-          : []),
-        `## Files you may edit`,
-        ...Object.entries(ctx.files).map(([path, src]) => `### ${path}\n\`\`\`ts\n${src}\n\`\`\``),
-      ].join('\n');
+      const prompt = buildFixPrompt(ctx);
 
       const start = performance.now();
       let res: Anthropic.Message;

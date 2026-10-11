@@ -15,8 +15,14 @@ export function untraced<T>(fn: () => Promise<T>): Promise<T> {
   return quiet.run(true, fn);
 }
 
+let exportingNow = false;
+
+/** True once initTracing() has set up export to neatlogs, so trace ids name traces neatlogs will have. */
+export const isExporting = () => exportingNow;
+
 export async function initTracing(workflowName: string): Promise<boolean> {
   const exporting = Boolean(process.env.NEATLOGS_API_KEY);
+  exportingNow = exporting;
   await init({
     apiKey: process.env.NEATLOGS_API_KEY,
     workflowName,

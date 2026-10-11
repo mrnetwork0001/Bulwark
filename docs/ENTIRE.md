@@ -1,6 +1,6 @@
 # How Bulwark uses Entire
 
-Bulwark uses [Entire](https://docs.entire.io/overview) in two ways:
+Bulwark uses [Entire](https://docs.entire.io/overview) in three ways (the third, Entire Graph, is described at the end):
 
 1. **While we build Bulwark.** Entire is enabled on this repo for Claude Code. Each commit made during an agent session gets an `Entire-Checkpoint: <id>` trailer, and the session (prompt, transcript, subagent transcripts, token usage) is stored as a git ref `refs/entire/checkpoints/<shard>/<id>`.
 2. **Inside Bulwark's reports (feature #22, bug provenance).** Red's analyzer finds weak links at a file and line. Bulwark traces each line back to the commit that introduced it, and through Entire to the AI coding session, prompt and checkpoint behind that commit. The result is shown in the postmortem, the PR body, the CLI output and the live `analyze` event.
@@ -52,3 +52,23 @@ Each `Provenance` record has: `source` (`entire` | `git` | `unavailable`), `matc
   - The feature's own commit, `752c56e`, was made from a Claude Code subagent. Entire's `prepare-commit-msg` hook added `Entire-Checkpoint: 01M4MH8FJRZJJ7TFJQB0Y6S14V`, and the post-commit hook wrote `refs/entire/checkpoints/4V/01M4MH8FJRZJJ7TFJQB0Y6S14V`. That checkpoint has no top-level prompt (the work was done by subagents). Bulwark reads the subagent transcripts stored in it and names the task that wrote the line: `npm run provenance -- bulwark/provenance/entire.ts:1` → "via subagent task "Entire bug provenance"". Entire marks this link `session_fallback` (the new file isn't in the checkpoint's `files_touched`), and Bulwark says so.
 - **Some lines fall back to git.** For example, `bulwark/report/reports.ts:9` (commit `ae0406c`) has no trailer, and no imported transcript wrote that exact line. That work was done by subagents, whose transcripts were not part of the import. Bulwark reports the commit, author and date, and says no session could be linked.
 - **The residual findings in the PR body ("Remaining risk") get no provenance.** They point at the patched copy in `.bulwark/runs/<id>/ws`, which is not committed.
+
+## Entire Graph in the loop (Red blast radius, Blue fix sites)
+
+The `entire graph` plugin (v0.4.0, `~/.local/bin/entire graph`) is a local code graph with no network egress. Bulwark calls it through `bulwark/red/graph.ts`:
+
+- **Red, analyze step.** For each weak link, `entire graph impact --symbol <file>:<line> --format json --exclude-tests --depth 2` returns the enclosing symbol and its callers. Bulwark keeps code callers only (doc and evidence mentions are dropped) and attaches them to the finding as `blast: { focus, callers }`. The blast radius is shown in the CLI under each finding, in each postmortem's "Weak links found in the code" section, and in the live `analyze` event. For RefundBot it reads `createTools (function, targets/refundbot/tools.ts:76) ← 1 caller: runRefundBot (targets/refundbot/agent.ts:54)`. RefundBot's tools are closures inside `createTools`, so every tool finding resolves to that function. That is the real enclosing symbol.
+- **Blue, before each fault.** `entire graph search --query "<fault hypothesis>" --format json --profile full` ranks fix sites. The graph indexes the whole repo, including Bulwark itself, so Bulwark keeps only hits inside the target and passes the top 3 (with their source) to the Claude fixer as "## Where Entire Graph says to look". For `timeout-after-commit`, the top hit is `targets/refundbot/tools.ts:51-59 withTimeout`.
+- **Against the committed target, not the patched copy.** The loop's patched code lives in `.bulwark/runs/<id>/ws/`, which is gitignored and outside the tree the graph indexes. Graph queries therefore run against the original target in the repo (`targets/refundbot`), from the repo root.
+- **Never blocks.** If the plugin isn't installed, `entire graph version` fails, and the loop logs "Entire Graph not available" and carries on with static analysis only. Any failed query returns nothing. Set `BULWARK_ENTIRE_GRAPH=0` to switch it off.
+
+Verify it yourself:
+
+```bash
+entire graph version                                                     # v0.4.0
+entire graph impact --symbol targets/refundbot/tools.ts:87 --repo . --exclude-tests --depth 2 --format text
+entire graph search --repo . --query "If a refund succeeds but the response is slow, the blind retry refunds the customer twice." --top-k 8 --format agent --profile full
+npm run fix -- --fixer playbook --fault timeout-after-commit --max-attempts 1   # "blast radius (Entire Graph)" under each RED finding
+BULWARK_ENTIRE_GRAPH=0 npm run fix -- --fixer playbook --fault timeout-after-commit --max-attempts 1   # same run, graph switched off
+grep -A1 "Blast radius (Entire Graph)" .bulwark/runs/*/postmortem-timeout-after-commit.md | tail -3
+```

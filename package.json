@@ -11,6 +11,7 @@
     "dashboard": "tsx bulwark/server.ts",
     "fix": "tsx bulwark/fix.ts",
     "replay": "tsx bulwark/replay-cli.ts",
+    "readback": "tsx bulwark/readback.ts",
     "provenance": "tsx bulwark/provenance/cli.ts",
     "red:generate": "tsx bulwark/generate.ts",
     "economics": "tsx bulwark/economics.ts",
