@@ -4,7 +4,7 @@
 
 Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) with **neatlogs**, **Entire** and **cfo.ai**, plus 0G Compute and Crustdata.
 
-**Live site: [usebulwark.vercel.app](https://usebulwark.vercel.app)**. The hosted [/app](https://usebulwark.vercel.app/app) replays real runs recorded on the local server (same events, trial replays and verdicts, with the waits shortened). To run the loop live on your machine, see [Quickstart](#quickstart).
+**Live site: [usebulwark.vercel.app](https://usebulwark.vercel.app)**. The hosted [/app](https://usebulwark.vercel.app/app) runs real loops on a live Bulwark server (Claude via 0G as the fixer, every run traced to neatlogs). If that server is busy or down, it plays a run recorded on the local server instead and says so. To run it on your own machine, see [Quickstart](#quickstart); to host it, `scripts/deploy/vps-setup.sh`.
 
 ![Bulwark landing page](docs/screenshots/landing-hero-desktop.png)
 
