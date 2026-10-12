@@ -65,14 +65,13 @@
 
   // Say plainly what this page is.
   const banner = () => {
-    const recorded = index ? new Date(index.recordedAt).toUTCString().slice(5, 16) : '';
     const el = document.createElement('div');
     el.className = 'demo-banner';
-    el.innerHTML = `<b>Hosted demo.</b> Buttons replay real runs recorded on the local server${recorded ? ` (${recorded})` : ''}: same events, replays and verdicts, with the waits shortened. Settings don't change the recording. To run it live on your machine: <code>npm run dashboard</code> · <a href="https://github.com/mrnetwork0001/Bulwark#quickstart" target="_blank" rel="noopener">Quickstart</a>`;
+    el.innerHTML = `<span><b>Recorded run</b> · a real Bulwark run, played back with the waits shortened</span><a href="https://github.com/mrnetwork0001/Bulwark#quickstart" target="_blank" rel="noopener">Run it live ↗</a>`;
     document.body.prepend(el);
   };
   const style = document.createElement('style');
-  style.textContent = '.demo-banner{font:13px/1.5 Inter,system-ui,sans-serif;background:#0a0a0a;color:#fff;padding:9px var(--gutter,16px);text-align:center}.demo-banner code{font-family:"Geist Mono",monospace;background:rgba(255,255,255,.12);padding:1px 6px;border-radius:6px}.demo-banner a{color:#fff;text-decoration:underline}';
+  style.textContent = '.demo-banner{display:flex;justify-content:center;gap:14px;font:12.5px/1.4 Inter,system-ui,sans-serif;background:#0a0a0a;color:rgba(255,255,255,.72);padding:7px var(--gutter,16px);white-space:nowrap}.demo-banner span{overflow:hidden;text-overflow:ellipsis}.demo-banner b{color:#fff;font-weight:500}.demo-banner a{color:#fff;text-decoration:none;flex:none}.demo-banner a:hover{text-decoration:underline}';
   document.head.append(style);
   // Show the settings the recordings were made with, and lock them.
   const lockControls = () => {
