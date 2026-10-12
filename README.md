@@ -2,9 +2,15 @@
 
 **Chaos engineering for AI agents.** Bulwark attacks your agent in a sandbox with the failures the real world throws at it, writes the fix, and only accepts it when an independent Judge proves it with statistics, before your users ever see the bug.
 
-Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) with **neatlogs**, **Entire** and **cfo.ai**, plus 0G Compute and Crustdata.
+Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) with **neatlogs**, **Entire** and **cfo.ai**, plus **0G Compute** and **Crustdata** ([what each one does](#partners-and-integrations)).
 
-**Live site: [usebulwark.vercel.app](https://usebulwark.vercel.app)**. The hosted [/app](https://usebulwark.vercel.app/app) runs real loops on a live Bulwark server (Claude via 0G as the fixer, every run traced to neatlogs). If that server is busy or down, it plays a run recorded on the local server instead and says so. To run it on your own machine, see [Quickstart](#quickstart); to host it, `scripts/deploy/vps-setup.sh`.
+| | |
+|---|---|
+| **Try it live** | [usebulwark.vercel.app/app](https://usebulwark.vercel.app/app): click **Attack → Fix → Prove** and a real loop runs on the Bulwark server (about 70 s with the playbook; switch the top bar to **Claude via 0G** to watch Claude write the fixes) |
+| **Landing page** | [usebulwark.vercel.app](https://usebulwark.vercel.app) |
+| **Demo film** | 2:18, made in this repo ([video/](video/README.md)) |
+| **Business plan** | [cfo.ai read-only plan](https://app.cfo.ai/s/xAu-NTAidKxJcCm7) |
+| **Built in public** | [Day 1 post on X](https://x.com/encrypt_wizard/status/2109130758770102283) · [log](docs/BUILD_IN_PUBLIC.md) |
 
 ![Bulwark landing page](docs/screenshots/landing-hero-desktop.png)
 
@@ -32,29 +38,50 @@ Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) wit
 |---|---|
 | The agent improved (a before and after run, with the numbers compared) | neatlogs: one session per run, `2 red: attack scorecard BEFORE` vs `6 red: attack scorecard AFTER` traces · repo: [scorecards, PR, patch, postmortems](docs/evidence/02-claude-via-0g-loop/) |
 | Used neatlogs | Every experiment, trial, tool call, fault and verdict is traced; Blue and the incident sweep **read traces back** (`npm run readback`, `npm run replay-failures`). [docs/NEATLOGS.md](docs/NEATLOGS.md) |
-| Used Entire | `Entire-Checkpoint:` trailer on every commit since `e44db55`, 74 checkpoints pushed (`git fetch origin 'refs/entire/*:refs/entire/*'`), bug provenance (`npm run provenance -- targets/refundbot/tools.ts:87`), Entire Graph blast radius. [docs/ENTIRE.md](docs/ENTIRE.md) |
+| Used Entire | `Entire-Checkpoint:` trailer on every commit since `e44db55`, 88 checkpoints pushed (`git fetch origin 'refs/entire/*:refs/entire/*'`), bug provenance (`npm run provenance -- targets/refundbot/tools.ts:87`), Entire Graph blast radius. [docs/ENTIRE.md](docs/ENTIRE.md) |
 | Used cfo.ai | Business plan built in cfo.ai: pricing, unit economics, Crustdata market, 36-month revenue, costs and runway. [Read-only plan](https://app.cfo.ai/s/xAu-NTAidKxJcCm7) · [summary](docs/business/cfo-ai-plan.md) |
 | The agent recovers from failures | Rejected fixes rolled back to checkpoints in every loop (e.g. [timeout-after-commit postmortem](docs/evidence/02-claude-via-0g-loop/postmortem-timeout-after-commit.md)) · [self-chaos: 11/11 recovered](docs/evidence/07-self-chaos/) |
 | Built in public | [Day 1 post](https://x.com/encrypt_wizard/status/2109130758770102283) · [log of posts](docs/BUILD_IN_PUBLIC.md) |
-| Code written during the hackathon | Commit history: Oct 10, 16:20 IST onwards |
+| Code written during the hackathon | Commit history: first commit Oct 10, 14:50 IST, 105+ commits through Oct 12 |
+| It runs, for anyone | [usebulwark.vercel.app/app](https://usebulwark.vercel.app/app) runs live loops on a public Bulwark server; every visitor's run is a neatlogs session |
 
 More evidence: [social engineering](docs/evidence/05-social-engineering/) · [generative Red](docs/evidence/03-generated-faults.json) · [Claude fixes a generated fault](docs/evidence/04-claude-fixes-generated-fault/) · [ResearchBot](docs/evidence/06-researchbot/) · [game days](docs/evidence/08-game-day/) · [LLM-compiled rules](docs/evidence/08-llm-rules/) · [incident replay](docs/evidence/09-incident-replay/) · [trace diff](docs/evidence/10-trace-diff/) · [CI gate & ChatOps](docs/evidence/07-ci-chatops-notify/) · [model leaderboard](docs/evidence/leaderboard.md) · [screenshots](docs/screenshots/)
 
-## Built with
+## Partners and integrations
 
-| Tool | What it does in Bulwark |
-|---|---|
-| **neatlogs** | One session per Bulwark run and one trace per phase; sampled trial traces show exactly where the agent broke; Blue reads a failing trial's trace back before writing a fix |
-| **Entire** | Checkpoints every commit with the AI session behind it; Bulwark traces each weak link to its session and prompt, and uses Entire Graph for blast radius and fix-site search |
-| **cfo.ai** | The business plan, built through cfo.ai's MCP server from measured run costs and Crustdata market counts, with assumptions labelled |
-| **0G Compute** | Claude (and other models) through the 0G Router for Blue's fixes, generative Red, LLM-compiled rules, fix tournaments and the model leaderboard |
-| **Crustdata** | ResearchBot's real company and people data (recorded once for 13 credits, replayed for free) and the market sizing (8.7 credits) |
+| Partner | Required? | What it does in Bulwark | Where |
+|---|---|---|---|
+| **[neatlogs](https://neatlogs.com)** | yes | One session per Bulwark run and one trace per phase (Red's BEFORE/AFTER scorecards, every Blue proposal, every Judge verdict); sampled trial traces show the exact step where the agent broke. Bulwark also **reads traces back**: Blue reads a failing trial's trace before writing a fix, and the incident sweep re-runs failing spans. Visitors' runs on the live site are traced too. | `bulwark/tracing.ts`, `bulwark/observe/`, [docs/NEATLOGS.md](docs/NEATLOGS.md) |
+| **[Entire](https://entire.io)** | yes | Checkpointed every commit of this build with the AI session behind it (88 checkpoints, sanitized before publishing). Red traces each weak link to the session and prompt that wrote it (`npm run provenance`), and Entire Graph sizes its blast radius and finds fix sites. | `bulwark/provenance/`, `bulwark/red/graph.ts`, [docs/ENTIRE.md](docs/ENTIRE.md) |
+| **[cfo.ai](https://cfo.ai)** | yes | The business plan, built through cfo.ai's MCP server from measured run costs and Crustdata market counts: pricing, unit economics, 36-month revenue, costs and runway, assumptions labelled. | [plan](https://app.cfo.ai/s/xAu-NTAidKxJcCm7), [docs/business/](docs/business/cfo-ai-plan.md) |
+| **[0G Compute](https://0g.ai)** | partner | Claude (and DeepSeek, GLM) through the 0G Router: Blue's fixes, generative Red, the LLM rule compiler, fix tournaments, the model leaderboard, and the live site's **Claude via 0G** fixer. | `bulwark/llm.ts`, `bulwark/blue/fixer.ts` |
+| **[Crustdata](https://crustdata.com)** | partner | ResearchBot, the second target, builds company briefs from real Crustdata data (recorded once for 13 credits, replayed free); `npm run market` sizes the market (TAM/SAM/SOM) that feeds the cfo.ai plan. | `targets/researchbot/`, `bulwark/market.ts`, [docs/CRUSTDATA.md](docs/CRUSTDATA.md) |
+
+Also used: **Claude Code** (pair-programmed the build, captured by Entire), **Vercel** (landing page and hosted app), a **VPS** running the live Bulwark server, **GitHub Actions** (CI chaos gate and ChatOps), and **Remotion + ElevenLabs** (the demo film).
+
+## Live deployment
+
+```
+browser ──> usebulwark.vercel.app  (static: landing page + /app)
+                 │  /api/*  (CORS: only this site)
+                 ▼
+        bulwark.38.49.216.120.sslip.io  (Caddy, HTTPS) ──> Bulwark server (systemd, 127.0.0.1:5317)
+```
+
+- **Live by default.** `/app` streams real loops from the server. In public mode (`BULWARK_PUBLIC=1`) trial counts are capped, one loop runs at a time and two attacks at most, and CORS allows only the hosted site. Keys live only in the server's `.env`; browsers never see them.
+- **Who writes the fixes.** The top-bar switch picks **Playbook** (default on the public server: fast and deterministic) or **Claude via 0G** (Claude gets two tries per fault, then the playbook's full four; the Judge decides either way). `BULWARK_FIXER=playbook` turns Claude off server-wide.
+- **Never a broken page.** If the server is down, or another visitor's loop is running, the page plays a run recorded on the local server instead (real events, trial replays and fix diffs, with the waits shortened) and says so in a one-line banner. Recordings: `node scripts/record-hosted-demo.mjs`.
+- **Hosting it yourself.** `scripts/deploy/vps-setup.sh` sets it up on any Ubuntu/Debian box, including a shared one: its own Node, its own Caddy site file, CPU and memory caps, no firewall changes. The Vercel build (`scripts/build-hosted.mjs`) takes the server URL from `BULWARK_API_URL`.
+
+## Demo film
+
+A 2:18 film, built as code with [Remotion](https://www.remotion.dev) in [video/](video/README.md): real footage of the app and of neatlogs, the partner logos, narration, music and sound effects by ElevenLabs, rendered in 4K. Every number on screen comes from a real run; [video/README.md](video/README.md) lists what is real and where each logo came from.
 
 ## Quickstart
 
 ```bash
 npm install
-npm run dashboard                   # http://localhost:5317 (landing) and /app (live dashboard)
+npm run dashboard                   # http://localhost:5317 (landing) and /app (live dashboard; Playbook / Claude switch in the top bar)
 npm run fix                         # the full loop: attack → fix → verify → prove
 npm run fix -- --no-memory          # ignore past runs (shows the rejected fixes and rollbacks)
 npm run fix -- --apply              # commit verified fixes to a bulwark/fix-* branch (worktree; main untouched)
@@ -81,7 +108,7 @@ npm run ci:scorecard                # CI gate: offline scorecard vs targets/<t>/
 npm run fix -- --dry-run-notify     # print the Slack/Discord run summary (sent for real when a webhook URL is set)
 npm run fix -- --game-day --fixer playbook --no-memory                 # game days: several faults in one trial (RefundBot 43% → 100%)
 npm run chaos -- --stale --degrade                                     # stale-data and model-degradation faults (opt-in packs)
-npm test
+npm test                            # 175 tests
 ```
 
 In CI, every PR that touches `targets/` gets a sticky chaos-scorecard comment and fails if resilience drops. Collaborators can comment `/bulwark attack | fix [pr] | replay | help`. Setup is in [docs/CI.md](docs/CI.md).
@@ -89,7 +116,7 @@ In CI, every PR that touches `targets/` gets a sticky chaos-scorecard comment an
 ## The loop
 
 1. **Red** reads the agent's code and finds weak links (file, line and the fault each one invites), then attacks: 20 sandboxed trials per fault.
-2. **Blue** proposes a fix. With `ANTHROPIC_API_KEY` set, Claude writes the patch; otherwise (or if Claude gives up) a playbook of textbook fixes is used, cheapest first.
+2. **Blue** proposes a fix. With `ZG_ROUTER_API_KEY` (Claude via 0G) or `ANTHROPIC_API_KEY` set, Claude writes the patch, with two tries per fault; otherwise (or after that) a playbook of textbook fixes is used, cheapest first.
 3. **Judge** loads the patched copy from its own workspace and re-runs *every* attack on its own fresh seeds. A fix counts only if every trial passes, the improvement is statistically significant (Fisher exact, p < 0.05), and nothing else regressed.
 4. Rejected fixes are **rolled back** to the checkpoint taken before the attempt, and Blue tries again with the Judge's reasons.
 5. **Guard** ships a chaos regression test with each fix and proves it: it must fail on the un-fixed code and pass on the fixed code.
@@ -154,11 +181,18 @@ Without `CRUSTDATA_API_KEY` (and no cache) it exits with an error and writes not
 ## Layout
 
 ```
-bulwark/            chaos agent: faults, harness, rule compiler, scorecard, CLI
-targets/refundbot/  the deliberately fragile demo agent
-targets/researchbot/ second target: a research agent on recorded Crustdata responses
-docs/               plan, features, demo script, submission checklist
+bulwark/              the chaos agent: Red (analyze, generate), chaos faults, harness, Blue (fixer, playbook),
+                      Judge (stats, SLO, tournament, overhead), Guard, rules compiler, self-chaos, provenance,
+                      neatlogs read-back, server + dashboard (landing, /app, hosted-demo layer)
+targets/refundbot/    the deliberately fragile demo agent (refunds through a Dodo Payments sandbox)
+targets/researchbot/  second target: company briefs from recorded Crustdata responses
+scripts/              hosted build and recordings, VPS setup, Entire checkpoint sanitizer
+video/                the demo film (Remotion source, script, logos, audio)
+docs/                 evidence, business plan, features, demo script, submission checklist
+.github/workflows/    CI chaos gate and /bulwark ChatOps
 ```
+
+All 30 planned features shipped; each is listed with its evidence in [docs/FEATURES.md](docs/FEATURES.md).
 
 See [docs/ENTIRE.md](docs/ENTIRE.md) for how Bulwark uses Entire (checkpoints while building, bug provenance in reports). See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full plan and [docs/FEATURES.md](docs/FEATURES.md) for the roadmap.
 
