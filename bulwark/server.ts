@@ -118,6 +118,10 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
   try {
     // Optional: a reliability target (e.g. slo=0.95) and a fix tournament (e.g. tournament=playbook,playbook-strong).
     const slo = params.get('slo') ? parseSlo(params.get('slo')!) : undefined;
+    // The app's Playbook / Claude switch (fixer=playbook|llm). Without it: Claude when a key is set locally,
+    // the playbook on a public server (fast and deterministic; visitors opt into Claude).
+    const want = params.get('fixer');
+    const fixer = FIXER === 'playbook' || want === 'playbook' ? 'playbook' : want === 'llm' ? FIXER : PUBLIC ? 'playbook' : FIXER;
     const tournament = params.get('tournament') ? parseTournament(params.get('tournament')!) : undefined;
     if (tournament && FIXER === 'playbook' && tournament.some((e) => !e.startsWith('playbook'))) throw new Error('This server runs the playbook fixer only; LLM tournaments are off.');
     const summary = await runLoop(
@@ -128,9 +132,9 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
         ...(slo ? { slo } : {}),
         ...(tournament ? { tournament } : {}),
         memory: params.get('memory') === '1',
-        fixer: FIXER,
+        fixer,
         // The LLM gets two tries per fault before the playbook; keep the playbook's full four behind them.
-        maxAttempts: llmProvider() && FIXER !== 'playbook' ? 6 : 4,
+        maxAttempts: fixer !== 'playbook' && llmProvider() ? 6 : 4,
         redTrials: cap(Math.max(5, Number(params.get('trials') ?? 20)), 100, 30),
         seed: Number(params.get('seed') ?? 42),
       },
@@ -190,6 +194,8 @@ async function main() {
               risk: !!target.risk,
               neatlogs: exporting,
               fixer: llmProvider() && FIXER !== 'playbook' ? `${defaultModel('fixer')} via ${llmLabel()} + playbook` : 'playbook (add an LLM key for Claude)',
+              llm: !!llmProvider() && FIXER !== 'playbook',
+              fixerDefault: llmProvider() && FIXER !== 'playbook' && !PUBLIC ? 'llm' : 'playbook',
               faults: [
                 { id: 'baseline', title: 'No fault injected', hypothesis: 'The agent works when nothing breaks.' },
                 ...faultsFor(target).map(({ id, title, hypothesis }) => ({ id, title, hypothesis })),

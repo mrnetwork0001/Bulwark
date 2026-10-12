@@ -505,6 +505,18 @@ function card(f) {
   return el;
 }
 
+// Who writes the fixes for the next loop: 'playbook' or 'llm' (the server says what's available).
+let fixerChoice = 'playbook';
+function showFixer() { $('fx').querySelectorAll('[data-fixer]').forEach((s) => s.classList.toggle('on', s.dataset.fixer === fixerChoice)); }
+function pickFixer(ev) {
+  const s = ev.target.closest('[data-fixer]');
+  if (!s || (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ')) return;
+  if (s.dataset.fixer === 'llm' && !(meta.llm ?? !/^playbook/i.test(meta.fixer))) return;
+  ev.preventDefault();
+  fixerChoice = s.dataset.fixer;
+  showFixer();
+}
+
 function resetCards() { $('grid').replaceChildren(...meta.faults.map(card)); }
 
 async function load() {
@@ -536,11 +548,19 @@ async function load() {
   // Model tournaments need an LLM key; offer them only when the server has one.
   if (String(meta.fixer).startsWith('playbook')) document.querySelectorAll('#tournament option[data-llm]').forEach((o) => { o.disabled = true; o.textContent += ' · needs LLM key'; });
   $('target').textContent = meta.target;
-  const llm = !/^playbook/i.test(meta.fixer);
+  const llm = meta.llm ?? !/^playbook/i.test(meta.fixer);
   const via = /0G/i.test(meta.fixer) ? '0G' : /anthropic/i.test(meta.fixer) ? 'Anthropic' : '0G';
   $('fx').querySelector('[data-fixer="llm"]').innerHTML = `Claude<em class="via">via ${esc(via)}</em>`;
-  $('fx').querySelectorAll('[data-fixer]').forEach((s) => s.classList.toggle('on', (s.dataset.fixer === 'llm') === llm));
-  $('fx').title = 'fixer: ' + meta.fixer;
+  fixerChoice = llm ? (meta.fixerDefault ?? 'llm') : 'playbook';
+  $('fx').querySelectorAll('[data-fixer]').forEach((s) => {
+    const can = s.dataset.fixer === 'playbook' || llm;
+    s.setAttribute('role', 'button');
+    s.tabIndex = can ? 0 : -1;
+    s.style.cursor = can ? 'pointer' : 'not-allowed';
+    s.title = s.dataset.fixer === 'playbook' ? 'Playbook: proven fix strategies, fast and deterministic'
+      : can ? `Claude via ${via} writes the fixes (the playbook takes over if the Judge rejects them twice). Slower: a full loop takes several minutes.` : 'Needs an LLM key on the server';
+  });
+  showFixer();
   $('nl').classList.toggle('on', !!meta.neatlogs);
   $('nl').title = meta.neatlogs ? 'neatlogs: exporting traces' : 'neatlogs: local only';
   $('nl').querySelector('.t').textContent = meta.neatlogs ? 'neatlogs live' : 'neatlogs local';
@@ -887,7 +907,7 @@ function runLoopUI() {
   setBusy(true);
   $('loop').scrollIntoView({ behavior: 'smooth', block: 'start' });
   const slo = $('slo').value, tournament = $('tournament').value;
-  const es = new EventSource(`/api/loop?trials=${trials}&seed=${seed}&memory=${memory}&${tq()}` +
+  const es = new EventSource(`/api/loop?trials=${trials}&seed=${seed}&memory=${memory}&fixer=${fixerChoice}&${tq()}` +
     (slo ? `&slo=${encodeURIComponent(slo)}` : '') + (tournament ? `&tournament=${encodeURIComponent(tournament)}` : ''));
   es.addEventListener('loop', (m) => { const e = JSON.parse(m.data); handlers[e.type]?.(e); if (e.type === 'run-done') { es.close(); setBusy(false); } });
   es.addEventListener('loop-error', (m) => { tl(`<span class="bad">Error: ${esc(JSON.parse(m.data).message)}</span>`); es.close(); setBusy(false); });
@@ -1143,6 +1163,8 @@ function pickTarget(ev) {
   loopFixes.clear(); runId = '';
   load();
 }
+$('fx').addEventListener('click', pickFixer);
+$('fx').addEventListener('keydown', pickFixer);
 $('tg').addEventListener('click', pickTarget);
 $('tg').addEventListener('keydown', pickTarget);
 
