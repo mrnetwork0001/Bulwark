@@ -129,6 +129,8 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
         ...(tournament ? { tournament } : {}),
         memory: params.get('memory') === '1',
         fixer: FIXER,
+        // The LLM gets two tries per fault before the playbook; keep the playbook's full four behind them.
+        maxAttempts: llmProvider() && FIXER !== 'playbook' ? 6 : 4,
         redTrials: cap(Math.max(5, Number(params.get('trials') ?? 20)), 100, 30),
         seed: Number(params.get('seed') ?? 42),
       },
