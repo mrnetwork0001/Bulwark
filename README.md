@@ -10,6 +10,7 @@ Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) wit
 | **Landing page** | [usebulwark.vercel.app](https://usebulwark.vercel.app) |
 | **Demo film** | 2:18, made in this repo ([video/](video/README.md)) |
 | **Business plan** | [cfo.ai read-only plan](https://app.cfo.ai/s/xAu-NTAidKxJcCm7) |
+| **Submission post** | [Our #neatHack submission on X](https://x.com/encrypt_wizard/status/2109646147182608845) (with the demo film) |
 | **Built in public** | [Day 1 post on X](https://x.com/encrypt_wizard/status/2109130758770102283) · [log](docs/BUILD_IN_PUBLIC.md) |
 
 ![Bulwark landing page](docs/screenshots/landing-hero-desktop.png)
@@ -41,7 +42,7 @@ Built during [#neatHack](https://neatlogs.com/hackathon) (Oct 10–12, 2026) wit
 | Used Entire | `Entire-Checkpoint:` trailer on every commit since `e44db55`, 98 checkpoints pushed (`git fetch origin 'refs/entire/*:refs/entire/*'`), bug provenance (`npm run provenance -- targets/refundbot/tools.ts:87`), Entire Graph blast radius. [docs/ENTIRE.md](docs/ENTIRE.md) |
 | Used cfo.ai | Business plan built in cfo.ai: pricing, unit economics, Crustdata market, 36-month revenue, costs and runway. [Read-only plan](https://app.cfo.ai/s/xAu-NTAidKxJcCm7) · [summary](docs/business/cfo-ai-plan.md) |
 | The agent recovers from failures | Rejected fixes rolled back to checkpoints in every loop (e.g. [timeout-after-commit postmortem](docs/evidence/02-claude-via-0g-loop/postmortem-timeout-after-commit.md)) · [self-chaos: 11/11 recovered](docs/evidence/07-self-chaos/) |
-| Built in public | [Day 1 post](https://x.com/encrypt_wizard/status/2109130758770102283) · [log of posts](docs/BUILD_IN_PUBLIC.md) |
+| Built in public | [Day 1 post](https://x.com/encrypt_wizard/status/2109130758770102283) · [submission post with the demo film](https://x.com/encrypt_wizard/status/2109646147182608845) · [log of posts](docs/BUILD_IN_PUBLIC.md) |
 | Code written during the hackathon | Commit history: first commit Oct 10, 14:50 IST, 105+ commits through Oct 12 |
 | It runs, for anyone | [usebulwark.vercel.app/app](https://usebulwark.vercel.app/app) runs live loops on a public Bulwark server; every visitor's run is a neatlogs session |
 

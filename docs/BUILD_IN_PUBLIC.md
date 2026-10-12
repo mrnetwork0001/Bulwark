@@ -14,7 +14,7 @@ Log each post's URL below; they are submission evidence.
 | 6 | Sun evening | "Its fix failed. It rolled back via an Entire checkpoint and tried again." | Clip of the rollback trace | |
 | 7 | Mon morning | Scorecard: 7/20 double refunds → 0/20 | Scorecard image | |
 | 8 | Mon afternoon | cfo.ai unit economics: cost per experiment vs cost of one incident | cfo.ai screenshot | |
-| 9 | Mon 7 PM+ | **Submission quote tweet** (team, project, repo, demo) | Video | |
+| 9 | Mon (submission) | **Submission quote-post** of the official neatlogs launch post: the story (agents pass their tests, then refund a customer twice), what Bulwark does, 56% → 100%, the live site, tags @arithecfo @EntireHQ @neatlogs | 2:18 demo film (native video) | https://x.com/encrypt_wizard/status/2109646147182608845 |
 
 ## Extras
 - Post short replies in the neatHack Discord channel with progress.
