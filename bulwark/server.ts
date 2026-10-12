@@ -19,6 +19,14 @@ import { listTargets, loadTarget, resolveTargetDir, type BulwarkTarget } from '.
 import { initTracing } from './tracing';
 
 const PORT = Number(process.env.PORT ?? 5317);
+const HOST = process.env.HOST ?? '127.0.0.1';
+// Public deployment (a VPS behind the hosted site): BULWARK_PUBLIC=1 caps trial counts and runs one
+// attack at a time; BULWARK_CORS_ORIGINS lists the sites allowed to call the API; BULWARK_FIXER=playbook
+// keeps visitors from spending LLM credits (default: Claude when a key is set, as locally).
+const PUBLIC = process.env.BULWARK_PUBLIC === '1';
+const CORS = (process.env.BULWARK_CORS_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean);
+const FIXER = (process.env.BULWARK_FIXER ?? 'auto') as 'auto' | 'playbook' | 'claude';
+const cap = (n: number, local: number, pub: number) => Math.min(PUBLIC ? pub : local, n);
 const PAGES: Record<string, URL> = {
   '/': new URL('./dashboard/landing.html', import.meta.url),
   '/app': new URL('./dashboard/index.html', import.meta.url),
@@ -41,13 +49,28 @@ function targetFrom(params: URLSearchParams): Promise<BulwarkTarget> {
   return loaded.get(dir)!;
 }
 
+let runsActive = 0;
+
 async function streamRun(res: ServerResponse, params: URLSearchParams) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+  if (PUBLIC && runsActive >= 2) {
+    send(res, 'error', { message: 'Bulwark is busy with other visitors\' attacks. Try again in a few seconds.' });
+    return res.end();
+  }
+  runsActive++;
+  try {
+    await streamRunInner(res, params);
+  } finally {
+    runsActive--;
+  }
+}
+
+async function streamRunInner(res: ServerResponse, params: URLSearchParams) {
   const faultParam = params.get('fault') ?? 'all';
   const target = await targetFrom(params);
   const faults: (Fault | undefined)[] = faultParam === 'all' ? [undefined, ...faultsFor(target)] : [undefined, getFault(faultParam, target)];
   const opts = {
-    trials: Math.min(200, Math.max(1, Number(params.get('trials') ?? 20))),
+    trials: cap(Math.max(1, Number(params.get('trials') ?? 20)), 200, 50),
     seed: Number(params.get('seed') ?? 42),
     brain: 'simulated' as const,
     deadlineMs: 5000,
@@ -96,6 +119,7 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
     // Optional: a reliability target (e.g. slo=0.95) and a fix tournament (e.g. tournament=playbook,playbook-strong).
     const slo = params.get('slo') ? parseSlo(params.get('slo')!) : undefined;
     const tournament = params.get('tournament') ? parseTournament(params.get('tournament')!) : undefined;
+    if (tournament && FIXER === 'playbook' && tournament.some((e) => !e.startsWith('playbook'))) throw new Error('This server runs the playbook fixer only; LLM tournaments are off.');
     const summary = await runLoop(
       {
         targetDir: relative(process.cwd(), resolveTargetDir(params.get('target'))),
@@ -104,7 +128,8 @@ async function streamLoop(res: ServerResponse, params: URLSearchParams) {
         ...(slo ? { slo } : {}),
         ...(tournament ? { tournament } : {}),
         memory: params.get('memory') === '1',
-        redTrials: Math.min(100, Math.max(5, Number(params.get('trials') ?? 20))),
+        fixer: FIXER,
+        redTrials: cap(Math.max(5, Number(params.get('trials') ?? 20)), 100, 30),
         seed: Number(params.get('seed') ?? 42),
       },
       (e) => send(res, 'loop', e.type === 'run-done' ? { ...e, summary: { ...e.summary, finalFiles: undefined } } : e),
@@ -142,6 +167,12 @@ async function main() {
 
   createServer((req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+    const origin = req.headers.origin;
+    if (origin && CORS.includes(origin)) {
+      res.setHeader('access-control-allow-origin', origin);
+      res.setHeader('vary', 'origin');
+    }
+    if (req.method === 'OPTIONS') return res.writeHead(204, { 'access-control-allow-methods': 'GET', 'access-control-max-age': '600' }).end();
     if (url.pathname in PAGES) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(readFileSync(PAGES[url.pathname]));
@@ -156,7 +187,7 @@ async function main() {
               // Dollars at risk is only shown for targets with a risk model.
               risk: !!target.risk,
               neatlogs: exporting,
-              fixer: llmProvider() ? `${defaultModel('fixer')} via ${llmLabel()} + playbook` : 'playbook (add an LLM key for Claude)',
+              fixer: llmProvider() && FIXER !== 'playbook' ? `${defaultModel('fixer')} via ${llmLabel()} + playbook` : 'playbook (add an LLM key for Claude)',
               faults: [
                 { id: 'baseline', title: 'No fault injected', hypothesis: 'The agent works when nothing breaks.' },
                 ...faultsFor(target).map(({ id, title, hypothesis }) => ({ id, title, hypothesis })),
@@ -198,8 +229,8 @@ async function main() {
     } else {
       res.writeHead(404).end('not found');
     }
-  }).listen(PORT, () => {
-    console.log(`Bulwark dashboard → http://localhost:${PORT}  (neatlogs ${exporting ? 'exporting' : 'local only'})`);
+  }).listen(PORT, HOST, () => {
+    console.log(`Bulwark dashboard → http://${HOST}:${PORT}  (neatlogs ${exporting ? 'exporting' : 'local only'}${PUBLIC ? ', public mode' : ''})`);
   });
 }
 
